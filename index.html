@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>迪拜大丰收冷库管理系统 - Warehouse 1</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#ffffff;--bg2:#f5f5f5;--bg3:#fafafa;--bg4:#f0f0f0;--bd:#e0e0e0;--tx:#1a1a1a;--tx2:#666666;--ac:#0066cc;--ac15:rgba(0,102,204,0.15);--am:#ff9900;--am15:rgba(255,153,0,0.15);--gr:#00aa00;--gr15:rgba(0,170,0,0.15);--rd:#cc0000;--rd15:rgba(204,0,0,0.15);--ice:#00bfff}
+body{font-family:'Courier New',Courier,monospace;background:var(--bg);color:var(--tx);min-height:100vh;font-size:15px}
+header{background:linear-gradient(135deg,#ffffff,#f5f5f5);border-bottom:2px solid var(--ice);padding:20px 36px;position:relative;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+header::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent,transparent 60px,rgba(0,191,255,0.04) 60px,rgba(0,191,255,0.04) 62px);pointer-events:none}
+header h1{font-size:24px;letter-spacing:3px;text-transform:uppercase;color:var(--ice);text-shadow:0 0 20px rgba(0,191,255,0.2);position:relative}
+header p{color:var(--tx);font-size:17px;font-weight:bold;margin-top:4px;letter-spacing:1px;position:relative}
+.hstats{display:flex;gap:28px;margin-top:14px;position:relative}
+.hstat{text-align:center}
+.hstat .v{font-size:22px;font-weight:bold;color:var(--am)}
+.hstat .l{font-size:11px;color:var(--tx2);letter-spacing:1px;text-transform:uppercase}
+.main{display:grid;grid-template-columns:360px 1fr;min-height:calc(100vh - 130px)}
+.left{border-right:1px solid var(--bd);padding:20px 15px 20px 20px;display:flex;flex-direction:column;gap:18px;overflow-y:auto;background:#fafafa}
+.section{background:var(--bg3);border:1px solid var(--bd);border-radius:7px;padding:18px 15px}
+.stitle{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--tx2);margin-bottom:14px;padding-bottom:9px;border-bottom:1px solid var(--bd)}
+.warehouse-selector{display:flex;gap:8px;margin-bottom:12px}
+.warehouse-btn{flex:1;padding:10px;border:2px solid var(--bd);border-radius:6px;background:var(--bg2);color:var(--tx2);font-weight:bold;cursor:pointer;transition:all .2s;text-transform:uppercase;font-size:12px}
+.warehouse-btn.active{border-color:var(--ice);background:rgba(0,191,255,0.1);color:var(--ice)}
+.warehouse-btn:hover{border-color:var(--ice)}
+.fg{margin-bottom:13px}
+.fg label{display:block;font-size:11px;color:var(--tx2);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px}
+.fg input,.fg select,.fg textarea{width:100%;background:var(--bg4);border:1px solid var(--bd);border-radius:5px;padding:10px 12px;color:var(--tx);font-family:'Courier New',monospace;font-size:15px;outline:none;transition:border-color .2s}
+.fg input:focus,.fg select:focus{border-color:var(--ac)}
+.fg input::placeholder{color:var(--tx2);opacity:.7;font-size:13px}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:11px 18px;border:none;border-radius:5px;font-family:'Courier New',monospace;font-size:13px;font-weight:bold;letter-spacing:1px;cursor:pointer;transition:all .2s;text-transform:uppercase;gap:5px}
+.btn-p{background:var(--ac);color:#fff}
+.btn-p:hover{background:#0052a3;box-shadow:0 0 14px var(--ac15)}
+.btn-s{background:var(--gr);color:#fff}
+.btn-s:hover{background:#2ea043;box-shadow:0 0 14px var(--gr15)}
+.btn-d{background:var(--rd);color:#fff}
+.btn-d:hover{background:#da3633;box-shadow:0 0 14px var(--rd15)}
+.btn-g{background:var(--bg4);color:var(--tx2);border:1px solid var(--bd)}
+.btn-g:hover{border-color:var(--ac);color:var(--tx)}
+.brow{display:flex;gap:8px;margin-top:14px}
+.right{display:flex;flex-direction:column;font-size:15px}
+.tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--bd);padding:0 21px}
+.tab{padding:14px 20px;font-size:15px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:var(--tx2);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.tab:hover{color:var(--tx)}
+.tab.ac{color:var(--ice);border-bottom-color:var(--ice)}
+.tc{flex:1;padding:18px 21px;overflow-y:auto;display:none}
+.tc.ac{display:block}
+.tw{overflow-x:auto;border:1px solid var(--bd);border-radius:6px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{background:var(--bg2);padding:12px 14px;text-align:left;font-size:14px;font-weight:bold;letter-spacing:.5px;text-transform:uppercase;color:var(--tx);border-bottom:2px solid var(--bd);white-space:nowrap}
+td{padding:11px 14px;border-bottom:1px solid rgba(48,54,61,.5);color:var(--tx);white-space:nowrap;font-size:14px;font-weight:500}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(0,191,255,.03)}
+.bdg{display:inline-block;padding:5px 10px;border-radius:3px;font-size:13px;font-weight:bold;font-family:Arial,sans-serif}
+.bdg-a{background:var(--am15);color:var(--am);border:1px solid rgba(210,153,34,.3)}
+.bdg-d{background:var(--gr15);color:var(--gr);border:1px solid rgba(63,185,80,.3)}
+.ftag{color:var(--ac);font-weight:bold}
+.abtn{padding:8px 16px;border:1px solid var(--bd);border-radius:4px;background:transparent;color:var(--tx);font-family:Arial,sans-serif;font-size:13px;font-weight:bold;cursor:pointer;margin-right:5px;transition:all .15s}
+.abtn:hover{border-color:var(--ac);color:var(--ac)}
+.abtn.x:hover{border-color:var(--rd);color:var(--rd)}
+.mov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.mov.sh{display:flex}
+.mdl{background:var(--bg3);border:1px solid var(--ac);border-radius:8px;padding:26px;width:460px;max-width:92vw;box-shadow:0 0 40px var(--ac15);animation:mi .2s ease}
+@keyframes mi{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+.mdl h3{color:var(--ac);font-size:15px;letter-spacing:2px;margin-bottom:18px;text-transform:uppercase}
+.mr{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(48,54,61,.5);font-size:13px}
+.mr:last-of-type{border-bottom:none;padding-top:12px;margin-top:4px;font-weight:bold}
+.mr .ml{color:var(--tx2)}
+.mr .mv{color:var(--tx)}
+.mr:last-child .mv{color:var(--ac);font-size:18px}
+.mdl .brow{margin-top:18px}
+.tst{position:fixed;bottom:24px;right:24px;padding:12px 18px;border-radius:6px;font-size:13px;letter-spacing:.5px;z-index:2000;animation:ti .3s ease;max-width:320px;line-height:1.6}
+.tst-ok{background:var(--bg3);border:1px solid var(--gr);color:var(--gr);box-shadow:0 0 18px var(--gr15)}
+.tst-err{background:var(--bg3);border:1px solid var(--rd);color:var(--rd);box-shadow:0 0 18px var(--rd15)}
+@keyframes ti{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+.es{text-align:center;padding:60px 20px;color:var(--tx2);font-size:15px}
+.es .em{font-size:48px;margin-bottom:14px;opacity:.5}
+::-webkit-scrollbar{width:24px;height:24px}
+::-webkit-scrollbar-track{background:var(--bg2);border-radius:12px}
+::-webkit-scrollbar-thumb{background:#c0c0c0;border-radius:12px;border:3px solid var(--bg2)}
+::-webkit-scrollbar-thumb:hover{background:var(--ac)}
+@media(max-width:900px){.main{grid-template-columns:1fr}.left{border-right:none;border-bottom:1px solid var(--bd)}}
+/* LOGIN SCREEN */
+.login-screen{position:fixed;inset:0;background:linear-gradient(135deg,#ffffff,#f5f5f5);display:flex;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(4px)}
+.login-screen.hidden{display:none}
+.login-box{background:#fff;border:2px solid var(--ice);border-radius:12px;padding:40px;width:420px;max-width:90vw;box-shadow:0 8px 32px rgba(0,191,255,0.2)}
+.login-box h2{color:var(--ice);font-size:24px;margin-bottom:8px;text-align:center;letter-spacing:2px}
+.login-box p{color:var(--tx);text-align:center;margin-bottom:28px;font-size:17px;font-weight:bold}
+.login-form .fg{margin-bottom:16px}
+.login-form label{display:block;font-size:12px;color:var(--tx2);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;font-weight:bold}
+.login-form input{width:100%;background:#f5f5f5;border:1px solid var(--bd);border-radius:6px;padding:12px 14px;color:var(--tx);font-family:'Courier New',monospace;font-size:14px;outline:none;transition:all .2s}
+.login-form input:focus{border-color:var(--ice);background:#fff;box-shadow:0 0 8px rgba(0,191,255,0.15)}
+.login-btn{width:100%;padding:14px;background:var(--ice);color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:bold;letter-spacing:1px;cursor:pointer;transition:all .2s;text-transform:uppercase;margin-top:8px}
+.login-btn:hover{background:#0099cc;box-shadow:0 4px 12px rgba(0,191,255,0.2)}
+.login-btn:active{transform:scale(0.98)}
+.login-error{color:var(--rd);font-size:12px;margin-top:12px;text-align:center;display:none}
+.login-error.show{display:block}
+/* EDITABLE TABLE */
+.edt{width:70px;background:var(--bg4);border:1px solid var(--bd);border-radius:3px;padding:4px 6px;color:var(--tx);font-family:'Courier New',monospace;font-size:13px;text-align:right;outline:none}
+.edt:focus{border-color:var(--ac);background:#fff}
+.edt-cn{width:100px;text-align:left}
+.edt-wide{width:100px}
+.edt-name{width:100px;text-align:left}
+/* AUTOCOMPLETE SUGGEST */
+.suggest-list{position:absolute;left:0;right:0;top:100%;z-index:10;max-height:180px;overflow-y:auto;background:#fff;border:1px solid #ccc;border-top:none;border-radius:0 0 5px 5px;box-shadow:0 4px 8px rgba(0,0,0,.12);display:none}
+.suggest-list.show{display:block}
+.suggest-item{padding:8px 12px;cursor:pointer;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}
+.suggest-item:hover{background:#e8f4ff;color:#0066cc}
+.suggest-item:last-child{border-bottom:none}
+/* SETTINGS MODAL */
+.sett-section{margin-bottom:20px;padding:14px;background:#f8f8f8;border:1px solid #e0e0e0;border-radius:6px}
+.sett-section h4{font-size:13px;color:#0066cc;margin-bottom:10px;letter-spacing:1px}
+.sett-row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+.sett-row input{flex:1;background:#fff;border:1px solid #ccc;border-radius:4px;padding:8px 10px;font-size:13px;outline:none}
+.sett-row input:focus{border-color:#0066cc}
+.sett-add-btn{padding:8px 14px;background:#00aa00;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;white-space:nowrap}
+.sett-add-btn:hover{background:#009900}
+.sett-tag{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:#e8f4ff;border:1px solid #b8d8f8;border-radius:4px;margin:3px;font-size:12px;color:#0066cc}
+.sett-tag .del{cursor:pointer;color:#cc0000;font-weight:bold;margin-left:4px}
+.sett-tag .del:hover{color:#990000}
+</style>
+</head>
+<body>
+<!-- LOGIN SCREEN (disabled for testing) -->
+<!-- <div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <h2>🧊 系统登录</h2>
+    <p>迪拜大丰收冷库管理系统 Warehouse 1</p>
+    <form class="login-form" onsubmit="handleLogin(event)">
+      <div class="fg">
+        <label>用户名 Username</label>
+        <input type="text" id="loginUsername" placeholder="输入用户名" required>
+      </div>
+      <div class="fg">
+        <label>密码 Password</label>
+        <div style="position:relative">
+          <input type="password" id="loginPassword" placeholder="输入密码" required style="padding-right:80px">
+          <button type="button" onclick="togglePassword()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#00bfff;font-size:12px">显示</button>
+        </div>
+      </div>
+      <button type="submit" class="login-btn">登 录 LOGIN</button>
+      <div class="login-error" id="loginError"></div>
+    </form>
+  </div>
+</div> -->
+
+<header>
+  <div style="display:flex;justify-content:space-between;align-items:center;position:relative;z-index:10">
+    <div>
+      <h1>🧊 迪拜大丰收冷库管理系统</h1>
+      <p>Super Harvest Cold Store Management System - Warehouse 1</p>
+    </div>
+    <div style="display:flex;gap:12px;position:relative;z-index:1;align-items:center">
+      <div class="user-info" id="userInfo" style="background:rgba(0,191,255,0.1);border:1px solid #00bfff;border-radius:5px;padding:8px 14px;font-size:13px;color:#00bfff;display:flex;align-items:center;gap:8px">
+        <span>👤</span>
+        <span id="currentUserDisplay">未登录</span>
+      </div>
+      <button class="btn btn-g" onclick="openSettings()" title="设置">⚙️ 设置</button>
+      <button class="btn btn-d" onclick="handleLogout()" title="退出登录">🚪 退出</button>
+    </div>
+  </div>
+  <div class="hstats" style="position:relative;z-index:1">
+    <div class="hstat"><div class="v" id="s-total">0</div><div class="l">总入库 Total</div></div>
+    <div class="hstat"><div class="v" id="s-pallets">0</div><div class="l">总托盘 Pallets</div></div>
+    <div class="hstat"><div class="v" id="s-items">0</div><div class="l">总件数 Items</div></div>
+  </div>
+</header>
+
+<div class="main">
+<div class="left">
+  <div class="section">
+    <div class="stitle">❄️ 冷库选择 / Cold Store</div>
+    <div class="warehouse-selector">
+      <button class="warehouse-btn active" onclick="selectColdStore(1)">冷库 1</button>
+      <button class="warehouse-btn" onclick="selectColdStore(2)">冷库 2</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="stitle">📦 入库登记 / Check In</div>
+    <div class="fg"><label>集装箱号码 Container No.</label>
+      <input type="text" id="f-cn" placeholder="输入集装箱号码" maxlength="11" style="text-transform:uppercase" autocomplete="off">
+    </div>
+    <div class="fg"><label>供应商 Supplier</label>
+      <input type="text" id="f-supplier" placeholder="输入供应商名称" autocomplete="off">
+    </div>
+    <div class="fg"><label>品名 Product Name <span style="color:var(--rd)">*</span></label>
+      <input type="text" id="f-product" placeholder="输入品名" autocomplete="off">
+    </div>
+    <div class="fg"><label>托盘数量 Pallets</label>
+      <input type="number" id="f-pallets" placeholder="输入托盘数量" min="1" value="1">
+    </div>
+    <div class="fg"><label>货物件数 Items</label>
+      <input type="number" id="f-items" placeholder="输入货物总件数" min="1" value="1">
+    </div>
+    <div class="fg"><label>入库日期 Arrival Date</label>
+      <input type="date" id="f-at">
+    </div>
+    <div class="brow">
+      <button class="btn btn-s" onclick="checkIn()">✓ 入库 Check In</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="stitle">🚚 出库登记 / Check Out</div>
+    <div class="fg" style="position:relative"><label>集装箱号码 Container No.</label>
+      <input type="text" id="f-cno" placeholder="输入或选择在库集装箱号码" style="text-transform:uppercase" autocomplete="off" oninput="showSuggestCn(this)" onfocus="showSuggestCn(this)" onblur="setTimeout(function(){hideSuggest('checkout-cn')},200)">
+      <div class="suggest-list" id="suggest-checkout-cn"></div>
+    </div>
+    <div class="fg"><label>出库托盘数 Pallets Out</label>
+      <input type="number" id="f-pallets-out" placeholder="输入出库托盘数" min="1" value="1">
+    </div>
+    <div class="fg"><label>出库件数 Items Out</label>
+      <input type="number" id="f-items-out" placeholder="输入出库件数" min="1" value="1">
+    </div>
+    <div class="fg"><label>出库日期 Departure Date</label>
+      <input type="date" id="f-dt">
+    </div>
+    <div class="brow">
+      <button class="btn btn-p" onclick="checkOut()">✈ 出库 Check Out</button>
+    </div>
+  </div>
+</div>
+
+<div class="right">
+  <div class="tabs">
+    <div class="tab ac" onclick="swTab('purchase')">🛒 采购记录 Purchase</div>
+    <div class="tab" onclick="swTab('records')">📋 库存记录 Records</div>
+    <div class="tab" onclick="swTab('stats')">📊 统计报表 Stats</div>
+  </div>
+
+  <div class="tc ac" id="tc-purchase">
+    <div class="brow" style="margin-bottom:14px">
+      <button class="btn btn-s" onclick="openPurchaseForm()">+ 新增采购记录 Add Purchase</button>
+    </div>
+    <div class="tw"><table><thead><tr><th>集装箱号 Container</th><th>供应商 Supplier</th><th>品名 Product</th><th>采购日期 Date</th><th>数量 Qty</th><th>停柜费 Demurrage</th><th>清关费 Customs</th><th>冷库费 Cold Fee</th><th>翻包费 Repack</th><th>垃圾处理费 Waste</th><th>其他费用 Other</th><th>合计 Total</th><th>操作 Action</th></tr></thead><tbody id="tb-purchase"></tbody></table></div>
+    <div class="es" id="es-purchase" style="display:none"><div class="em">📭</div><div>暂无采购记录 / No Purchase Records</div></div>
+  </div>
+
+  <div class="tc" id="tc-records">
+    <div class="tw"><table><thead><tr><th>集装箱 Container</th><th>供应商 Supplier</th><th>品名 Product</th><th>冷库 Store</th><th>托盘 Out/In</th><th>件数 Out/In</th><th>时间 Date</th><th>出库 Date</th><th>库存 In/Orig</th><th>费用 Fee</th><th>状态 Status</th><th>操作</th></tr></thead><tbody id="tb-all"></tbody></table></div>
+    <div class="es" id="es-all" style="display:none"><div class="em">📭</div><div>暂无记录 / No Records Yet</div></div>
+  </div>
+
+  <div class="tc" id="tc-stats">
+    <div style="padding:20px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+        <div style="background:#f0f8ff;border:1px solid #00bfff;border-radius:8px;padding:20px;text-align:center">
+          <div style="font-size:12px;color:#666;margin-bottom:8px">冷库 1 统计</div>
+          <div style="font-size:28px;font-weight:bold;color:#00bfff;margin-bottom:4px" id="stat-store1-count">0</div>
+          <div style="font-size:12px;color:#666">集装箱</div>
+          <div style="font-size:18px;font-weight:bold;color:#00bfff;margin-top:8px" id="stat-store1-pallets">0</div>
+          <div style="font-size:12px;color:#666">托盘</div>
+          <div style="font-size:18px;font-weight:bold;color:#00bfff;margin-top:8px" id="stat-store1-items">0</div>
+          <div style="font-size:12px;color:#666">件数</div>
+        </div>
+        <div style="background:#f0f8ff;border:1px solid #00bfff;border-radius:8px;padding:20px;text-align:center">
+          <div style="font-size:12px;color:#666;margin-bottom:8px">冷库 2 统计</div>
+          <div style="font-size:28px;font-weight:bold;color:#00bfff;margin-bottom:4px" id="stat-store2-count">0</div>
+          <div style="font-size:12px;color:#666">集装箱</div>
+          <div style="font-size:18px;font-weight:bold;color:#00bfff;margin-top:8px" id="stat-store2-pallets">0</div>
+          <div style="font-size:12px;color:#666">托盘</div>
+          <div style="font-size:18px;font-weight:bold;color:#00bfff;margin-top:8px" id="stat-store2-items">0</div>
+          <div style="font-size:12px;color:#666">件数</div>
+        </div>
+      </div>
+      <div id="supplier-stats" style="margin-top:20px"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="mov" id="modal">
+  <div class="mdl"><h3>📋 集装箱详情 / Container Details</h3><div id="mcon"></div><div class="brow"><button class="btn btn-g" onclick="clModal()">关闭 Close</button></div></div>
+</div>
+
+<div class="mov" id="purchaseModal">
+  <div class="mdl" style="width:520px">
+    <h3>🛒 新增采购记录 / Add Purchase Record</h3>
+    <div class="fg" style="position:relative"><label>集装箱号 Container No.</label>
+      <input type="text" id="fp-cn" placeholder="输入集装箱号码" maxlength="11" style="text-transform:uppercase" autocomplete="off">
+    </div>
+    <div class="fg" style="position:relative"><label>供应商 Supplier</label>
+      <input type="text" id="fp-supplier" placeholder="输入或选择供应商" autocomplete="off" oninput="showSuggest(this,'supplier')" onfocus="showSuggest(this,'supplier')" onblur="setTimeout(function(){hideSuggest('supplier')},200)">
+      <div class="suggest-list" id="suggest-supplier"></div>
+    </div>
+    <div class="fg" style="position:relative"><label>品名 Product Name</label>
+      <input type="text" id="fp-product" placeholder="输入或选择品名（多个品名用逗号分隔）" autocomplete="off" oninput="showSuggest(this,'product')" onfocus="showSuggest(this,'product')" onblur="setTimeout(function(){hideSuggest('product')},200)">
+      <div class="suggest-list" id="suggest-product"></div>
+    </div>
+    <div class="fg"><label>采购日期 Purchase Date</label>
+      <input type="date" id="fp-date">
+    </div>
+    <div class="fg"><label>数量 Qty</label>
+      <input type="number" id="fp-qty" placeholder="数量" min="0" value="0">
+    </div>
+    <div class="fg"><label>停柜费 Demurrage (AED)</label>
+      <input type="number" id="fp-demurrage" placeholder="0" min="0" value="0">
+    </div>
+    <div class="fg"><label>清关费 Customs (AED)</label>
+      <input type="number" id="fp-customs" placeholder="0" min="0" value="0">
+    </div>
+    <div class="fg"><label>冷库费 Cold Fee (AED)</label>
+      <input type="number" id="fp-coldfee" placeholder="0" min="0" value="0">
+    </div>
+    <div class="fg"><label>翻包费 Repack (AED)</label>
+      <input type="number" id="fp-repack" placeholder="0" min="0" value="0">
+    </div>
+    <div class="fg"><label>垃圾处理费 Waste (AED)</label>
+      <input type="number" id="fp-waste" placeholder="0" min="0" value="0">
+    </div>
+    <div class="fg"><label>其他费用 Other (AED)</label>
+      <input type="number" id="fp-other" placeholder="0" min="0" value="0">
+    </div>
+    <div class="brow">
+      <button class="btn btn-s" onclick="addPurchase()">✓ 提交 Submit</button>
+      <button class="btn btn-g" onclick="clPurchaseModal()">取消 Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="mov" id="editPurchaseModal">
+  <div class="mdl" style="width:520px">
+    <h3>✏️ 修改采购记录 / Edit Purchase Record</h3>
+    <input type="hidden" id="fe-id">
+    <div class="fg"><label>集装箱号 Container No.</label>
+      <input type="text" id="fe-cn" maxlength="11" style="text-transform:uppercase">
+    </div>
+    <div class="fg" style="position:relative"><label>供应商 Supplier</label>
+      <input type="text" id="fe-supplier" oninput="showSuggestEdit(this,'supplier')" onfocus="showSuggestEdit(this,'supplier')" onblur="setTimeout(function(){hideSuggest('edit-supplier')},200)">
+      <div class="suggest-list" id="suggest-edit-supplier"></div>
+    </div>
+    <div class="fg" style="position:relative"><label>品名 Product Name</label>
+      <input type="text" id="fe-product" oninput="showSuggestEdit(this,'product')" onfocus="showSuggestEdit(this,'product')" onblur="setTimeout(function(){hideSuggest('edit-product')},200)">
+      <div class="suggest-list" id="suggest-edit-product"></div>
+    </div>
+    <div class="fg"><label>数量 Qty</label>
+      <input type="number" id="fe-qty" min="0">
+    </div>
+    <div class="fg"><label>停柜费 Demurrage (AED)</label>
+      <input type="number" id="fe-demurrage" min="0">
+    </div>
+    <div class="fg"><label>清关费 Customs (AED)</label>
+      <input type="number" id="fe-customs" min="0">
+    </div>
+    <div class="fg"><label>冷库费 Cold Fee (AED)</label>
+      <input type="number" id="fe-coldfee" min="0">
+    </div>
+    <div class="fg"><label>翻包费 Repack (AED)</label>
+      <input type="number" id="fe-repack" min="0">
+    </div>
+    <div class="fg"><label>垃圾处理费 Waste (AED)</label>
+      <input type="number" id="fe-waste" min="0">
+    </div>
+    <div class="fg"><label>其他费用 Other (AED)</label>
+      <input type="number" id="fe-other" min="0">
+    </div>
+    <div class="brow">
+      <button class="btn btn-s" onclick="saveEditPurchase()">✓ 保存 Save</button>
+      <button class="btn btn-g" onclick="clEditPurchaseModal()">取消 Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="mov" id="quickInModal">
+  <div class="mdl" style="width:400px;text-align:center">
+    <h3>📥 选择冷库 / Select Cold Store</h3>
+    <p id="quickInInfo" style="margin-bottom:16px;color:#666;font-size:13px"></p>
+    <div style="display:flex;gap:12px;justify-content:center;margin-bottom:14px">
+      <button class="btn btn-s" style="flex:1;padding:16px;font-size:16px" onclick="doQuickIn(1)">❄️ 冷库 1</button>
+      <button class="btn btn-p" style="flex:1;padding:16px;font-size:16px" onclick="doQuickIn(2)">❄️ 冷库 2</button>
+    </div>
+    <div class="brow"><button class="btn btn-g" onclick="clQuickInModal()">取消 Cancel</button></div>
+  </div>
+</div>
+
+<div class="mov" id="settingsModal">
+  <div class="mdl" style="width:560px;max-height:85vh;overflow-y:auto">
+    <h3>⚙️ 系统设置 / Settings</h3>
+    <div class="sett-section">
+      <h4>🏭 供应商管理 / Supplier Management</h4>
+      <div class="sett-row">
+        <input type="text" id="sett-supplier-input" placeholder="输入供应商名称" onkeydown="if(event.key==='Enter')addSettItem('supplier')">
+        <button class="sett-add-btn" onclick="addSettItem('supplier')">+ 添加</button>
+      </div>
+      <div id="sett-supplier-list"></div>
+    </div>
+    <div class="sett-section">
+      <h4>📦 品名管理 / Product Management</h4>
+      <div class="sett-row">
+        <input type="text" id="sett-product-input" placeholder="输入品名" onkeydown="if(event.key==='Enter')addSettItem('product')">
+        <button class="sett-add-btn" onclick="addSettItem('product')">+ 添加</button>
+      </div>
+      <div id="sett-product-list"></div>
+    </div>
+    <div class="sett-section">
+      <h4>👤 账号管理 / Account Management</h4>
+      <div class="sett-row">
+        <input type="text" id="sett-user-input" placeholder="新用户名 Username" style="flex:1">
+        <input type="text" id="sett-pass-input" placeholder="密码 Password" style="flex:1">
+        <button class="sett-add-btn" onclick="addAccount()">+ 添加</button>
+      </div>
+      <div id="sett-account-list"></div>
+    </div>
+    <div class="brow">
+      <button class="btn btn-g" onclick="clSettings()">关闭 Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -835,34 +835,47 @@ function saveEditPurchase() {
 var quickInData = null;
 
 function quickCheckIn(purchaseId) {
-  console.log('quickCheckIn called with id:', purchaseId);
+  console.log('=== quickCheckIn START ===');
+  console.log('purchaseId:', purchaseId);
   console.log('purchaseRecs length:', purchaseRecs.length);
+  console.log('purchaseRecs:', JSON.stringify(purchaseRecs));
   
-  var r = purchaseRecs.find(function(x) { return x.id === purchaseId; });
-  if (!r) {
-    console.log('Record not found! Available IDs:', purchaseRecs.map(function(x) { return x.id; }));
-    toast('未找到采购记录，请刷新页面重试', 'err');
+  if (!purchaseRecs || purchaseRecs.length === 0) {
+    toast('采购数据未加载，请刷新页面重试', 'err');
+    console.log('ERROR: purchaseRecs is empty');
     return;
   }
   
-  // 直接填入入库表单（不显示弹窗）
-  quickInData = r;
+  var r = purchaseRecs.find(function(x) { return x.id === purchaseId; });
+  console.log('Found record:', r);
+  
+  if (!r) {
+    console.log('Record not found! Available IDs:', purchaseRecs.map(function(x) { return x.id; }));
+    toast('未找到采购记录', 'err');
+    return;
+  }
+  
+  // 直接填入入库表单
+  console.log('Filling form with:', r.cn, r.supplier, r.product);
   
   // 切换到库存记录 tab
   swTab('records');
   
-  // 自动填入入库表单
-  gid('f-cn').value = r.cn || '';
-  gid('f-supplier').value = r.supplier || '';
-  gid('f-product').value = r.product || '';
-  gid('f-items').value = r.qty || '1';
-  gid('f-pallets').value = '1';
-  gid('f-at').value = nowFmt();
-  
-  toast('✅ 已填入入库信息，请确认后点击入库', 'ok');
-  
-  // 滚动到入库表单
-  document.querySelector('.left').scrollTop = 0;
+  // 延迟填入，确保 DOM 已渲染
+  setTimeout(function() {
+    gid('f-cn').value = r.cn || '';
+    gid('f-supplier').value = r.supplier || '';
+    gid('f-product').value = r.product || '';
+    gid('f-items').value = String(r.qty || 1);
+    gid('f-pallets').value = '1';
+    gid('f-at').value = nowFmt();
+    
+    console.log('Form filled successfully');
+    toast('✅ 已填入: ' + r.cn + ' | ' + r.supplier + ' | ' + r.product, 'ok');
+    
+    // 滚动到入库表单
+    document.querySelector('.left').scrollTop = 0;
+  }, 100);
 }
 
 function clQuickInModal() {

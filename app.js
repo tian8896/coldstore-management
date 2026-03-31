@@ -836,16 +836,33 @@ var quickInData = null;
 
 function quickCheckIn(purchaseId) {
   console.log('quickCheckIn called with id:', purchaseId);
-  console.log('purchaseRecs:', purchaseRecs);
+  console.log('purchaseRecs length:', purchaseRecs.length);
+  
   var r = purchaseRecs.find(function(x) { return x.id === purchaseId; });
   if (!r) {
-    console.log('Record not found!');
-    toast('未找到采购记录', 'err');
+    console.log('Record not found! Available IDs:', purchaseRecs.map(function(x) { return x.id; }));
+    toast('未找到采购记录，请刷新页面重试', 'err');
     return;
   }
+  
+  // 直接填入入库表单（不显示弹窗）
   quickInData = r;
-  gid('quickInInfo').textContent = '📦 ' + r.cn + ' | ' + r.supplier + ' | ' + r.product;
-  gid('quickInModal').classList.add('sh');
+  
+  // 切换到库存记录 tab
+  swTab('records');
+  
+  // 自动填入入库表单
+  gid('f-cn').value = r.cn || '';
+  gid('f-supplier').value = r.supplier || '';
+  gid('f-product').value = r.product || '';
+  gid('f-items').value = r.qty || '1';
+  gid('f-pallets').value = '1';
+  gid('f-at').value = nowFmt();
+  
+  toast('✅ 已填入入库信息，请确认后点击入库', 'ok');
+  
+  // 滚动到入库表单
+  document.querySelector('.left').scrollTop = 0;
 }
 
 function clQuickInModal() {

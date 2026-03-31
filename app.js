@@ -6,13 +6,13 @@ const LOCAL_STORAGE_KEY = 'csm_records_v3';
 
 // Firebase 配置
 var firebaseConfig = {
-  apiKey: 'AIzaSyC6YXeW78gqSW3SpCS0G8eXNwmToxVB_WI',
-  authDomain: 'container-parking-90ab5.firebaseapp.com',
-  databaseURL: 'https://container-parking-90ab5-default-rtdb.firebaseio.com',
-  projectId: 'container-parking-90ab5',
-  storageBucket: 'container-parking-90ab5.firebasestorage.app',
-  messagingSenderId: '376445767246',
-  appId: '1:376445767246:web:aef8404177b4608cbd3d1f'
+  apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',
+  authDomain: 'superharves-cold-store.firebaseapp.com',
+  databaseURL: 'https://superharves-cold-store-default-rtdb.firebaseio.com',
+  projectId: 'superharves-cold-store',
+  storageBucket: 'superharves-cold-store.firebasestorage.app',
+  messagingSenderId: '379038228954',
+  appId: '1:379038228954:web:e64fa3be3f2f49b3aae0e3'
 };
 var dbRef = null;
 var purchaseRef = null;

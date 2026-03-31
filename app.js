@@ -835,8 +835,14 @@ function saveEditPurchase() {
 var quickInData = null;
 
 function quickCheckIn(purchaseId) {
+  console.log('quickCheckIn called with id:', purchaseId);
+  console.log('purchaseRecs:', purchaseRecs);
   var r = purchaseRecs.find(function(x) { return x.id === purchaseId; });
-  if (!r) return;
+  if (!r) {
+    console.log('Record not found!');
+    toast('未找到采购记录', 'err');
+    return;
+  }
   quickInData = r;
   gid('quickInInfo').textContent = '📦 ' + r.cn + ' | ' + r.supplier + ' | ' + r.product;
   gid('quickInModal').classList.add('sh');

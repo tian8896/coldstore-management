@@ -39,15 +39,15 @@ header p{color:var(--tx);font-size:17px;font-weight:bold;margin-top:4px;letter-s
 .btn-g{background:var(--bg4);color:var(--tx2);border:1px solid var(--bd)}
 .btn-g:hover{border-color:var(--ac);color:var(--tx)}
 .brow{display:flex;gap:8px;margin-top:14px}
-.right{display:flex;flex-direction:column;font-size:15px}
+.right{display:flex;flex-direction:column;font-size:15px;overflow:hidden}
 .tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--bd);padding:0 21px}
 .tab{padding:14px 20px;font-size:15px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:var(--tx2);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
 .tab:hover{color:var(--tx)}
 .tab.ac{color:var(--ice);border-bottom-color:var(--ice)}
-.tc{flex:1;padding:18px 21px;overflow-y:auto;display:none}
-.tc.ac{display:block}
-.tw{overflow-x:auto;border:1px solid var(--bd);border-radius:6px}
-table{width:100%;border-collapse:collapse;font-size:14px}
+.tc{flex:1;padding:18px 21px;overflow:auto;display:none;width:100%}
+.tc.ac{display:flex;flex-direction:column}
+.tw{overflow-x:auto;border:1px solid var(--bd);border-radius:6px;flex:1;min-width:0}
+table{width:max-content;min-width:100%;border-collapse:collapse;font-size:14px}
 th{background:var(--bg2);padding:12px 14px;text-align:left;font-size:14px;font-weight:bold;letter-spacing:.5px;text-transform:uppercase;color:var(--tx);border-bottom:2px solid var(--bd);white-space:nowrap}
 td{padding:11px 14px;border-bottom:1px solid rgba(48,54,61,.5);color:var(--tx);white-space:nowrap;font-size:14px;font-weight:500}
 tr:last-child td{border-bottom:none}
@@ -174,6 +174,8 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <div class="warehouse-selector">
       <button class="warehouse-btn active" onclick="selectColdStore(1)">冷库 1</button>
       <button class="warehouse-btn" onclick="selectColdStore(2)">冷库 2</button>
+      <button class="warehouse-btn" onclick="selectColdStore(3)">冷库 3</button>
+      <button class="warehouse-btn" onclick="selectColdStore(4)">冷库 4</button>
     </div>
   </div>
 
@@ -240,12 +242,47 @@ tr:hover td{background:rgba(0,191,255,.03)}
   </div>
 
   <div class="tc" id="tc-records">
-    <div class="tw"><table><thead><tr><th>集装箱 Container</th><th>供应商 Supplier</th><th>品名 Product</th><th>冷库 Store</th><th>托盘 Out/In</th><th>件数 Out/In</th><th>时间 Date</th><th>出库 Date</th><th>库存 In/Orig</th><th>费用 Fee</th><th>状态 Status</th><th>操作</th></tr></thead><tbody id="tb-all"></tbody></table></div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+      <button class="btn" style="background:#cc0000;color:#fff;border-color:#cc0000" onclick="showClearModal('records')">🗑️ 清空记录</button>
+    </div>
+    <div class="tw"><table><thead><tr><th style="font-family:Arial;font-size:14px">集装箱<br><span style="text-transform:capitalize">Container</span></th><th style="font-family:Arial;font-size:14px">供应商<br><span style="text-transform:capitalize">Supplier</span></th><th style="font-family:Arial;font-size:14px">品名<br><span style="text-transform:capitalize">Product</span></th><th style="font-family:Arial;font-size:14px">冷库<br><span style="text-transform:capitalize">Store</span></th><th style="font-family:Arial;font-size:14px">托盘 入库/剩余<br><span style="text-transform:capitalize">Pallets In/Rem</span></th><th style="font-family:Arial;font-size:14px">件数 入库/剩余<br><span style="text-transform:capitalize">Items In/Rem</span></th><th style="font-family:Arial;font-size:14px">入库时间<br><span style="text-transform:capitalize">In Date</span></th><th style="font-family:Arial;font-size:14px">出库时间<br><span style="text-transform:capitalize">Out Date</span></th><th style="font-family:Arial;font-size:14px">费用<br><span style="text-transform:capitalize">Fee</span></th><th style="font-family:Arial;font-size:14px">状态<br><span style="text-transform:capitalize">Status</span></th><th style="font-family:Arial;font-size:14px">操作<br><span style="text-transform:capitalize">Action</span></th></tr></thead><tbody id="tb-all"></tbody></table></div>
     <div class="es" id="es-all" style="display:none"><div class="em">📭</div><div>暂无记录 / No Records Yet</div></div>
   </div>
 
   <div class="tc" id="tc-checkout">
-    <div class="tw"><table><thead><tr><th>集装箱号 Container</th><th>供应商 Supplier</th><th>品名 Product</th><th>周/日期 Week/Date</th><th>托盘数 Pallets</th><th>出库托盘 Out</th><th>出库件数 Items</th><th>单价 Price</th><th>金额 Amount</th><th>5% VAT</th><th>合计 Total</th></tr></thead><tbody id="tb-checkout"></tbody></table></div>
+    <div style="background:#f8f8f8;border:1px solid #e0e0e0;border-radius:8px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
+        <div class="fg" style="margin:0;flex:1;min-width:150px">
+          <label style="font-size:12px;color:#666">集装箱号</label>
+          <input type="text" id="search-cn" placeholder="输入集装箱号" style="width:100%;padding:6px 10px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+        </div>
+        <div class="fg" style="margin:0;flex:1;min-width:150px">
+          <label style="font-size:12px;color:#666">供应商</label>
+          <input type="text" id="search-supplier" placeholder="输入供应商" style="width:100%;padding:6px 10px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+        </div>
+        <div class="fg" style="margin:0;flex:1;min-width:150px">
+          <label style="font-size:12px;color:#666">品名</label>
+          <input type="text" id="search-product" placeholder="输入品名" style="width:100%;padding:6px 10px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+        </div>
+        <div class="fg" style="margin:0;min-width:130px">
+          <label style="font-size:12px;color:#666">开始日期</label>
+          <input type="date" id="search-date-start" style="width:100%;padding:6px 10px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+        </div>
+        <div class="fg" style="margin:0;min-width:130px">
+          <label style="font-size:12px;color:#666">结束日期</label>
+          <input type="date" id="search-date-end" style="width:100%;padding:6px 10px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn" style="background:#00aa00;color:#fff;border-color:#00aa00;padding:6px 14px" onclick="applySearch()">🔍 确定</button>
+          <button class="btn" style="background:#666;color:#fff;border-color:#666;padding:6px 14px" onclick="resetSearch()">重置</button>
+          <button class="btn" style="background:#0066cc;color:#fff;border-color:#0066cc;padding:6px 14px" onclick="exportCheckout()">📤 导出</button>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+      <button class="btn" style="background:#cc0000;color:#fff;border-color:#cc0000" onclick="showClearModal('checkout')">🗑️ 清空记录</button>
+    </div>
+    <div class="tw"><table><thead><tr><th style="font-family:Arial;font-size:14px">集装箱号<br><span style="text-transform:capitalize">Container</span></th><th style="font-family:Arial;font-size:14px">供应商<br><span style="text-transform:capitalize">Supplier</span></th><th style="font-family:Arial;font-size:14px">品名<br><span style="text-transform:capitalize">Product</span></th><th style="font-family:Arial;font-size:14px">周/日期<br><span style="text-transform:capitalize">Week/Date</span></th><th style="font-family:Arial;font-size:14px">托盘数<br><span style="text-transform:capitalize">Pallets</span></th><th style="font-family:Arial;font-size:14px">出库托盘<br><span style="text-transform:capitalize">Out Pallets</span></th><th style="font-family:Arial;font-size:14px">出库件数<br><span style="text-transform:capitalize">Out Items</span></th><th style="font-family:Arial;font-size:14px">剩余件数<br><span style="text-transform:capitalize">Rem Items</span></th><th style="font-family:Arial;font-size:14px">入库件数<br><span style="text-transform:capitalize">In Items</span></th><th style="font-family:Arial;font-size:14px">单价<br><span style="text-transform:capitalize">Price</span></th><th style="font-family:Arial;font-size:14px">金额<br><span style="text-transform:capitalize">Amount</span></th><th style="font-family:Arial;font-size:14px">5% VAT</th><th style="font-family:Arial;font-size:14px">合计<br><span style="text-transform:capitalize">Total</span></th><th style="font-family:Arial;font-size:14px">操作<br><span style="text-transform:capitalize">Action</span></th></tr></thead><tbody id="tb-checkout"></tbody></table></div>
     <div class="es" id="es-checkout" style="display:none"><div class="em">📭</div><div>暂无出库记录 / No Checkout Records</div></div>
   </div>
 
@@ -268,6 +305,24 @@ tr:hover td{background:rgba(0,191,255,.03)}
           <div style="font-size:18px;font-weight:bold;color:#00bfff;margin-top:8px" id="stat-store2-pallets">0</div>
           <div style="font-size:12px;color:#666">托盘</div>
           <div style="font-size:18px;font-weight:bold;color:#00bfff;margin-top:8px" id="stat-store2-items">0</div>
+          <div style="font-size:12px;color:#666">件数</div>
+        </div>
+        <div style="background:#f0f8ff;border:1px solid #00bfff;border-radius:8px;padding:20px;text-align:center">
+          <div style="font-size:12px;color:#666;margin-bottom:8px">冷库 3 统计</div>
+          <div style="font-size:28px;font-weight:bold;color:#00bfff;margin-bottom:4px" id="stat-store3-count">0</div>
+          <div style="font-size:12px;color:#666">集装箱</div>
+          <div style="font-size:18px;font-weight:bold;color:#00bfff;margin-top:8px" id="stat-store3-pallets">0</div>
+          <div style="font-size:12px;color:#666">托盘</div>
+          <div style="font-size:18px;font-weight:bold;color:#00bfff;margin-top:8px" id="stat-store3-items">0</div>
+          <div style="font-size:12px;color:#666">件数</div>
+        </div>
+        <div style="background:#f0f8ff;border:1px solid #00bfff;border-radius:8px;padding:20px;text-align:center">
+          <div style="font-size:12px;color:#666;margin-bottom:8px">冷库 4 统计</div>
+          <div style="font-size:28px;font-weight:bold;color:#00bfff;margin-bottom:4px" id="stat-store4-count">0</div>
+          <div style="font-size:12px;color:#666">集装箱</div>
+          <div style="font-size:18px;font-weight:bold;color:#00bfff;margin-top:8px" id="stat-store4-pallets">0</div>
+          <div style="font-size:12px;color:#666">托盘</div>
+          <div style="font-size:18px;font-weight:bold;color:#00bfff;margin-top:8px" id="stat-store4-items">0</div>
           <div style="font-size:12px;color:#666">件数</div>
         </div>
       </div>
@@ -416,5 +471,75 @@ tr:hover td{background:rgba(0,191,255,.03)}
 </div>
 
 <script src="app.js"></script>
+
+<!-- 编辑入库记录弹窗 -->
+<div class="mov" id="editRecordModal">
+  <div class="mdl" style="width:400px">
+    <h3>✏️ 修改入库记录</h3>
+    <input type="hidden" id="edit-record-id">
+    <div class="fg"><label>集装箱号</label>
+      <input type="text" id="edit-cn" readonly style="background:#f5f5f5">
+    </div>
+    <div class="fg"><label>入库托盘 Pallets</label>
+      <input type="number" id="edit-pallets" min="0">
+    </div>
+    <div class="fg"><label>入库件数 Items</label>
+      <input type="number" id="edit-items" min="0">
+    </div>
+    <div class="brow">
+      <button class="btn btn-s" onclick="saveEditRecord()">保存</button>
+      <button class="btn btn-g" onclick="closeEditRecordModal()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 编辑出库记录弹窗 -->
+<div class="mov" id="editOutRecordModal">
+  <div class="mdl" style="width:400px">
+    <h3>✏️ 修改出库记录</h3>
+    <input type="hidden" id="edit-out-id">
+    <div class="fg"><label>集装箱号</label>
+      <input type="text" id="edit-out-cn" readonly style="background:#f5f5f5">
+    </div>
+    <div class="fg"><label>出库托盘 Out Pallets</label>
+      <input type="number" id="edit-out-pallets" min="0">
+    </div>
+    <div class="fg"><label>出库件数 Out Items</label>
+      <input type="number" id="edit-out-items" min="0">
+    </div>
+    <div class="brow">
+      <button class="btn btn-s" onclick="saveEditOutRecord()">保存</button>
+      <button class="btn btn-g" onclick="closeEditOutRecordModal()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 清空记录确认弹窗 -->
+<div class="mov" id="clearModal">
+  <div class="mdl" style="width:450px">
+    <h3>🗑️ 清空记录确认</h3>
+    <input type="hidden" id="clear-type">
+    <div class="fg">
+      <label>选择清空范围</label>
+      <select id="clear-option" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:4px;font-size:14px">
+        <option value="all">全部清空</option>
+        <option value="by-cn">按集装箱号清空</option>
+      </select>
+    </div>
+    <div class="fg" id="clear-cn-select-container" style="display:none">
+      <label>选择集装箱号</label>
+      <select id="clear-cn-select" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:4px;font-size:14px">
+      </select>
+    </div>
+    <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:12px;margin:12px 0;color:#856404;font-size:13px">
+      ⚠️ <strong>警告：</strong>清空后数据将无法恢复，请谨慎操作！
+    </div>
+    <div class="brow">
+      <button class="btn" style="background:#cc0000;color:#fff;border-color:#cc0000" onclick="confirmClear()">确认清空</button>
+      <button class="btn btn-g" onclick="closeClearModal()">取消</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

@@ -17,17 +17,30 @@ var firebaseConfig = {
 var dbRef = null;
 var purchaseRef = null;
 
-// 冷库1费率：38 AED/托盘/周 + 5% VAT
-const RATE_PER_PALLET_PER_WEEK = 38;
+// 冷库费率：
+// 冷库1: 38 AED/托盘/周 + 5% VAT
+// 冷库2/3/4: 60 AED/托盘/周 + 5% VAT
 const VAT_RATE = 0.05;
-const RATE_WITH_VAT = RATE_PER_PALLET_PER_WEEK * (1 + VAT_RATE); // 39.9 AED
 const DAYS_PER_WEEK = 7;
+
+// 根据冷库获取费率
+function getRateByStore(store) {
+  switch(store) {
+    case 1: return 38;
+    case 2: 
+    case 3: 
+    case 4: return 60;
+    default: return 38;
+  }
+}
 
 // ============================================================
 // STATE
 // ============================================================
 var recs = [];
 var currentColdStore = 1;
+var currentUser = null; // 当前登录用户
+var isAdmin = false; // 是否是管理员
 
 // ============================================================
 // INIT
@@ -82,6 +95,10 @@ function initApp() {
     });
     
     toast('✅ Firebase 连接成功', 'ok');
+    
+    // 默认设置管理员权限（可根据需要修改为登录验证）
+    currentUser = 'admin';
+    isAdmin = true;
   } catch(e) {
     console.error('Firebase init error:', e);
     toast('❌ Firebase 连接失败: ' + e.message, 'err');
@@ -281,17 +298,15 @@ function renderAll() {
 }
 
 function renderRecords() {
-  // 分离入库记录和出库记录
+  // 只显示入库记录
   var inRecs = recs.filter(function(r) { return r.store === currentColdStore && !r.type; })
     .sort(function(a, b) { return new Date(b.arr) - new Date(a.arr); });
-  var outRecs = recs.filter(function(r) { return r.store === currentColdStore && r.type === 'checkout'; })
-    .sort(function(a, b) { return new Date(b.dep) - new Date(a.dep); });
 
   var tb = gid('tb-all');
   var es = gid('es-all');
   if (!tb || !es) return;
 
-  if (inRecs.length === 0 && outRecs.length === 0) {
+  if (inRecs.length === 0) {
     tb.innerHTML = ''; es.style.display = 'block'; return;
   }
   es.style.display = 'none';
@@ -299,40 +314,88 @@ function renderRecords() {
   var html = inRecs.map(function(r) {
     var remaining_pallets = r.pallets - (r.pallets_out || 0);
     var remaining_items = r.items - (r.items_out || 0);
-    var fee = calcFee(r);
+    
+    // 计算已产生的实际费用（从出库记录表）
+    var actualFee = calcActualFee(r);
+    
     var status = r.dep ? '<span class="bdg bdg-d">已出库</span>' : '<span class="bdg bdg-a">在库</span>';
+    
+    // 管理员才显示修改按钮
+    var editBtn = isAdmin ? '<button class="abtn" onclick="showEditRecord(\'' + r.id + '\')" style="margin-left:4px">✏️</button>' : '';
+    
+    // 费用显示：已出库显示实际费用，在库显示预估费用
+    var feeDisplay = actualFee > 0 ? 
+      '<strong style="color:#0066cc">' + actualFee.toFixed(2) + ' AED</strong>' : 
+      '<span style="color:#999">-</span>';
+    
     return '<tr style="background:#fff">' +
       '<td><strong>' + r.cn + '</strong></td>' +
-      '<td>' + (r.supplier || '-') + '</td><td>' + r.product + '</td>' +
+      '<td style="font-family:Arial;text-transform:capitalize">' + (r.supplier || '-') + '</td><td style="font-family:Arial;text-transform:capitalize">' + r.product + '</td>' +
       '<td>冷库 ' + r.store + '</td>' +
       '<td>' + r.pallets + ' / <span style="color:#ff9900">' + remaining_pallets + '</span></td>' +
       '<td>' + r.items + ' / <span style="color:#ff9900">' + remaining_items + '</span></td>' +
       '<td>' + fdt(r.arr) + '</td><td>' + fdt(r.dep) + '</td>' +
-      '<td><strong style="color:#0066cc">' + fee.toFixed(2) + ' AED</strong></td>' +
+      '<td>' + feeDisplay + '</td>' +
       '<td>' + status + '</td>' +
-      '<td><button class="abtn" onclick="showDet(\'' + r.id + '\')">详情</button></td></tr>';
+      '<td><button class="abtn" onclick="showDet(\'' + r.id + '\')">详情</button>' + editBtn + '</td></tr>';
   });
 
-  // 显示出库记录
-  html = html.concat(outRecs.map(function(r) {
-    // 获取原始入库记录
-    var inRec = recs.find(function(x) { return x.id === r.refId; });
-    var remaining_pallets = inRec ? (inRec.pallets - (inRec.pallets_out || 0)) : 0;
-    var remaining_items = inRec ? (inRec.items - (inRec.items_out || 0)) : 0;
-    return '<tr style="background:#f0fff0">' +
-      '<td><strong>' + r.cn + '</strong></td>' +
-      '<td>' + (r.supplier || '-') + '</td><td>' + r.product + '</td>' +
-      '<td>冷库 ' + r.store + '</td>' +
-      '<td><span style="color:#cc0000">-' + r.pallets_out + '</span></td>' +
-      '<td><span style="color:#cc0000">-' + r.items_out + '</span></td>' +
-      '<td style="color:#00aa00;font-weight:bold">' + fdt(r.dep) + '</td>' +
-      '<td style="color:#999">-</td>' +
-      '<td><span style="color:#ff9900">' + remaining_pallets + '</span> / <span style="color:#00aa00">' + inRec.pallets + '</span></td>' +
-      '<td><span style="color:#ff9900">' + remaining_items + '</span> / <span style="color:#00aa00">' + inRec.items + '</span></td>' +
-      '<td><button class="abtn" onclick="showOutDet(\'' + r.id + '\')">详情</button></td></tr>';
-  }));
-
   tb.innerHTML = html.join('');
+}
+
+// 计算已产生的实际费用（基于出库记录表的逻辑）
+function calcActualFee(inRec) {
+  // 获取该集装箱的所有出库记录
+  var outRecs = recs.filter(function(r) { 
+    return r.type === 'checkout' && r.cn === inRec.cn; 
+  }).sort(function(a, b) { return new Date(a.dep) - new Date(b.dep); });
+  
+  if (outRecs.length === 0) return 0;
+  
+  var startDate = new Date(inRec.arr);
+  var endDate = new Date(outRecs[outRecs.length - 1].dep);
+  
+  var totalFee = 0;
+  var currentDate = new Date(startDate);
+  var palletsAtWeekStart = inRec.pallets;
+  
+  while (currentDate < endDate) {
+    var weekStart = new Date(currentDate);
+    var weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    
+    var actualEnd = weekEnd < endDate ? weekEnd : endDate;
+    
+    // 该周费用 = 托盘数 × 费率 × 1.05
+    var rate = getRateByStore(inRec.store);
+    var amount = palletsAtWeekStart > 0 ? (palletsAtWeekStart * rate) : 0;
+    var vat = amount * VAT_RATE;
+    var weeklyTotal = amount + vat;
+    
+    if (weeklyTotal > 0) {
+      totalFee += weeklyTotal;
+    }
+    
+    // 该周出库托盘数
+    var weekOutPallets = 0;
+    outRecs.forEach(function(or) {
+      var od = new Date(or.dep);
+      if (od >= weekStart && od <= weekEnd) {
+        weekOutPallets += or.pallets_out;
+      }
+    });
+    
+    // 下周起始托盘数
+    palletsAtWeekStart = Math.max(0, palletsAtWeekStart - weekOutPallets);
+    
+    // 如果托盘已全部出库，结束计算
+    if (palletsAtWeekStart === 0) break;
+    
+    currentDate = new Date(weekEnd);
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  return totalFee;
 }
 
 function calcFee(r) {
@@ -346,28 +409,48 @@ function calcFee(r) {
   
   var weeks = Math.ceil(days / 7);
   var totalPallets = r.pallets - (r.pallets_out || 0);
+  var rate = getRateByStore(r.store);
   
-  return weeks * totalPallets * RATE_WITH_VAT;
+  return weeks * totalPallets * rate * (1 + VAT_RATE);
 }
 
 function updStats() {
-  var inRecs = recs.filter(function(r) { return r.store === currentColdStore && !r.dep; });
+  // 只统计入库记录（排除出库记录类型）
+  var inRecsAll = recs.filter(function(r) { return !r.type; });
+  var inRecs = inRecsAll.filter(function(r) { return r.store === currentColdStore && !r.dep; });
   
-  gid('s-total').textContent = recs.length;
+  // 顶部统计显示当前冷库的在库数据
+  gid('s-total').textContent = inRecs.length;
   gid('s-pallets').textContent = inRecs.reduce(function(s, r) { return s + r.pallets - (r.pallets_out || 0); }, 0);
   gid('s-items').textContent = inRecs.reduce(function(s, r) { return s + r.items - (r.items_out || 0); }, 0);
 
-  gid('stat-store1-count').textContent = recs.filter(function(r) { return r.store === 1 && !r.dep; }).length;
-  gid('stat-store1-pallets').textContent = recs.filter(function(r) { return r.store === 1 && !r.dep; }).reduce(function(s, r) { return s + r.pallets - (r.pallets_out || 0); }, 0);
-  gid('stat-store1-items').textContent = recs.filter(function(r) { return r.store === 1 && !r.dep; }).reduce(function(s, r) { return s + r.items - (r.items_out || 0); }, 0);
+  // 冷库1统计（只统计入库记录且在库的）
+  var store1Recs = inRecsAll.filter(function(r) { return r.store === 1 && !r.dep; });
+  gid('stat-store1-count').textContent = store1Recs.length;
+  gid('stat-store1-pallets').textContent = store1Recs.reduce(function(s, r) { return s + r.pallets - (r.pallets_out || 0); }, 0);
+  gid('stat-store1-items').textContent = store1Recs.reduce(function(s, r) { return s + r.items - (r.items_out || 0); }, 0);
 
-  gid('stat-store2-count').textContent = recs.filter(function(r) { return r.store === 2 && !r.dep; }).length;
-  gid('stat-store2-pallets').textContent = recs.filter(function(r) { return r.store === 2 && !r.dep; }).reduce(function(s, r) { return s + r.pallets - (r.pallets_out || 0); }, 0);
-  gid('stat-store2-items').textContent = recs.filter(function(r) { return r.store === 2 && !r.dep; }).reduce(function(s, r) { return s + r.items - (r.items_out || 0); }, 0);
+  // 冷库2统计
+  var store2Recs = inRecsAll.filter(function(r) { return r.store === 2 && !r.dep; });
+  gid('stat-store2-count').textContent = store2Recs.length;
+  gid('stat-store2-pallets').textContent = store2Recs.reduce(function(s, r) { return s + r.pallets - (r.pallets_out || 0); }, 0);
+  gid('stat-store2-items').textContent = store2Recs.reduce(function(s, r) { return s + r.items - (r.items_out || 0); }, 0);
+
+  // 冷库3统计
+  var store3Recs = inRecsAll.filter(function(r) { return r.store === 3 && !r.dep; });
+  gid('stat-store3-count').textContent = store3Recs.length;
+  gid('stat-store3-pallets').textContent = store3Recs.reduce(function(s, r) { return s + r.pallets - (r.pallets_out || 0); }, 0);
+  gid('stat-store3-items').textContent = store3Recs.reduce(function(s, r) { return s + r.items - (r.items_out || 0); }, 0);
+
+  // 冷库4统计
+  var store4Recs = inRecsAll.filter(function(r) { return r.store === 4 && !r.dep; });
+  gid('stat-store4-count').textContent = store4Recs.length;
+  gid('stat-store4-pallets').textContent = store4Recs.reduce(function(s, r) { return s + r.pallets - (r.pallets_out || 0); }, 0);
+  gid('stat-store4-items').textContent = store4Recs.reduce(function(s, r) { return s + r.items - (r.items_out || 0); }, 0);
 }
 
 function renderCheckout() {
-  // 按集装箱号分组
+  // 按集装箱号分组出库记录
   var cnGroups = {};
   recs.filter(function(r) { return r.type === 'checkout'; }).forEach(function(r) {
     if (!cnGroups[r.cn]) {
@@ -387,12 +470,26 @@ function renderCheckout() {
     }
   });
 
+  // 添加没有出库记录的入库集装箱（显示第一周）
+  // 不限制冷库，显示所有入库记录
+  var allInRecs = recs.filter(function(r) { return !r.type; });
+  allInRecs.forEach(function(inRec) {
+    if (!cnGroups[inRec.cn]) {
+      cnGroups[inRec.cn] = {
+        recs: [],
+        inRec: inRec
+      };
+    } else if (!cnGroups[inRec.cn].inRec) {
+      cnGroups[inRec.cn].inRec = inRec;
+    }
+  });
+
   var tb = gid('tb-checkout');
   var es = gid('es-checkout');
   if (!tb || !es) return;
 
-  var allCheckouts = recs.filter(function(r) { return r.type === 'checkout'; });
-  if (allCheckouts.length === 0) {
+  // 检查是否有任何入库记录
+  if (allInRecs.length === 0) {
     tb.innerHTML = '';
     es.style.display = 'block';
     return;
@@ -405,21 +502,32 @@ function renderCheckout() {
   Object.keys(cnGroups).sort().forEach(function(cn) {
     var group = cnGroups[cn];
     var inRec = group.inRec;
-    var outRecs = group.recs.sort(function(a, b) { return new Date(a.dep) - new Date(b.dep); });
+    var outRecs = (group.recs || []).sort(function(a, b) { return new Date(a.dep) - new Date(b.dep); });
 
-    if (!inRec || outRecs.length === 0) return;
+    if (!inRec) return;
+    
+    // 应用搜索筛选
+    if (!matchSearchFilters(inRec)) return;
 
     var startDate = new Date(inRec.arr);
-    var endDate = new Date(outRecs[outRecs.length - 1].dep);
+    
+    // 如果有出库记录，使用最后出库日期作为结束日期
+    // 如果没有出库记录，使用当前日期显示第一周
+    var endDate = outRecs.length > 0 ? new Date(outRecs[outRecs.length - 1].dep) : new Date();
 
     // 计算每周费用
     var totalFee = 0;
     var currentDate = new Date(startDate);
     var weekNum = 1;
     var palletsAtWeekStart = inRec.pallets;
+    var itemsOutSoFar = 0;
+    var palletsOutSoFar = 0;
 
     // 生成每周汇总记录
-    while (currentDate < endDate) {
+    // 至少显示第一周
+    var firstLoop = true;
+    while (firstLoop || (currentDate <= endDate && outRecs.length > 0)) {
+      firstLoop = false;
       var weekStart = new Date(currentDate);
       var weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 6);
@@ -428,8 +536,9 @@ function renderCheckout() {
 
       // 该周费用 = 该周第一天的托盘数 × 费率 × 5%
       var prevPallets = palletsAtWeekStart;
-      // 金额 = 单价38 × 托盘数量
-      var amount = prevPallets > 0 ? (prevPallets * RATE_PER_PALLET_PER_WEEK) : 0;
+      // 金额 = 单价 × 托盘数量（根据冷库选择费率）
+      var rate = getRateByStore(inRec.store);
+      var amount = prevPallets > 0 ? (prevPallets * rate) : 0;
       // 5% VAT = 金额 × 5%
       var vat = amount * VAT_RATE;
       // 合计 = 金额 + VAT
@@ -458,24 +567,60 @@ function renderCheckout() {
       var prevPallets = palletsAtWeekStart;
       palletsAtWeekStart = Math.max(0, palletsAtWeekStart - weekOutPallets);
 
+      // 判断是否是最后一周（全部出库完成）
+      var isLastWeek = palletsAtWeekStart === 0;
+      var isFirstWeek = weekNum === 1;
+
       // 托盘数和件数显示逻辑：0显示为"-"
       var displayPallets = prevPallets > 0 ? prevPallets : '-';
       var displayOutPallets = weekOutPallets > 0 ? ('-' + weekOutPallets) : '-';
       var displayOutItems = weekOutItems > 0 ? ('-' + weekOutItems) : '-';
 
-      // 每周汇总行（黄色背景）
-      html.push('<tr style="background:#fff3cd">' +
+      // 入库件数只在第一周显示
+      var displayInItems = isFirstWeek ? '<strong style="color:#ff9900">' + inRec.items + '</strong>' : '-';
+
+      // 每周汇总行 - 显示本周开始时的剩余件数
+      // 如果托盘已全部出库，剩余件数必须为0
+      var remainingItemsAtWeekStart;
+      if (isLastWeek) {
+        remainingItemsAtWeekStart = 0;
+      } else {
+        remainingItemsAtWeekStart = inRec.items - itemsOutSoFar;
+      }
+      var displayRemItems = remainingItemsAtWeekStart > 0 ? remainingItemsAtWeekStart : '0';
+
+      // 第一周用中黄色，最后一周用淡绿色，其他用淡黄色
+      var rowBg = isFirstWeek ? 'background:#fff59d' : (isLastWeek ? 'background:#e8f5e9' : 'background:#fff3cd');
+
+      // 本周合计 = 金额 + VAT
+      var weekTotal = amount + vat;
+      
+      // 合计显示逻辑：最后一周显示总金额，其他周显示本周合计
+      var weekTotalDisplay;
+      if (isLastWeek && totalFee > 0) {
+        // 最后一周显示总冷库费（累计），加大加粗蓝色
+        weekTotalDisplay = '<strong style="color:#0066cc;font-size:18px">' + totalFee.toFixed(2) + '</strong>';
+      } else if (weekTotal > 0) {
+        // 其他周显示本周合计
+        weekTotalDisplay = '<strong style="color:#0066cc">' + weekTotal.toFixed(2) + '</strong>';
+      } else {
+        weekTotalDisplay = '-';
+      }
+
+      html.push('<tr style="' + rowBg + '">' +
         '<td><strong style="cursor:pointer;color:#0066cc;text-decoration:underline" onclick="showCheckoutDetail(\'' + cn + '\')">' + cn + '</strong></td>' +
-        '<td>' + (inRec.supplier || '-') + '</td>' +
-        '<td>' + inRec.product + '</td>' +
+        '<td style="font-family:Arial;text-transform:capitalize">' + (inRec.supplier || '-') + '</td>' +
+        '<td style="font-family:Arial;text-transform:capitalize">' + inRec.product + '</td>' +
         '<td style="font-weight:bold;color:#0066cc">' + weekLabel + '</td>' +
         '<td><strong>' + displayPallets + '</strong></td>' +
         '<td><span style="color:#cc0000">' + displayOutPallets + '</span></td>' +
         '<td><span style="color:#cc0000">' + displayOutItems + '</span></td>' +
-        '<td>' + (prevPallets > 0 ? RATE_PER_PALLET_PER_WEEK.toFixed(2) : '-') + '</td>' +
+        '<td><strong style="color:#00aa00">' + displayRemItems + '</strong></td>' +
+        '<td>' + displayInItems + '</td>' +
+        '<td>' + (prevPallets > 0 ? rate.toFixed(2) : '-') + '</td>' +
         '<td>' + (prevPallets > 0 ? amount.toFixed(2) : '-') + '</td>' +
         '<td>' + (prevPallets > 0 ? vat.toFixed(2) : '-') + '</td>' +
-        '<td><strong style="color:#0066cc">' + (totalFee > 0 ? totalFee.toFixed(2) : '-') + '</strong></td>' +
+        '<td>' + weekTotalDisplay + '</td>' +
         '</tr>');
 
       // 该周的出库明细（绿色背景，显示在该周下面）
@@ -484,18 +629,36 @@ function renderCheckout() {
         return od >= weekStart && od <= weekEnd;
       });
       weekOutRecs.forEach(function(or) {
+        // 累计到当前出库的总件数（包括之前周的）
+        itemsOutSoFar += or.items_out;
+        palletsOutSoFar += or.pallets_out;
+        // 计算出库后的剩余件数 = 入库件数 - 累计出库件数
+        var outRemItems = inRec.items - itemsOutSoFar;
+        // 计算出库后的剩余托盘数 = 入库托盘数 - 累计出库托盘数
+        var outRemPallets = inRec.pallets - palletsOutSoFar;
+        
+        // 如果剩余托盘为0，剩余件数也必须为0
+        if (outRemPallets === 0) {
+          outRemItems = 0;
+        }
+        
+        // 管理员才显示修改按钮
+        var editOutBtn = isAdmin ? '<button class="abtn" onclick="showEditOutRecord(\'' + or.id + '\')" style="margin-left:4px">✏️</button>' : '';
+        
         html.push('<tr style="background:#f0fff0">' +
           '<td style="padding-left:20px;color:#999">' + cn + '</td>' +
-          '<td style="color:#999">' + (or.supplier || '-') + '</td>' +
-          '<td style="color:#999">' + or.product + '</td>' +
+          '<td style="color:#999;font-family:Arial;text-transform:capitalize">' + (or.supplier || '-') + '</td>' +
+          '<td style="color:#999;font-family:Arial;text-transform:capitalize">' + or.product + '</td>' +
           '<td style="color:#00aa00;font-weight:bold">' + fdt(or.dep) + '</td>' +
           '<td>-</td>' +
-          '<td><span style="color:#cc0000;font-weight:bold">' + or.pallets_out + '</span></td>' +
+          '<td><span style="color:#cc0000;font-weight:bold">' + or.pallets_out + '</span> / <strong style="color:#00aa00">' + (outRemPallets >= 0 ? outRemPallets : '0') + '</strong></td>' +
           '<td><span style="color:#cc0000;font-weight:bold">' + or.items_out + '</span></td>' +
+          '<td><strong style="color:#00aa00">' + (outRemItems >= 0 ? outRemItems : '0') + '</strong></td>' +
           '<td>-</td>' +
           '<td>-</td>' +
           '<td>-</td>' +
           '<td>-</td>' +
+          '<td>' + editOutBtn + '</td>' +
           '</tr>');
       });
 
@@ -506,6 +669,208 @@ function renderCheckout() {
   });
 
   tb.innerHTML = html.join('');
+}
+
+// ============================================================
+// 搜索和导出功能
+// ============================================================
+var checkoutSearchFilters = {
+  cn: '',
+  supplier: '',
+  product: '',
+  dateStart: '',
+  dateEnd: ''
+};
+
+function applySearch() {
+  checkoutSearchFilters = {
+    cn: (gid('search-cn').value || '').trim().toLowerCase(),
+    supplier: (gid('search-supplier').value || '').trim().toLowerCase(),
+    product: (gid('search-product').value || '').trim().toLowerCase(),
+    dateStart: gid('search-date-start').value || '',
+    dateEnd: gid('search-date-end').value || ''
+  };
+  renderCheckout();
+  toast('✅ 筛选条件已应用', 'ok');
+}
+
+function resetSearch() {
+  gid('search-cn').value = '';
+  gid('search-supplier').value = '';
+  gid('search-product').value = '';
+  gid('search-date-start').value = '';
+  gid('search-date-end').value = '';
+  checkoutSearchFilters = {
+    cn: '',
+    supplier: '',
+    product: '',
+    dateStart: '',
+    dateEnd: ''
+  };
+  renderCheckout();
+  toast('✅ 已重置筛选条件', 'ok');
+}
+
+function matchSearchFilters(inRec) {
+  var f = checkoutSearchFilters;
+  
+  // 集装箱号匹配
+  if (f.cn && (inRec.cn || '').toLowerCase().indexOf(f.cn) < 0) {
+    return false;
+  }
+  
+  // 供应商匹配
+  if (f.supplier && (inRec.supplier || '').toLowerCase().indexOf(f.supplier) < 0) {
+    return false;
+  }
+  
+  // 品名匹配
+  if (f.product && (inRec.product || '').toLowerCase().indexOf(f.product) < 0) {
+    return false;
+  }
+  
+  // 日期范围匹配
+  if (f.dateStart || f.dateEnd) {
+    var arrDate = new Date(inRec.arr);
+    if (f.dateStart && arrDate < new Date(f.dateStart)) {
+      return false;
+    }
+    if (f.dateEnd && arrDate > new Date(f.dateEnd)) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+function exportCheckout() {
+  // 获取搜索后的数据
+  var data = [];
+  var cnGroups = {};
+  
+  recs.filter(function(r) { return r.type === 'checkout'; }).forEach(function(r) {
+    if (!cnGroups[r.cn]) {
+      cnGroups[r.cn] = { recs: [], inRec: null };
+    }
+    cnGroups[r.cn].recs.push(r);
+  });
+  
+  Object.keys(cnGroups).forEach(function(cn) {
+    var outs = cnGroups[cn].recs;
+    if (outs.length > 0) {
+      cnGroups[cn].inRec = recs.find(function(r) { return r.id === outs[0].refId; });
+    }
+  });
+  
+  // 添加没有出库记录的入库集装箱
+  var allInRecs = recs.filter(function(r) { return !r.type; });
+  allInRecs.forEach(function(inRec) {
+    if (!cnGroups[inRec.cn]) {
+      cnGroups[inRec.cn] = { recs: [], inRec: inRec };
+    } else if (!cnGroups[inRec.cn].inRec) {
+      cnGroups[inRec.cn].inRec = inRec;
+    }
+  });
+  
+  // 表头
+  data.push(['集装箱号', '供应商', '品名', '周/日期', '托盘数', '出库托盘', '出库件数', '剩余件数', '入库件数', '单价', '金额', '5% VAT', '合计']);
+  
+  // 按集装箱号排序
+  Object.keys(cnGroups).sort().forEach(function(cn) {
+    var group = cnGroups[cn];
+    var inRec = group.inRec;
+    var outRecs = (group.recs || []).sort(function(a, b) { return new Date(a.dep) - new Date(b.dep); });
+    
+    if (!inRec) return;
+    
+    // 应用搜索筛选
+    if (!matchSearchFilters(inRec)) return;
+    
+    var startDate = new Date(inRec.arr);
+    var endDate = outRecs.length > 0 ? new Date(outRecs[outRecs.length - 1].dep) : new Date();
+    
+    var totalFee = 0;
+    var currentDate = new Date(startDate);
+    var weekNum = 1;
+    var palletsAtWeekStart = inRec.pallets;
+    var itemsOutSoFar = 0;
+    var palletsOutSoFar = 0;
+    var firstLoop = true;
+    
+    while (firstLoop || (currentDate <= endDate && outRecs.length > 0)) {
+      firstLoop = false;
+      var weekStart = new Date(currentDate);
+      var weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      
+      var prevPallets = palletsAtWeekStart;
+      var rate = getRateByStore(inRec.store);
+      var amount = prevPallets > 0 ? (prevPallets * rate) : 0;
+      var vat = amount * VAT_RATE;
+      var weeklyTotal = amount + vat;
+      if (weeklyTotal > 0) totalFee += weeklyTotal;
+      
+      var startStr = (weekStart.getMonth() + 1) + '/' + weekStart.getDate();
+      var endStr = (weekEnd.getMonth() + 1) + '/' + weekEnd.getDate();
+      var weekLabel = '第' + weekNum + '周 (' + startStr + '-' + endStr + ')';
+      
+      var weekOutPallets = 0;
+      var weekOutItems = 0;
+      outRecs.forEach(function(or) {
+        var od = new Date(or.dep);
+        if (od >= weekStart && od <= weekEnd) {
+          weekOutPallets += or.pallets_out;
+          weekOutItems += or.items_out;
+        }
+      });
+      
+      palletsAtWeekStart = Math.max(0, palletsAtWeekStart - weekOutPallets);
+      var isLastWeek = palletsAtWeekStart === 0;
+      
+      var displayPallets = prevPallets > 0 ? prevPallets : 0;
+      var displayOutPallets = weekOutPallets > 0 ? weekOutPallets : 0;
+      var displayOutItems = weekOutItems > 0 ? weekOutItems : 0;
+      var displayInItems = weekNum === 1 ? inRec.items : 0;
+      
+      var remainingItemsAtWeekStart = isLastWeek ? 0 : (inRec.items - itemsOutSoFar);
+      
+      data.push([
+        inRec.cn,
+        inRec.supplier || '-',
+        inRec.product || '-',
+        weekLabel,
+        displayPallets,
+        displayOutPallets,
+        displayOutItems,
+        remainingItemsAtWeekStart,
+        displayInItems,
+        prevPallets > 0 ? rate.toFixed(2) : '-',
+        prevPallets > 0 ? amount.toFixed(2) : '-',
+        prevPallets > 0 ? vat.toFixed(2) : '-',
+        totalFee.toFixed(2)
+      ]);
+      
+      currentDate = new Date(weekEnd);
+      currentDate.setDate(currentDate.getDate() + 1);
+      weekNum++;
+    }
+  });
+  
+  // 导出为 CSV
+  var csvContent = '\uFEFF'; // BOM for Excel
+  data.forEach(function(row) {
+    csvContent += row.map(function(cell) {
+      return '"' + String(cell).replace(/"/g, '""') + '"';
+    }).join(',') + '\n';
+  });
+  
+  var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  var link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = '出库记录_' + new Date().toISOString().slice(0, 10) + '.csv';
+  link.click();
+  
+  toast('✅ 导出成功', 'ok');
 }
 
 // ============================================================
@@ -559,7 +924,8 @@ function showDet(id) {
     }
 
     html += '<div style="margin-top:10px;padding:8px;background:#f0f0f0;border-radius:4px;font-size:11px;color:#666">';
-    html += '费率: ' + RATE_PER_PALLET_PER_WEEK + ' AED/托盘/周 + ' + (VAT_RATE*100) + '% VAT = ' + RATE_WITH_VAT + ' AED/托盘/周';
+    var rate = getRateByStore(r.store);
+    html += '费率: ' + rate + ' AED/托盘/周 + ' + (VAT_RATE*100) + '% VAT = ' + (rate * (1 + VAT_RATE)).toFixed(2) + ' AED/托盘/周';
     html += '</div>';
 
     mcon.innerHTML = html;
@@ -621,23 +987,257 @@ function showOutDet(id) {
 
   var mcon = gid('mcon');
   if (mcon) {
-    mcon.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
-      '<div class="mr"><span class="ml">记录类型</span><span class="mv"><span style="color:#00aa00;font-weight:bold">📤 出库记录</span></span></div>' +
-      '<div class="mr"><span class="ml">集装箱号</span><span class="mv"><strong>' + r.cn + '</strong></span></div>' +
-      '<div class="mr"><span class="ml">供应商</span><span class="mv">' + (r.supplier || '-') + '</span></div>' +
-      '<div class="mr"><span class="ml">品名</span><span class="mv">' + r.product + '</span></div>' +
-      '<div class="mr"><span class="ml">冷库</span><span class="mv">冷库 ' + r.store + '</span></div>' +
-      '<div class="mr"><span class="ml">入库时间</span><span class="mv">' + fdt(r.inDate) + '</span></div>' +
-      '<div class="mr"><span class="ml">入库托盘</span><span class="mv">' + r.inPallets + '</span></div>' +
-      '<div class="mr"><span class="ml">入库件数</span><span class="mv">' + r.inItems + '</span></div>' +
-      '<div class="mr"><span class="ml">出库时间</span><span class="mv" style="color:#00aa00;font-weight:bold">' + fdt(r.dep) + '</span></div>' +
-      '<div class="mr"><span class="ml">出库托盘</span><span class="mv" style="color:#cc0000;font-weight:bold">' + r.pallets_out + '</span></div>' +
-      '<div class="mr"><span class="ml">出库件数</span><span class="mv" style="color:#cc0000;font-weight:bold">' + r.items_out + '</span></div>' +
-      '<div class="mr"><span class="ml">当前库存托盘</span><span class="mv" style="color:#ff9900;font-weight:bold">' + remaining_pallets + '</span></div>' +
-      '<div class="mr"><span class="ml">当前库存件数</span><span class="mv" style="color:#ff9900;font-weight:bold">' + remaining_items + '</span></div>' +
-      '</div><div style="margin-top:14px;padding:10px;background:#fff3cd;border:1px solid #ffc107;border-radius:5px;text-align:center;color:#856404;font-size:13px">此为单次出库记录，完整费用请查看入库记录详情</div>';
+    mcon.innerHTML = '<div style="text-align:center;padding:20px">' +
+      '<div style="font-size:18px;font-weight:bold;margin-bottom:16px">' + r.cn + '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;text-align:center">' +
+        '<div style="background:#e8f4ff;padding:16px;border-radius:8px">' +
+          '<div style="font-size:12px;color:#666;margin-bottom:4px">出库托盘</div>' +
+          '<div style="font-size:28px;font-weight:bold;color:#cc0000">' + r.pallets_out + '</div>' +
+        '</div>' +
+        '<div style="background:#e8f4ff;padding:16px;border-radius:8px">' +
+          '<div style="font-size:12px;color:#666;margin-bottom:4px">出库件数</div>' +
+          '<div style="font-size:28px;font-weight:bold;color:#cc0000">' + r.items_out + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="margin-top:16px;padding:12px;background:#f5f5f5;border-radius:6px;font-size:12px;color:#666">' +
+        '出库时间: ' + fdt(r.dep) +
+      '</div>' +
+    '</div>';
   }
   gid('modal').classList.add('sh');
+}
+
+// ============================================================
+// 编辑入库记录（管理员权限）
+// ============================================================
+function showEditRecord(id) {
+  if (!isAdmin) {
+    toast('需要管理员权限', 'err');
+    return;
+  }
+  var r = recs.find(function(x) { return x.id === id; });
+  if (!r || r.type === 'checkout') return;
+  
+  gid('edit-record-id').value = id;
+  gid('edit-cn').value = r.cn;
+  gid('edit-pallets').value = r.pallets;
+  gid('edit-items').value = r.items;
+  gid('editRecordModal').classList.add('sh');
+}
+
+function closeEditRecordModal() {
+  gid('editRecordModal').classList.remove('sh');
+}
+
+function saveEditRecord() {
+  var id = gid('edit-record-id').value;
+  var r = recs.find(function(x) { return x.id === id; });
+  if (!r) return;
+  
+  var newPallets = parseInt(gid('edit-pallets').value) || 0;
+  var newItems = parseInt(gid('edit-items').value) || 0;
+  
+  if (newPallets < (r.pallets_out || 0)) {
+    toast('入库托盘不能小于已出库托盘', 'err');
+    return;
+  }
+  if (newItems < (r.items_out || 0)) {
+    toast('入库件数不能小于已出库件数', 'err');
+    return;
+  }
+  
+  r.pallets = newPallets;
+  r.items = newItems;
+  
+  // 保存到 Firebase
+  if (dbRef) {
+    dbRef.child(id).set(r);
+  }
+  
+  closeEditRecordModal();
+  renderAll();
+  toast('✅ 修改成功', 'ok');
+}
+
+// ============================================================
+// 清空记录功能
+// ============================================================
+function showClearModal(type) {
+  gid('clear-type').value = type;
+  gid('clear-option').value = 'all';
+  gid('clear-cn-select-container').style.display = 'none';
+  
+  // 填充集装箱号选项
+  var cnSelect = gid('clear-cn-select');
+  cnSelect.innerHTML = '';
+  
+  if (type === 'records') {
+    // 库存记录：获取所有入库记录的集装箱号
+    var inRecs = recs.filter(function(r) { return !r.type; });
+    var cns = [...new Set(inRecs.map(function(r) { return r.cn; }))];
+    cns.sort().forEach(function(cn) {
+      cnSelect.innerHTML += '<option value="' + cn + '">' + cn + '</option>';
+    });
+  } else if (type === 'checkout') {
+    // 出库记录：获取所有出库记录的集装箱号
+    var outRecs = recs.filter(function(r) { return r.type === 'checkout'; });
+    var cns = [...new Set(outRecs.map(function(r) { return r.cn; }))];
+    cns.sort().forEach(function(cn) {
+      cnSelect.innerHTML += '<option value="' + cn + '">' + cn + '</option>';
+    });
+  }
+  
+  gid('clearModal').classList.add('sh');
+}
+
+function closeClearModal() {
+  gid('clearModal').classList.remove('sh');
+}
+
+// 监听清空选项变化
+document.addEventListener('DOMContentLoaded', function() {
+  var clearOption = gid('clear-option');
+  if (clearOption) {
+    clearOption.addEventListener('change', function() {
+      var cnContainer = gid('clear-cn-select-container');
+      if (this.value === 'by-cn') {
+        cnContainer.style.display = 'block';
+      } else {
+        cnContainer.style.display = 'none';
+      }
+    });
+  }
+});
+
+function confirmClear() {
+  var type = gid('clear-type').value;
+  var option = gid('clear-option').value;
+  var cn = gid('clear-cn-select').value;
+  
+  var confirmMsg = '';
+  var idsToDelete = [];
+  
+  if (type === 'records') {
+    if (option === 'all') {
+      confirmMsg = '确定要清空所有库存记录吗？这将同时删除相关的出库记录！';
+      idsToDelete = recs.filter(function(r) { return !r.type || r.type === 'checkout'; }).map(function(r) { return r.id; });
+    } else {
+      confirmMsg = '确定要清空集装箱 ' + cn + ' 的所有记录吗？这将同时删除相关的出库记录！';
+      var inRec = recs.find(function(r) { return r.cn === cn && !r.type; });
+      if (inRec) {
+        idsToDelete.push(inRec.id);
+        // 同时删除相关的出库记录
+        recs.filter(function(r) { return r.type === 'checkout' && r.cn === cn; }).forEach(function(r) {
+          idsToDelete.push(r.id);
+        });
+      }
+    }
+  } else if (type === 'checkout') {
+    if (option === 'all') {
+      confirmMsg = '确定要清空所有出库记录吗？';
+      idsToDelete = recs.filter(function(r) { return r.type === 'checkout'; }).map(function(r) { return r.id; });
+    } else {
+      confirmMsg = '确定要清空集装箱 ' + cn + ' 的出库记录吗？';
+      idsToDelete = recs.filter(function(r) { return r.type === 'checkout' && r.cn === cn; }).map(function(r) { return r.id; });
+    }
+  }
+  
+  if (idsToDelete.length === 0) {
+    toast('没有可清空的记录', 'err');
+    closeClearModal();
+    return;
+  }
+  
+  if (!confirm(confirmMsg + '\n\n共 ' + idsToDelete.length + ' 条记录将被删除！')) {
+    return;
+  }
+  
+  // 二次确认
+  if (!confirm('⚠️ 最后确认：此操作不可恢复！确定继续吗？')) {
+    return;
+  }
+  
+  // 执行删除
+  idsToDelete.forEach(function(id) {
+    if (dbRef) {
+      dbRef.child(id).remove();
+    }
+  });
+  
+  closeClearModal();
+  toast('✅ 已清空 ' + idsToDelete.length + ' 条记录', 'ok');
+}
+
+// ============================================================
+// 编辑出库记录（管理员权限）
+// ============================================================
+function showEditOutRecord(id) {
+  if (!isAdmin) {
+    toast('需要管理员权限', 'err');
+    return;
+  }
+  var r = recs.find(function(x) { return x.id === id; });
+  if (!r || r.type !== 'checkout') return;
+  
+  gid('edit-out-id').value = id;
+  gid('edit-out-cn').value = r.cn;
+  gid('edit-out-pallets').value = r.pallets_out;
+  gid('edit-out-items').value = r.items_out;
+  gid('editOutRecordModal').classList.add('sh');
+}
+
+function closeEditOutRecordModal() {
+  gid('editOutRecordModal').classList.remove('sh');
+}
+
+function saveEditOutRecord() {
+  var id = gid('edit-out-id').value;
+  var r = recs.find(function(x) { return x.id === id; });
+  if (!r) return;
+  
+  var inRec = recs.find(function(x) { return x.id === r.refId; });
+  if (!inRec) return;
+  
+  var oldPalletsOut = r.pallets_out;
+  var oldItemsOut = r.items_out;
+  var newPalletsOut = parseInt(gid('edit-out-pallets').value) || 0;
+  var newItemsOut = parseInt(gid('edit-out-items').value) || 0;
+  
+  // 计算入库记录的新出库总数
+  var totalPalletsOut = (inRec.pallets_out || 0) - oldPalletsOut + newPalletsOut;
+  var totalItemsOut = (inRec.items_out || 0) - oldItemsOut + newItemsOut;
+  
+  if (totalPalletsOut > inRec.pallets) {
+    toast('出库托盘总数超过入库托盘', 'err');
+    return;
+  }
+  if (totalItemsOut > inRec.items) {
+    toast('出库件数总数超过入库件数', 'err');
+    return;
+  }
+  
+  // 更新出库记录
+  r.pallets_out = newPalletsOut;
+  r.items_out = newItemsOut;
+  
+  // 更新入库记录的出库总数
+  inRec.pallets_out = totalPalletsOut;
+  inRec.items_out = totalItemsOut;
+  
+  // 检查是否全部出库
+  if (inRec.pallets_out >= inRec.pallets && !inRec.dep) {
+    inRec.dep = r.dep;
+  }
+  
+  // 保存到 Firebase
+  if (dbRef) {
+    dbRef.child(id).set(r);
+    dbRef.child(inRec.id).set(inRec);
+  }
+  
+  closeEditOutRecordModal();
+  renderAll();
+  toast('✅ 修改成功', 'ok');
 }
 
 // ============================================================
@@ -778,7 +1378,7 @@ function renderPurchase() {
     // 主行
     html += '<tr id="pur-tr-'+r.id+'">' +
       '<td><button type="button" class="abtn" style="background:#e8f4ff;border-color:#00bfff;color:#00bfff;padding:2px 6px;font-size:11px" onclick="quickCheckIn(\''+r.id+'\')">📥 一键入库</button> '+(r.cn||'-')+'</td>' +
-      '<td>'+(r.supplier||'-')+'</td><td>'+(r.product||'-')+'</td><td>'+purchaseDate+'</td><td>'+(r.qty||0)+'</td>' +
+      '<td style="font-family:Arial;text-transform:capitalize">'+(r.supplier||'-')+'</td><td style="font-family:Arial;text-transform:capitalize">'+(r.product||'-')+'</td><td>'+purchaseDate+'</td><td>'+(r.qty||0)+'</td>' +
       '<td>'+(r.demurrage||0)+'</td><td>'+(r.customs||0)+'</td><td>'+(r.coldFee||0)+'</td>' +
       '<td>'+(r.repack||0)+'</td><td>'+(r.waste||0)+'</td><td>'+(r.other||0)+'</td>' +
       '<td><strong style="color:#0066cc">'+total.toFixed(2)+'</strong></td>' +

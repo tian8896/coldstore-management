@@ -276,6 +276,7 @@ function deleteRecord(id) {
 
 function renderAll() {
   renderRecords();
+  renderCheckout();
   updStats();
 }
 
@@ -365,6 +366,148 @@ function updStats() {
   gid('stat-store2-items').textContent = recs.filter(function(r) { return r.store === 2 && !r.dep; }).reduce(function(s, r) { return s + r.items - (r.items_out || 0); }, 0);
 }
 
+function renderCheckout() {
+  // 按集装箱号分组
+  var cnGroups = {};
+  recs.filter(function(r) { return r.type === 'checkout'; }).forEach(function(r) {
+    if (!cnGroups[r.cn]) {
+      cnGroups[r.cn] = {
+        recs: [],
+        inRec: null
+      };
+    }
+    cnGroups[r.cn].recs.push(r);
+  });
+
+  // 为每个集装箱找到对应的入库记录
+  Object.keys(cnGroups).forEach(function(cn) {
+    var outs = cnGroups[cn].recs;
+    if (outs.length > 0) {
+      cnGroups[cn].inRec = recs.find(function(r) { return r.id === outs[0].refId; });
+    }
+  });
+
+  var tb = gid('tb-checkout');
+  var es = gid('es-checkout');
+  if (!tb || !es) return;
+
+  var allCheckouts = recs.filter(function(r) { return r.type === 'checkout'; });
+  if (allCheckouts.length === 0) {
+    tb.innerHTML = '';
+    es.style.display = 'block';
+    return;
+  }
+
+  es.style.display = 'none';
+  var html = [];
+
+  // 按集装箱号排序
+  Object.keys(cnGroups).sort().forEach(function(cn) {
+    var group = cnGroups[cn];
+    var inRec = group.inRec;
+    var outRecs = group.recs.sort(function(a, b) { return new Date(a.dep) - new Date(b.dep); });
+
+    if (!inRec || outRecs.length === 0) return;
+
+    var startDate = new Date(inRec.arr);
+    var endDate = new Date(outRecs[outRecs.length - 1].dep);
+
+    // 计算每周费用
+    var totalFee = 0;
+    var currentDate = new Date(startDate);
+    var weekNum = 1;
+    var palletsAtWeekStart = inRec.pallets;
+
+    // 生成每周汇总记录
+    while (currentDate < endDate) {
+      var weekStart = new Date(currentDate);
+      var weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+
+      var actualEnd = weekEnd < endDate ? weekEnd : endDate;
+
+      // 该周费用 = 该周第一天的托盘数 × 费率 × 5%
+      var prevPallets = palletsAtWeekStart;
+      // 金额 = 单价38 × 托盘数量
+      var amount = prevPallets > 0 ? (prevPallets * RATE_PER_PALLET_PER_WEEK) : 0;
+      // 5% VAT = 金额 × 5%
+      var vat = amount * VAT_RATE;
+      // 合计 = 金额 + VAT
+      var weeklyTotal = amount + vat;
+      if (weeklyTotal > 0) {
+        totalFee += weeklyTotal;
+      }
+
+      // 格式：第N周 (MM/DD-MM/DD)
+      var startStr = (weekStart.getMonth() + 1) + '/' + weekStart.getDate();
+      var endStr = (weekEnd.getMonth() + 1) + '/' + weekEnd.getDate();
+      var weekLabel = '第' + weekNum + '周 (' + startStr + '-' + endStr + ')';
+
+      // 该周出库托盘数
+      var weekOutPallets = 0;
+      var weekOutItems = 0;
+      outRecs.forEach(function(or) {
+        var od = new Date(or.dep);
+        if (od >= weekStart && od <= weekEnd) {
+          weekOutPallets += or.pallets_out;
+          weekOutItems += or.items_out;
+        }
+      });
+
+      // 下周起始托盘数
+      var prevPallets = palletsAtWeekStart;
+      palletsAtWeekStart = Math.max(0, palletsAtWeekStart - weekOutPallets);
+
+      // 托盘数和件数显示逻辑：0显示为"-"
+      var displayPallets = prevPallets > 0 ? prevPallets : '-';
+      var displayOutPallets = weekOutPallets > 0 ? ('-' + weekOutPallets) : '-';
+      var displayOutItems = weekOutItems > 0 ? ('-' + weekOutItems) : '-';
+
+      // 每周汇总行（黄色背景）
+      html.push('<tr style="background:#fff3cd">' +
+        '<td><strong style="cursor:pointer;color:#0066cc;text-decoration:underline" onclick="showCheckoutDetail(\'' + cn + '\')">' + cn + '</strong></td>' +
+        '<td>' + (inRec.supplier || '-') + '</td>' +
+        '<td>' + inRec.product + '</td>' +
+        '<td style="font-weight:bold;color:#0066cc">' + weekLabel + '</td>' +
+        '<td><strong>' + displayPallets + '</strong></td>' +
+        '<td><span style="color:#cc0000">' + displayOutPallets + '</span></td>' +
+        '<td><span style="color:#cc0000">' + displayOutItems + '</span></td>' +
+        '<td>' + (prevPallets > 0 ? RATE_PER_PALLET_PER_WEEK.toFixed(2) : '-') + '</td>' +
+        '<td>' + (prevPallets > 0 ? amount.toFixed(2) : '-') + '</td>' +
+        '<td>' + (prevPallets > 0 ? vat.toFixed(2) : '-') + '</td>' +
+        '<td><strong style="color:#0066cc">' + (totalFee > 0 ? totalFee.toFixed(2) : '-') + '</strong></td>' +
+        '</tr>');
+
+      // 该周的出库明细（绿色背景，显示在该周下面）
+      var weekOutRecs = outRecs.filter(function(or) {
+        var od = new Date(or.dep);
+        return od >= weekStart && od <= weekEnd;
+      });
+      weekOutRecs.forEach(function(or) {
+        html.push('<tr style="background:#f0fff0">' +
+          '<td style="padding-left:20px;color:#999">' + cn + '</td>' +
+          '<td style="color:#999">' + (or.supplier || '-') + '</td>' +
+          '<td style="color:#999">' + or.product + '</td>' +
+          '<td style="color:#00aa00;font-weight:bold">' + fdt(or.dep) + '</td>' +
+          '<td>-</td>' +
+          '<td><span style="color:#cc0000;font-weight:bold">' + or.pallets_out + '</span></td>' +
+          '<td><span style="color:#cc0000;font-weight:bold">' + or.items_out + '</span></td>' +
+          '<td>-</td>' +
+          '<td>-</td>' +
+          '<td>-</td>' +
+          '<td>-</td>' +
+          '</tr>');
+      });
+
+      currentDate = new Date(weekEnd);
+      currentDate.setDate(currentDate.getDate() + 1);
+      weekNum++;
+    }
+  });
+
+  tb.innerHTML = html.join('');
+}
+
 // ============================================================
 // DETAIL MODAL
 // ============================================================
@@ -430,6 +573,41 @@ function clModal() {
 }
 
 // ============================================================
+// 出库记录详情 - 点击集装箱号显示剩余托盘和件数
+// ============================================================
+function showCheckoutDetail(cn) {
+  // 找到该集装箱的入库记录
+  var inRec = recs.find(function(r) { return r.cn === cn && !r.type; });
+  if (!inRec) return;
+
+  var remaining_pallets = inRec.pallets - (inRec.pallets_out || 0);
+  var remaining_items = inRec.items - (inRec.items_out || 0);
+
+  // 显示弹窗
+  var mcon = gid('mcon');
+  if (mcon) {
+    mcon.innerHTML = '<div style="text-align:center;padding:20px">' +
+      '<div style="font-size:18px;font-weight:bold;margin-bottom:16px">' + cn + '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;text-align:center">' +
+        '<div style="background:#fff3cd;padding:16px;border-radius:8px">' +
+          '<div style="font-size:12px;color:#666;margin-bottom:4px">剩余托盘</div>' +
+          '<div style="font-size:28px;font-weight:bold;color:#ff9900">' + remaining_pallets + '</div>' +
+        '</div>' +
+        '<div style="background:#e8f4ff;padding:16px;border-radius:8px">' +
+          '<div style="font-size:12px;color:#666;margin-bottom:4px">剩余件数</div>' +
+          '<div style="font-size:28px;font-weight:bold;color:#0066cc">' + remaining_items + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="margin-top:16px;padding:12px;background:#f5f5f5;border-radius:6px;font-size:12px;color:#666">' +
+        '入库时间: ' + fdt(inRec.arr) + '<br>' +
+        '入库托盘: ' + inRec.pallets + ' | 入库件数: ' + inRec.items +
+      '</div>' +
+    '</div>';
+  }
+  gid('modal').classList.add('sh');
+}
+
+// ============================================================
 // 出库记录详情
 // ============================================================
 function showOutDet(id) {
@@ -480,7 +658,7 @@ function swTab(tab) {
   document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('ac'); });
   document.querySelectorAll('.tc').forEach(function(t) { t.classList.remove('ac'); });
   
-  var tabNames = ['purchase', 'records', 'stats'];
+  var tabNames = ['purchase', 'records', 'checkout', 'stats'];
   var idx = tabNames.indexOf(tab);
   
   document.querySelectorAll('.tab')[idx].classList.add('ac');
@@ -597,55 +775,17 @@ function renderPurchase() {
       }
     }
     
-    var expandBtn = outRecs.length > 0 ? '<button type="button" class="abtn" style="padding:2px 6px;font-size:11px;margin-right:4px" onclick="togglePurchaseExpand(\''+r.id+'\')">+</button>' : '';
-    
     // 主行
     html += '<tr id="pur-tr-'+r.id+'">' +
-      '<td>' + expandBtn + '<button type="button" class="abtn" style="background:#e8f4ff;border-color:#00bfff;color:#00bfff;padding:2px 6px;font-size:11px" onclick="quickCheckIn(\''+r.id+'\")>📥 一键入库</button> '+(r.cn||'-')+'</td>' +
+      '<td><button type="button" class="abtn" style="background:#e8f4ff;border-color:#00bfff;color:#00bfff;padding:2px 6px;font-size:11px" onclick="quickCheckIn(\''+r.id+'\')">📥 一键入库</button> '+(r.cn||'-')+'</td>' +
       '<td>'+(r.supplier||'-')+'</td><td>'+(r.product||'-')+'</td><td>'+purchaseDate+'</td><td>'+(r.qty||0)+'</td>' +
       '<td>'+(r.demurrage||0)+'</td><td>'+(r.customs||0)+'</td><td>'+(r.coldFee||0)+'</td>' +
       '<td>'+(r.repack||0)+'</td><td>'+(r.waste||0)+'</td><td>'+(r.other||0)+'</td>' +
       '<td><strong style="color:#0066cc">'+total.toFixed(2)+'</strong></td>' +
-      '<td><button type="button" class="abtn" onclick="openEditPurchase(\''+r.id+'\")>✏️</button><button type="button" class="abtn x" onclick="delPurchase(\''+r.id+'\")>🗑</button></td></tr>';
-    
-    // 展开行
-    if (outRecs.length > 0) {
-      html += '<tr id="pur-expand-'+r.id+'" style="display:none"><td colspan="13" style="padding:10px;background:#f5f5f5;border-bottom:2px solid #ddd">' +
-        '<div style="font-size:11px;color:#666;margin-bottom:8px;font-weight:bold">📋 关联出库记录 ('+outRecs.length+' 次)</div>' +
-        '<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="background:#e8f8e8">' +
-        '<th style="padding:6px;border:1px solid #c8e8c8">#</th>' +
-        '<th style="padding:6px;border:1px solid #c8e8c8">出库时间</th>' +
-        '<th style="padding:6px;border:1px solid #c8e8c8">出库托盘</th>' +
-        '<th style="padding:6px;border:1px solid #c8e8c8">出库件数</th>' +
-        '<th style="padding:6px;border:1px solid #c8e8c8">剩余托盘</th>' +
-        '<th style="padding:6px;border:1px solid #c8e8c8">原始托盘</th>' +
-        '<th style="padding:6px;border:1px solid #c8e8c8">剩余件数</th>' +
-        '<th style="padding:6px;border:1px solid #c8e8c8">原始件数</th></tr>';
-      
-      outRecs.forEach(function(or, idx) {
-        var remP = inRec.pallets - (inRec.pallets_out||0);
-        var remI = inRec.items - (inRec.items_out||0);
-        html += '<tr style="background:#fff"><td style="padding:6px;border:1px solid #c8e8c8;text-align:center">'+(idx+1)+'</td>' +
-          '<td style="padding:6px;border:1px solid #c8e8c8">'+fdt(or.dep)+'</td>' +
-          '<td style="padding:6px;border:1px solid #c8e8c8;color:#cc0000;font-weight:bold">'+or.pallets_out+'</td>' +
-          '<td style="padding:6px;border:1px solid #c8e8c8;color:#cc0000;font-weight:bold">'+or.items_out+'</td>' +
-          '<td style="padding:6px;border:1px solid #c8e8c8;color:#ff9900;font-weight:bold">'+remP+'</td>' +
-          '<td style="padding:6px;border:1px solid #c8e8c8">'+inRec.pallets+'</td>' +
-          '<td style="padding:6px;border:1px solid #c8e8c8;color:#ff9900;font-weight:bold">'+remI+'</td>' +
-          '<td style="padding:6px;border:1px solid #c8e8c8">'+inRec.items+'</td></tr>';
-      });
-      html += '</table></td></tr>';
-    }
+      '<td><button type="button" class="abtn" onclick="openEditPurchase(\''+r.id+'\')">✏️ 修改</button><button type="button" class="abtn x" onclick="delPurchase(\''+r.id+'\')">🗑 删除</button></td></tr>';
   });
   
   tb.innerHTML = html;
-}
-
-function togglePurchaseExpand(id) {
-  var row = gid('pur-expand-' + id);
-  if (row) {
-    row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
-  }
 }
 
 // ============================================================
@@ -848,34 +988,19 @@ function quickCheckIn(purchaseId) {
   
   var r = purchaseRecs.find(function(x) { return x.id === purchaseId; });
   console.log('Found record:', r);
-  
+
   if (!r) {
     console.log('Record not found! Available IDs:', purchaseRecs.map(function(x) { return x.id; }));
     toast('未找到采购记录', 'err');
     return;
   }
-  
-  // 直接填入入库表单
-  console.log('Filling form with:', r.cn, r.supplier, r.product);
-  
-  // 切换到库存记录 tab
-  swTab('records');
-  
-  // 延迟填入，确保 DOM 已渲染
-  setTimeout(function() {
-    gid('f-cn').value = r.cn || '';
-    gid('f-supplier').value = r.supplier || '';
-    gid('f-product').value = r.product || '';
-    gid('f-items').value = String(r.qty || 1);
-    gid('f-pallets').value = '1';
-    gid('f-at').value = nowFmt();
-    
-    console.log('Form filled successfully');
-    toast('✅ 已填入: ' + r.cn + ' | ' + r.supplier + ' | ' + r.product, 'ok');
-    
-    // 滚动到入库表单
-    document.querySelector('.left').scrollTop = 0;
-  }, 100);
+
+  // 保存采购记录数据
+  quickInData = r;
+
+  // 显示冷库选择弹窗
+  gid('quickInInfo').textContent = '📦 ' + r.cn + ' | ' + r.supplier + ' | ' + r.product;
+  gid('quickInModal').classList.add('sh');
 }
 
 function clQuickInModal() {

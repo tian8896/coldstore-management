@@ -227,6 +227,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
   <div class="tabs">
     <div class="tab ac" onclick="swTab('purchase')">🛒 采购记录 Purchase</div>
     <div class="tab" onclick="swTab('records')">📋 库存记录 Records</div>
+    <div class="tab" onclick="swTab('checkout')">📤 出库记录 Checkout</div>
     <div class="tab" onclick="swTab('stats')">📊 统计报表 Stats</div>
   </div>
 
@@ -241,6 +242,11 @@ tr:hover td{background:rgba(0,191,255,.03)}
   <div class="tc" id="tc-records">
     <div class="tw"><table><thead><tr><th>集装箱 Container</th><th>供应商 Supplier</th><th>品名 Product</th><th>冷库 Store</th><th>托盘 Out/In</th><th>件数 Out/In</th><th>时间 Date</th><th>出库 Date</th><th>库存 In/Orig</th><th>费用 Fee</th><th>状态 Status</th><th>操作</th></tr></thead><tbody id="tb-all"></tbody></table></div>
     <div class="es" id="es-all" style="display:none"><div class="em">📭</div><div>暂无记录 / No Records Yet</div></div>
+  </div>
+
+  <div class="tc" id="tc-checkout">
+    <div class="tw"><table><thead><tr><th>集装箱号 Container</th><th>供应商 Supplier</th><th>品名 Product</th><th>周/日期 Week/Date</th><th>托盘数 Pallets</th><th>出库托盘 Out</th><th>出库件数 Items</th><th>单价 Price</th><th>金额 Amount</th><th>5% VAT</th><th>合计 Total</th></tr></thead><tbody id="tb-checkout"></tbody></table></div>
+    <div class="es" id="es-checkout" style="display:none"><div class="em">📭</div><div>暂无出库记录 / No Checkout Records</div></div>
   </div>
 
   <div class="tc" id="tc-stats">

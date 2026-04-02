@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // CONFIG
 // ============================================================
 const SK = 'csm_warehouse1';
@@ -83,8 +83,11 @@ function loadRatesToSettings() {
 // ============================================================
 var recs = [];
 var currentColdStore = 1;
-var currentUser = null; // 当前登录用户
-var isAdmin = false; // 是否是管理员
+var currentUser = null;
+var isAdmin = false;
+var isCustoms = false;
+
+var USERS_KEY = 'csm_users_v2';
 
 // ============================================================
 // INIT
@@ -143,13 +146,108 @@ function initApp() {
     
     toast('✅ Firebase 连接成功', 'ok');
     
-    // 默认设置管理员权限（可根据需要修改为登录验证）
-    currentUser = 'admin';
-    isAdmin = true;
+    // 初始化默认账号
+    initDefaultUsers();
+    
+    // 显示登录弹窗
+    showLoginModal();
   } catch(e) {
     console.error('Firebase init error:', e);
     toast('❌ Firebase 连接失败: ' + e.message, 'err');
   }
+}
+
+// 初始化默认账号
+function initDefaultUsers() {
+  var users = getUsers();
+  if (Object.keys(users).length === 0) {
+    users = {
+      'admin': { password: 'admin123', role: 'admin', name: '管理员' }
+    };
+    saveUsers(users);
+  }
+}
+
+// 显示登录弹窗
+function showLoginModal() {
+  gid('loginModal').classList.add('sh');
+  gid('login-username').value = '';
+  gid('login-password').value = '';
+  gid('login-error').style.display = 'none';
+}
+
+// 登录处理
+function doLogin() {
+  var username = (gid('login-username').value || '').trim();
+  var password = (gid('login-password').value || '').trim();
+  
+  if (!username || !password) {
+    gid('login-error').textContent = '请输入用户名和密码';
+    gid('login-error').style.display = 'block';
+    return;
+  }
+  
+  var users = getUsers();
+  var user = users[username];
+  
+  if (!user || user.password !== password) {
+    gid('login-error').textContent = '用户名或密码错误';
+    gid('login-error').style.display = 'block';
+    return;
+  }
+  
+  currentUser = username;
+  isAdmin = user.role === 'admin';
+  isCustoms = user.role === 'customs';
+  
+  gid('loginModal').classList.remove('sh');
+  
+  if (isCustoms) {
+    showCustomsView();
+  } else {
+    showAdminView();
+  }
+  
+  var roleText = isAdmin ? '管理员' : '清关公司';
+  toast('✅ 欢迎 ' + (user.name || username) + '（' + roleText + '）', 'ok');
+}
+
+// 显示管理员视图
+function showAdminView() {
+  gid('customsView').style.display = 'none';
+  document.querySelectorAll('.right')[1].style.display = 'block';
+  gid('userInfo').style.display = 'flex';
+  updateSettingsButton();
+  renderPurchase();
+}
+
+// 显示清关公司视图
+function showCustomsView() {
+  document.querySelectorAll('.right')[1].style.display = 'none';
+  gid('customsView').style.display = 'block';
+  gid('userInfo').style.display = 'none';
+  document.querySelector('header h1').textContent = '物流公司系统 / Logistics System';
+  gid('customsUserName').textContent = getUsers()[currentUser].name || currentUser;
+  updateSettingsButton();
+  renderCustomsTable();
+}
+
+// 更新设置按钮显示状态
+function updateSettingsButton() {
+  var settingsBtn = document.querySelector('button[onclick="openSettings()"]');
+  if (settingsBtn) {
+    settingsBtn.style.display = isAdmin ? 'inline-block' : 'none';
+  }
+}
+
+// 退出登录
+function handleLogout() {
+  currentUser = null;
+  isAdmin = false;
+  isCustoms = false;
+  document.querySelector('header h1').textContent = '迪拜大丰收冷库管理系统 - Warehouse 1';
+  document.querySelector('header p').textContent = '';
+  showLoginModal();
 }
 
 // ============================================================
@@ -1411,7 +1509,7 @@ function addPurchase() {
   var supplier = (gid('fp-supplier').value || '').trim();
   var purchaseDate = gid('fp-date').value;
 
-  if (!cn) { toast('请输入集装箱号', 'err'); return; }
+  if (!cn) { toast('请输入集装箱号 / Enter container no.', 'err'); return; }
   if (!supplier) { toast('请输入供应商', 'err'); return; }
 
   // 获取所有品名行
@@ -1652,8 +1750,26 @@ function clSettings() {
 function getUsers() {
   try {
     var stored = localStorage.getItem(USERS_KEY);
-    return stored ? JSON.parse(stored) : { admin: 'admin123', user: 'user123' };
-  } catch(e) { return { admin: 'admin123', user: 'user123' }; }
+    if (stored) {
+      var data = JSON.parse(stored);
+      // 兼容旧格式
+      if (typeof data.admin === 'string') {
+        var newData = {
+          'admin': { password: data.admin, role: 'admin', name: '管理员' }
+        };
+        saveUsers(newData);
+        return newData;
+      }
+      return data;
+    }
+    return {
+      'admin': { password: 'admin123', role: 'admin', name: '管理员' }
+    };
+  } catch(e) { 
+    return { 
+      'admin': { password: 'admin123', role: 'admin', name: '管理员' }
+    }; 
+  }
 }
 
 function saveUsers(users) {
@@ -1663,18 +1779,22 @@ function saveUsers(users) {
 function addAccount() {
   var username = (gid('sett-user-input').value || '').trim();
   var password = (gid('sett-pass-input').value || '').trim();
+  var role = gid('sett-role-select') ? gid('sett-role-select').value : 'admin';
+  var name = gid('sett-name-input') ? (gid('sett-name-input').value || '').trim() : username;
+  
   if (!username) { toast('请输入用户名', 'err'); return; }
   if (!password) { toast('请输入密码', 'err'); return; }
   
   var users = getUsers();
   if (users[username]) { toast('用户名已存在', 'err'); return; }
   
-  users[username] = password;
+  users[username] = { password: password, role: role, name: name };
   saveUsers(users);
   gid('sett-user-input').value = '';
   gid('sett-pass-input').value = '';
+  if (gid('sett-name-input')) gid('sett-name-input').value = '';
   renderAccountList();
-  toast('✅ 账号已添加: ' + username, 'ok');
+  toast('✅ 账号已添加: ' + username + ' (' + (role === 'admin' ? '管理员' : '清关公司') + ')', 'ok');
 }
 
 function delAccount(username) {
@@ -2038,8 +2158,245 @@ function showSuggestCn(inputEl) {
 
 function pickCnSuggest(el) {
   var text = el.textContent;
-  // 提取集装箱号（第一个竖线之前的部分）
   var cn = text.split('|')[0].trim();
   gid('f-cno').value = cn;
   hideSuggest('checkout-cn');
 }
+
+// ============================================================
+// CUSTOMS COMPANY FUNCTIONS
+// ============================================================
+var CUSTOMS_KEY = 'csm_customs_fees';
+
+function getCustomsFees() {
+  try {
+    var stored = localStorage.getItem(CUSTOMS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch(e) { return []; }
+}
+
+function saveCustomsFees(fees) {
+  localStorage.setItem(CUSTOMS_KEY, JSON.stringify(fees));
+}
+
+function openCustomsAddForm(id) {
+  gid('LogisticsModalTitle').textContent = id ? '编辑物流费用' : '添加物流费用';
+  gid('customs-cn').value = '';
+  gid('customs-product').value = '';
+  gid('customs-fee').value = '0';
+  gid('customs-discount').value = '0';
+  gid('customs-remark').value = '';
+  gid('customs-id').value = id || '';
+  
+  if (id) {
+    var fees = getCustomsFees();
+    var fee = fees.find(function(f) { return f.id === id; });
+    if (fee) {
+      gid('customs-cn').value = fee.cn || '';
+      gid('customs-product').value = fee.product || '';
+      gid('customs-fee').value = fee.fee || 0;
+      gid('customs-discount').value = fee.discount || 0;
+      gid('customs-remark').value = fee.remark || '';
+    }
+  }
+  
+  gid('LogisticsModal').classList.add('sh');
+}
+
+function clLogisticsModal() {
+  gid('LogisticsModal').classList.remove('sh');
+}
+
+function saveCustomsFee() {
+  var cn = (gid('customs-cn').value || '').trim().toUpperCase();
+  var product = (gid('customs-product').value || '').trim();
+  var fee = parseFloat(gid('customs-fee').value) || 0;
+  var discount = parseFloat(gid('customs-discount').value) || 0;
+  var remark = (gid('customs-remark').value || '').trim();
+  var id = gid('customs-id').value;
+  
+  if (!cn) { toast('请输入集装箱号 / Enter container no.', 'err'); return; }
+  
+  var fees = getCustomsFees();
+  
+  if (id) {
+    var idx = fees.findIndex(function(f) { return f.id === id; });
+    if (idx !== -1) {
+      fees[idx].cn = cn;
+      fees[idx].product = product;
+      fees[idx].fee = fee;
+      fees[idx].discount = discount;
+      fees[idx].remark = remark;
+      fees[idx].updatedBy = currentUser;
+      fees[idx].updateTime = new Date().toISOString();
+      fees[idx].confirmed = false;
+    }
+    toast('✅ 物流费用已更新 / Updated', 'ok');
+  } else {
+    fees.push({
+      id: Date.now().toString(),
+      cn: cn,
+      product: product,
+      fee: fee,
+      discount: discount,
+      remark: remark,
+      addedBy: currentUser,
+      addTime: new Date().toISOString(),
+      confirmed: false,
+      confirmedBy: null,
+      confirmTime: null
+    });
+    toast('✅ 物流费用已添加 / Added', 'ok');
+  }
+  
+  saveCustomsFees(fees);
+  clLogisticsModal();
+  renderCustomsTable();
+}
+
+function delCustomsFee(id) {
+  if (!confirm('确认删除这条物流记录？')) return;
+  var fees = getCustomsFees();
+  fees = fees.filter(function(f) { return f.id !== id; });
+  saveCustomsFees(fees);
+  renderCustomsTable();
+}
+
+function confirmCustomsFee(id) {
+  var fees = getCustomsFees();
+  var idx = fees.findIndex(function(f) { return f.id === id; });
+  if (idx !== -1) {
+    fees[idx].confirmed = true;
+    fees[idx].confirmedBy = currentUser;
+    fees[idx].confirmTime = new Date().toISOString();
+    saveCustomsFees(fees);
+    renderCustomsTable();
+    toast('✅ 已确认物流费用 / Confirmed', 'ok');
+  }
+}
+
+function unconfirmCustomsFee(id) {
+  var fees = getCustomsFees();
+  var idx = fees.findIndex(function(f) { return f.id === id; });
+  if (idx !== -1) {
+    fees[idx].confirmed = false;
+    fees[idx].confirmedBy = null;
+    fees[idx].confirmTime = null;
+    saveCustomsFees(fees);
+    renderCustomsTable();
+    toast('✅ 已取消确认 / Unconfirmed', 'ok');
+  }
+}
+
+function filterCustomsTable() {
+  renderCustomsTable();
+}
+
+function renderCustomsTable() {
+  var tb = gid('tb-customs');
+  var es = gid('es-customs');
+  if (!tb || !es) return;
+  
+  var searchVal = (gid('customs-search-cn').value || '').trim().toUpperCase();
+  var fees = getCustomsFees();
+  
+  if (searchVal) {
+    fees = fees.filter(function(f) {
+      return (f.cn || '').toUpperCase().indexOf(searchVal) !== -1 ||
+             (f.product || '').toUpperCase().indexOf(searchVal) !== -1;
+    });
+  }
+  
+  if (fees.length === 0) {
+    tb.innerHTML = '';
+    es.style.display = 'block';
+    return;
+  }
+  es.style.display = 'none';
+  
+  var html = fees.map(function(f) {
+    var statusText = f.confirmed ? '<span style="color:#00aa00;font-weight:bold;background:#e8f5e9;padding:2px 8px;border-radius:4px">APPROVED</span>' : '<span style="color:#ff9900;background:#fff8e1;padding:2px 8px;border-radius:4px">PENDING</span>';
+    var statusClass = f.confirmed ? 'background:#e8f5e9' : 'background:#fff8e1';
+    
+    var actionBtns = '';
+    if (isAdmin) {
+      if (f.confirmed) {
+        actionBtns = '<button class="abtn" onclick="unconfirmCustomsFee(\'' + f.id + '\')" style="color:#ff9900">取消确认</button> ';
+      } else {
+        actionBtns = '<button class="abtn" onclick="confirmCustomsFee(\'' + f.id + '\')" style="background:#4CAF50;color:#fff;border:none;padding:2px 8px;border-radius:3px">确认</button> ';
+      }
+    }
+    actionBtns += '<button class="abtn" onclick="openCustomsAddForm(\'' + f.id + '\')">✏️</button> <button class="abtn x" onclick="delCustomsFee(\'' + f.id + '\')">🗑</button>';
+    
+    var purchaseMatch = '';
+    var matchedPurchase = purchaseRecs.find(function(p) { return p.cn === f.cn; });
+    if (matchedPurchase) {
+      purchaseMatch = '<span style="background:#e8f5e9;color:#00aa00;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">采购</span>';
+    }
+    
+    return '<tr style="' + statusClass + '">' +
+      '<td><strong>' + (f.cn || '-') + '</strong>' + purchaseMatch + '</td>' +
+      '<td style="font-family:Arial;text-transform:capitalize">' + (f.product || '-') + '</td>' +
+      '<td>' + f.fee.toFixed(2) + ' AED</td>' +
+      '<td style="color:#ff4444">-' + f.discount.toFixed(2) + ' AED</td>' +
+      '<td>' + statusText + '</td>' +
+      '<td>' + actionBtns + '</td></tr>';
+  }).join('');
+  
+  tb.innerHTML = html;
+}
+
+function getPurchaseContainers() {
+  var containers = [];
+  var seen = {};
+  purchaseRecs.forEach(function(p) {
+    if (p.cn && !seen[p.cn]) {
+      seen[p.cn] = true;
+      containers.push({
+        cn: p.cn,
+        product: p.product,
+        supplier: p.supplier,
+        qty: p.qty
+      });
+    }
+  });
+  return containers.sort(function(a, b) { return a.cn.localeCompare(b.cn); });
+}
+
+function openCustomsFromPurchase() {
+  var containers = getPurchaseContainers();
+  var modal = gid('customsFromPurchaseModal');
+  var list = gid('customs-purchase-list');
+  
+  if (containers.length === 0) {
+    toast('暂无采购记录 / No purchase records', 'err');
+    return;
+  }
+  
+  list.innerHTML = containers.map(function(c) {
+    var existingFee = getCustomsFees().find(function(f) { return f.cn === c.cn; });
+    var badge = existingFee ? '<span style="background:#4CAF50;color:#fff;font-size:10px;padding:1px 4px;border-radius:2px">已添加</span>' : '';
+    
+    return '<div style="padding:8px 12px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">' +
+      '<div><strong>' + c.cn + '</strong><br><span style="font-size:12px;color:#666">' + (c.product || '-') + '</span></div>' +
+      '<div>' + badge + ' <button class="abtn" style="background:#4CAF50;color:#fff;border:none;padding:4px 8px;border-radius:3px" onclick="selectPurchaseCn(\'' + c.cn + '\')">+ 添加</button></div>' +
+      '</div>';
+  }).join('');
+  
+  modal.classList.add('sh');
+}
+
+function clCustomsFromPurchaseModal() {
+  gid('customsFromPurchaseModal').classList.remove('sh');
+}
+
+function selectPurchaseCn(cn) {
+  clCustomsFromPurchaseModal();
+  openCustomsAddForm('');
+  gid('customs-cn').value = cn;
+}
+
+
+
+
+

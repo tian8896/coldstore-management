@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
@@ -122,6 +122,20 @@ tr:hover td{background:rgba(0,191,255,.03)}
 </style>
 </head>
 <body>
+<!-- 登录弹窗 -->
+<div class="mov" id="loginModal">
+  <div class="mdl" style="width:360px;text-align:center">
+    <h3 style="margin-bottom:20px">🏭 冷库管理系统登录</h3>
+    <div class="fg"><label>用户名 Username</label>
+      <input type="text" id="login-username" placeholder="输入用户名" autocomplete="off" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px">
+    </div>
+    <div class="fg"><label>密码 Password</label>
+      <input type="password" id="login-password" placeholder="输入密码" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px">
+    </div>
+    <div id="login-error" style="color:#cc0000;font-size:13px;margin:8px 0;display:none"></div>
+    <button class="btn btn-s" style="width:100%;padding:12px;font-size:16px;margin-top:10px" onclick="doLogin()">登录 Login</button>
+  </div>
+</div>
 <!-- LOGIN SCREEN (disabled for testing) -->
 <!-- <div class="login-screen" id="loginScreen">
   <div class="login-box">
@@ -221,6 +235,62 @@ tr:hover td{background:rgba(0,191,255,.03)}
     </div>
     <div class="brow">
       <button class="btn btn-p" onclick="checkOut()">✈ 出库 Check Out</button>
+    </div>
+  </div>
+</div>
+
+<!-- 物流公司视图 -->
+<div class="right" id="logisticsView" style="display:none">
+  <div style="background:#4CAF50;color:#fff;padding:16px 24px;border-radius:8px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <h3 style="margin:0">🏢 物流公司系统 / Logistics System</h3>
+      <p style="margin:4px 0 0;font-size:13px;opacity:0.9" id="logisticsUserName"></p>
+    </div>
+    <button class="btn btn-g" onclick="handleLogout()" style="background:#fff;color:#4CAF50;border:none">退出登录 / Logout</button>
+  </div>
+  <div class="brow" style="margin-bottom:14px">
+    <input type="text" id="logistics-search-cn" placeholder="搜索集装箱号 / Search Container..." style="padding:8px 12px;border:1px solid #ddd;border-radius:4px;width:220px" oninput="filterLogisticsTable()">
+    <button class="btn btn-s" onclick="openLogisticsFromPurchase()" style="margin-left:10px">📦 从采购记录选择 / From Purchase</button>
+    <button class="btn btn-s" onclick="openLogisticsAddForm('')" style="margin-left:10px">+ 手动添加 / Manual Add</button>
+  </div>
+  <div class="tw"><table><thead><tr><th>集装箱号<br>Container</th><th>品名<br>Product</th><th>清关费<br>Customs Fee</th><th>折扣<br>Discount</th><th>状态<br>Status</th><th>操作<br>Action</th></tr></thead><tbody id="tb-logistics"></tbody></table></div>
+  <div class="es" id="es-logistics" style="display:none"><div class="em">📭</div><div>暂无清关记录 / No Records</div></div>
+</div>
+
+<!-- 物流公司添加/编辑弹窗 -->
+<div class="mov" id="logisticsModal">
+  <div class="mdl" style="width:420px">
+    <h3 id="logisticsModalTitle">📋 添加清关费用 / Add Customs Fee</h3>
+    <div class="fg"><label>集装箱号 Container No. *</label>
+      <input type="text" id="logistics-cn" placeholder="输入集装箱号码" maxlength="11" style="text-transform:uppercase" autocomplete="off">
+    </div>
+    <div class="fg"><label>品名 Product Name</label>
+      <input type="text" id="logistics-product" placeholder="输入品名" autocomplete="off">
+    </div>
+    <div class="fg"><label>清关费 Customs Fee (AED)</label>
+      <input type="number" id="logistics-fee" placeholder="输入清关费" min="0" value="0">
+    </div>
+    <div class="fg"><label>折扣 Discount (AED)</label>
+      <input type="number" id="logistics-discount" placeholder="输入折扣金额" min="0" value="0">
+    </div>
+    <div class="fg"><label>备注 Remark</label>
+      <input type="text" id="logistics-remark" placeholder="输入备注" autocomplete="off">
+    </div>
+    <input type="hidden" id="logistics-id">
+    <div class="brow">
+      <button class="btn btn-s" onclick="saveLogisticsFee()">✓ 保存 Save</button>
+      <button class="btn btn-g" onclick="cllogisticsModal()">取消 Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- 从采购记录选择集装箱号弹窗 -->
+<div class="mov" id="logisticsFromPurchaseModal">
+  <div class="mdl" style="width:500px;max-height:70vh;overflow-y:auto">
+    <h3>📦 从采购记录选择集装箱号 / Select from Purchase</h3>
+    <div id="logistics-purchase-list"></div>
+    <div class="brow" style="margin-top:14px">
+      <button class="btn btn-g" onclick="cllogisticsFromPurchaseModal()">关闭 Close</button>
     </div>
   </div>
 </div>
@@ -504,9 +574,14 @@ tr:hover td{background:rgba(0,191,255,.03)}
     </div>
     <div class="sett-section">
       <h4>👤 账号管理 / Account Management</h4>
-      <div class="sett-row">
-        <input type="text" id="sett-user-input" placeholder="新用户名 Username" style="flex:1">
-        <input type="text" id="sett-pass-input" placeholder="密码 Password" style="flex:1">
+      <div class="sett-row" style="flex-wrap:wrap;gap:6px">
+        <input type="text" id="sett-user-input" placeholder="用户名" style="width:100px">
+        <input type="text" id="sett-name-input" placeholder="公司名称" style="width:120px">
+        <input type="text" id="sett-pass-input" placeholder="密码" style="width:80px">
+        <select id="sett-role-select" style="padding:6px;border:1px solid #ddd;border-radius:4px">
+          <option value="admin">管理员</option>
+          <option value="customs">物流公司</option>
+        </select>
         <button class="sett-add-btn" onclick="addAccount()">+ 添加</button>
       </div>
       <div id="sett-account-list"></div>
@@ -590,3 +665,5 @@ tr:hover td{background:rgba(0,191,255,.03)}
 
 </body>
 </html>
+
+

@@ -181,8 +181,11 @@ tr:hover td{background:rgba(0,191,255,.03)}
 
   <div class="section">
     <div class="stitle">📦 入库登记 / Check In</div>
-    <div class="fg"><label>集装箱号码 Container No.</label>
+    <div class="fg"><label>入库集装箱号 Container No. <span style="color:var(--rd)">*</span></label>
       <input type="text" id="f-cn" placeholder="输入集装箱号码" maxlength="11" style="text-transform:uppercase" autocomplete="off">
+    </div>
+    <div class="fg"><label>入库日期 Arrival Date <span style="color:var(--rd)">*</span></label>
+      <input type="date" id="f-at" required>
     </div>
     <div class="fg"><label>供应商 Supplier</label>
       <input type="text" id="f-supplier" placeholder="输入供应商名称" autocomplete="off">
@@ -196,9 +199,6 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <div class="fg"><label>货物件数 Items</label>
       <input type="number" id="f-items" placeholder="输入货物总件数" min="1" value="1">
     </div>
-    <div class="fg"><label>入库日期 Arrival Date</label>
-      <input type="date" id="f-at">
-    </div>
     <div class="brow">
       <button class="btn btn-s" onclick="checkIn()">✓ 入库 Check In</button>
     </div>
@@ -206,18 +206,18 @@ tr:hover td{background:rgba(0,191,255,.03)}
 
   <div class="section">
     <div class="stitle">🚚 出库登记 / Check Out</div>
-    <div class="fg" style="position:relative"><label>集装箱号码 Container No.</label>
+    <div class="fg" style="position:relative"><label>出库集装箱号 Container No. <span style="color:var(--rd)">*</span></label>
       <input type="text" id="f-cno" placeholder="输入或选择在库集装箱号码" style="text-transform:uppercase" autocomplete="off" oninput="showSuggestCn(this)" onfocus="showSuggestCn(this)" onblur="setTimeout(function(){hideSuggest('checkout-cn')},200)">
       <div class="suggest-list" id="suggest-checkout-cn"></div>
+    </div>
+    <div class="fg"><label>出库日期 Departure Date <span style="color:var(--rd)">*</span></label>
+      <input type="date" id="f-dt" required>
     </div>
     <div class="fg"><label>出库托盘数 Pallets Out</label>
       <input type="number" id="f-pallets-out" placeholder="输入出库托盘数" min="1" value="1">
     </div>
     <div class="fg"><label>出库件数 Items Out</label>
       <input type="number" id="f-items-out" placeholder="输入出库件数" min="1" value="1">
-    </div>
-    <div class="fg"><label>出库日期 Departure Date</label>
-      <input type="date" id="f-dt">
     </div>
     <div class="brow">
       <button class="btn btn-p" onclick="checkOut()">✈ 出库 Check Out</button>
@@ -237,7 +237,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <div class="brow" style="margin-bottom:14px">
       <button class="btn btn-s" onclick="openPurchaseForm()">+ 新增采购记录 Add Purchase</button>
     </div>
-    <div class="tw"><table><thead><tr><th>集装箱号 Container</th><th>供应商 Supplier</th><th>品名 Product</th><th>采购日期 Date</th><th>数量 Qty</th><th>停柜费 Demurrage</th><th>清关费 Customs</th><th>冷库费 Cold Fee</th><th>翻包费 Repack</th><th>垃圾处理费 Waste</th><th>其他费用 Other</th><th>合计 Total</th><th>操作 Action</th></tr></thead><tbody id="tb-purchase"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th>集装箱号 Container</th><th>供应商 Supplier</th><th>品名 Product</th><th>采购日期 Date</th><th>数量 Qty</th><th>停柜费 Dem.</th><th>清关费 Customs</th><th>冷藏费 Cold</th><th>单据认证 Att.</th><th>翻包费 Repack</th><th>垃圾费 Waste</th><th>其他 Other</th><th>合计 Total</th><th>操作 Action</th></tr></thead><tbody id="tb-purchase"></tbody></table></div>
     <div class="es" id="es-purchase" style="display:none"><div class="em">📭</div><div>暂无采购记录 / No Purchase Records</div></div>
   </div>
 
@@ -337,44 +337,54 @@ tr:hover td{background:rgba(0,191,255,.03)}
 </div>
 
 <div class="mov" id="purchaseModal">
-  <div class="mdl" style="width:520px">
+  <div class="mdl" style="width:680px;max-height:85vh;overflow-y:auto">
     <h3>🛒 新增采购记录 / Add Purchase Record</h3>
-    <div class="fg" style="position:relative"><label>集装箱号 Container No.</label>
-      <input type="text" id="fp-cn" placeholder="输入集装箱号码" maxlength="11" style="text-transform:uppercase" autocomplete="off">
+    <table style="width:100%;border-collapse:collapse;margin-bottom:10px">
+      <tr>
+        <td style="padding:4px 6px"><label style="font-size:12px">集装箱号 Container No. *</label><br>
+          <input type="text" id="fp-cn" placeholder="输入集装箱号码" maxlength="11" style="text-transform:uppercase;width:100%;padding:6px;border:1px solid #ddd;border-radius:4px" autocomplete="off"></td>
+        <td style="padding:4px 6px"><label style="font-size:12px">供应商 Supplier *</label><br>
+          <input type="text" id="fp-supplier" placeholder="输入供应商" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px" autocomplete="off" oninput="showSuggest(this,'supplier')" onfocus="showSuggest(this,'supplier')" onblur="setTimeout(function(){hideSuggest('supplier')},200)">
+          <div class="suggest-list" id="suggest-supplier"></div></td>
+        <td style="padding:4px 6px"><label style="font-size:12px">采购日期</label><br>
+          <input type="date" id="fp-date" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px"></td>
+      </tr>
+    </table>
+    
+    <div style="margin-bottom:8px"><strong>品名列表 / Product Items</strong> <button type="button" class="abtn" style="background:#4CAF50;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer" onclick="addPurchaseItem()">+ 添加品名</button></div>
+    <div id="purchaseItemsContainer">
+      <table style="width:100%;border-collapse:collapse" id="purchaseItemsTable">
+        <thead style="background:#f5f5f5">
+          <tr>
+            <th style="padding:6px;text-align:left;font-size:12px;border:1px solid #ddd">品名 Product *</th>
+            <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px">数量 Qty</th>
+            <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px">停柜费</th>
+            <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px">清关费</th>
+            <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px">冷库费</th>
+            <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px">认证费</th>
+            <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px">翻包费</th>
+            <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:60px">操作</th>
+          </tr>
+        </thead>
+        <tbody id="purchaseItemsBody">
+          <tr class="purchase-item-row">
+            <td style="padding:4px;border:1px solid #ddd;position:relative">
+              <input type="text" class="item-product" placeholder="品名" data-rowid="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px" oninput="showSuggestPurchaseItem(this)" onfocus="showSuggestPurchaseItem(this)" onblur="setTimeout(function(){hideSuggest('purchase-item-0')},200)">
+              <div class="suggest-list" id="suggest-purchase-item-0"></div>
+            </td>
+            <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-qty" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>
+            <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-demurrage" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>
+            <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-customs" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>
+            <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-coldfee" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>
+            <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-attestation" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>
+            <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-repack" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>
+            <td style="padding:4px;border:1px solid #ddd;text-align:center"><button type="button" class="abtn x" onclick="removePurchaseItem(this)" style="color:#ff4444;font-size:16px">×</button></td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-    <div class="fg" style="position:relative"><label>供应商 Supplier</label>
-      <input type="text" id="fp-supplier" placeholder="输入或选择供应商" autocomplete="off" oninput="showSuggest(this,'supplier')" onfocus="showSuggest(this,'supplier')" onblur="setTimeout(function(){hideSuggest('supplier')},200)">
-      <div class="suggest-list" id="suggest-supplier"></div>
-    </div>
-    <div class="fg" style="position:relative"><label>品名 Product Name</label>
-      <input type="text" id="fp-product" placeholder="输入或选择品名（多个品名用逗号分隔）" autocomplete="off" oninput="showSuggest(this,'product')" onfocus="showSuggest(this,'product')" onblur="setTimeout(function(){hideSuggest('product')},200)">
-      <div class="suggest-list" id="suggest-product"></div>
-    </div>
-    <div class="fg"><label>采购日期 Purchase Date</label>
-      <input type="date" id="fp-date">
-    </div>
-    <div class="fg"><label>数量 Qty</label>
-      <input type="number" id="fp-qty" placeholder="数量" min="0" value="0">
-    </div>
-    <div class="fg"><label>停柜费 Demurrage (AED)</label>
-      <input type="number" id="fp-demurrage" placeholder="0" min="0" value="0">
-    </div>
-    <div class="fg"><label>清关费 Customs (AED)</label>
-      <input type="number" id="fp-customs" placeholder="0" min="0" value="0">
-    </div>
-    <div class="fg"><label>冷库费 Cold Fee (AED)</label>
-      <input type="number" id="fp-coldfee" placeholder="0" min="0" value="0">
-    </div>
-    <div class="fg"><label>翻包费 Repack (AED)</label>
-      <input type="number" id="fp-repack" placeholder="0" min="0" value="0">
-    </div>
-    <div class="fg"><label>垃圾处理费 Waste (AED)</label>
-      <input type="number" id="fp-waste" placeholder="0" min="0" value="0">
-    </div>
-    <div class="fg"><label>其他费用 Other (AED)</label>
-      <input type="number" id="fp-other" placeholder="0" min="0" value="0">
-    </div>
-    <div class="brow">
+    
+    <div class="brow" style="margin-top:14px">
       <button class="btn btn-s" onclick="addPurchase()">✓ 提交 Submit</button>
       <button class="btn btn-g" onclick="clPurchaseModal()">取消 Cancel</button>
     </div>
@@ -408,6 +418,9 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <div class="fg"><label>冷库费 Cold Fee (AED)</label>
       <input type="number" id="fe-coldfee" min="0">
     </div>
+    <div class="fg"><label>单据认证费 Attestation Fee (AED)</label>
+      <input type="number" id="fe-attestation" min="0">
+    </div>
     <div class="fg"><label>翻包费 Repack (AED)</label>
       <input type="number" id="fe-repack" min="0">
     </div>
@@ -425,12 +438,22 @@ tr:hover td{background:rgba(0,191,255,.03)}
 </div>
 
 <div class="mov" id="quickInModal">
-  <div class="mdl" style="width:400px;text-align:center">
-    <h3>📥 选择冷库 / Select Cold Store</h3>
-    <p id="quickInInfo" style="margin-bottom:16px;color:#666;font-size:13px"></p>
-    <div style="display:flex;gap:12px;justify-content:center;margin-bottom:14px">
-      <button class="btn btn-s" style="flex:1;padding:16px;font-size:16px" onclick="doQuickIn(1)">❄️ 冷库 1</button>
-      <button class="btn btn-p" style="flex:1;padding:16px;font-size:16px" onclick="doQuickIn(2)">❄️ 冷库 2</button>
+  <div class="mdl" style="width:500px;text-align:center">
+    <h3>📥 选择入库信息 / Select Check-In Info</h3>
+    <p id="quickInInfo" style="margin-bottom:12px;color:#666;font-size:13px"></p>
+    <div id="quickInProductSelect" style="margin-bottom:14px;display:none">
+      <label style="font-size:13px;color:#333">选择入库品名：</label>
+      <select id="quickInProductDropdown" style="width:100%;padding:8px;margin-top:6px;border:1px solid #ddd;border-radius:4px;font-size:14px">
+      </select>
+    </div>
+    <div id="quickInStoreButtons">
+      <p style="margin-bottom:10px;font-size:13px;color:#666">选择冷库：</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <button class="btn btn-s" style="padding:14px;font-size:15px" onclick="doQuickIn(1)">❄️ 冷库 1</button>
+        <button class="btn btn-p" style="padding:14px;font-size:15px" onclick="doQuickIn(2)">❄️ 冷库 2</button>
+        <button class="btn btn-p" style="padding:14px;font-size:15px" onclick="doQuickIn(3)">❄️ 冷库 3</button>
+        <button class="btn btn-p" style="padding:14px;font-size:15px" onclick="doQuickIn(4)">❄️ 冷库 4</button>
+      </div>
     </div>
     <div class="brow"><button class="btn btn-g" onclick="clQuickInModal()">取消 Cancel</button></div>
   </div>
@@ -454,6 +477,30 @@ tr:hover td{background:rgba(0,191,255,.03)}
         <button class="sett-add-btn" onclick="addSettItem('product')">+ 添加</button>
       </div>
       <div id="sett-product-list"></div>
+    </div>
+    <div class="sett-section">
+      <h4>💰 冷库费率设置 / Warehouse Rate Settings</h4>
+      <div class="sett-row">
+        <span style="min-width:80px">冷库 1:</span>
+        <input type="number" id="rate-store1" placeholder="38" min="0" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:4px">
+        <span style="margin-left:8px">AED/托盘/周</span>
+      </div>
+      <div class="sett-row">
+        <span style="min-width:80px">冷库 2:</span>
+        <input type="number" id="rate-store2" placeholder="60" min="0" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:4px">
+        <span style="margin-left:8px">AED/托盘/周</span>
+      </div>
+      <div class="sett-row">
+        <span style="min-width:80px">冷库 3:</span>
+        <input type="number" id="rate-store3" placeholder="60" min="0" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:4px">
+        <span style="margin-left:8px">AED/托盘/周</span>
+      </div>
+      <div class="sett-row">
+        <span style="min-width:80px">冷库 4:</span>
+        <input type="number" id="rate-store4" placeholder="60" min="0" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:4px">
+        <span style="margin-left:8px">AED/托盘/周</span>
+      </div>
+      <button class="sett-add-btn" onclick="saveRates()" style="margin-top:10px;background:#0066cc">💾 保存费率</button>
     </div>
     <div class="sett-section">
       <h4>👤 账号管理 / Account Management</h4>

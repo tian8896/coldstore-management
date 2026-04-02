@@ -17,21 +17,65 @@ var firebaseConfig = {
 var dbRef = null;
 var purchaseRef = null;
 
-// 冷库费率：
+// 冷库费率（可配置，默认值）
 // 冷库1: 38 AED/托盘/周 + 5% VAT
 // 冷库2/3/4: 60 AED/托盘/周 + 5% VAT
 const VAT_RATE = 0.05;
 const DAYS_PER_WEEK = 7;
+const RATES_KEY = 'csm_warehouse_rates';
+
+// 默认费率
+var warehouseRates = {
+  1: 38,
+  2: 60,
+  3: 60,
+  4: 60
+};
+
+// 从localStorage加载费率
+function loadRates() {
+  try {
+    var stored = localStorage.getItem(RATES_KEY);
+    if (stored) {
+      warehouseRates = JSON.parse(stored);
+    }
+  } catch(e) {
+    console.log('Failed to load rates, using defaults');
+  }
+}
+
+// 保存费率到localStorage
+function saveRatesToStorage() {
+  try {
+    localStorage.setItem(RATES_KEY, JSON.stringify(warehouseRates));
+  } catch(e) {
+    console.error('Failed to save rates');
+  }
+}
 
 // 根据冷库获取费率
 function getRateByStore(store) {
-  switch(store) {
-    case 1: return 38;
-    case 2: 
-    case 3: 
-    case 4: return 60;
-    default: return 38;
-  }
+  return warehouseRates[store] || 38;
+}
+
+// 保存费率设置
+function saveRates() {
+  warehouseRates[1] = parseFloat(gid('rate-store1').value) || 38;
+  warehouseRates[2] = parseFloat(gid('rate-store2').value) || 60;
+  warehouseRates[3] = parseFloat(gid('rate-store3').value) || 60;
+  warehouseRates[4] = parseFloat(gid('rate-store4').value) || 60;
+  saveRatesToStorage();
+  clSettings();
+  renderAll();
+  toast('✅ 费率已保存', 'ok');
+}
+
+// 在设置面板中显示当前费率
+function loadRatesToSettings() {
+  gid('rate-store1').value = warehouseRates[1];
+  gid('rate-store2').value = warehouseRates[2];
+  gid('rate-store3').value = warehouseRates[3];
+  gid('rate-store4').value = warehouseRates[4];
 }
 
 // ============================================================
@@ -67,6 +111,9 @@ function initFirebase() {
 }
 
 function initApp() {
+  // 加载保存的费率
+  loadRates();
+  
   try {
     firebase.initializeApp(firebaseConfig);
     dbRef = firebase.database().ref(SK);
@@ -318,15 +365,28 @@ function renderRecords() {
     // 计算已产生的实际费用（从出库记录表）
     var actualFee = calcActualFee(r);
     
+    // 判断是否已全部出库
+    var isFullyCheckedOut = remaining_pallets === 0 && r.dep;
+    
     var status = r.dep ? '<span class="bdg bdg-d">已出库</span>' : '<span class="bdg bdg-a">在库</span>';
     
     // 管理员才显示修改按钮
     var editBtn = isAdmin ? '<button class="abtn" onclick="showEditRecord(\'' + r.id + '\')" style="margin-left:4px">✏️</button>' : '';
     
-    // 费用显示：已出库显示实际费用，在库显示预估费用
-    var feeDisplay = actualFee > 0 ? 
-      '<strong style="color:#0066cc">' + actualFee.toFixed(2) + ' AED</strong>' : 
-      '<span style="color:#999">-</span>';
+    // 费用显示逻辑：
+    // 1. 在库（未出库或部分出库）：黄色背景显示预估费用
+    // 2. 已全部出库：显示实际冷库费总和（关联出库记录）
+    var feeDisplay;
+    if (isFullyCheckedOut && actualFee > 0) {
+      // 已全部出库，显示实际费用总和，蓝色加大加粗
+      feeDisplay = '<strong style="color:#0066cc;font-size:16px">' + actualFee.toFixed(2) + ' AED</strong>';
+    } else if (actualFee > 0) {
+      // 部分出库，显示已产生的费用，黄色背景
+      feeDisplay = '<strong style="color:#ff9900;background:#fff8e1;padding:2px 6px;border-radius:3px">' + actualFee.toFixed(2) + ' AED</strong>';
+    } else {
+      // 刚入库未出库，显示 "-"
+      feeDisplay = '<span style="color:#999">-</span>';
+    }
     
     return '<tr style="background:#fff">' +
       '<td><strong>' + r.cn + '</strong></td>' +
@@ -450,9 +510,9 @@ function updStats() {
 }
 
 function renderCheckout() {
-  // 按集装箱号分组出库记录
+  // 按集装箱号分组出库记录（只显示当前冷库的）
   var cnGroups = {};
-  recs.filter(function(r) { return r.type === 'checkout'; }).forEach(function(r) {
+  recs.filter(function(r) { return r.type === 'checkout' && r.store === currentColdStore; }).forEach(function(r) {
     if (!cnGroups[r.cn]) {
       cnGroups[r.cn] = {
         recs: [],
@@ -470,9 +530,8 @@ function renderCheckout() {
     }
   });
 
-  // 添加没有出库记录的入库集装箱（显示第一周）
-  // 不限制冷库，显示所有入库记录
-  var allInRecs = recs.filter(function(r) { return !r.type; });
+  // 添加没有出库记录的入库集装箱（只显示当前冷库的）
+  var allInRecs = recs.filter(function(r) { return !r.type && r.store === currentColdStore; });
   allInRecs.forEach(function(inRec) {
     if (!cnGroups[inRec.cn]) {
       cnGroups[inRec.cn] = {
@@ -744,11 +803,11 @@ function matchSearchFilters(inRec) {
 }
 
 function exportCheckout() {
-  // 获取搜索后的数据
+  // 获取搜索后的数据（只显示当前冷库的）
   var data = [];
   var cnGroups = {};
   
-  recs.filter(function(r) { return r.type === 'checkout'; }).forEach(function(r) {
+  recs.filter(function(r) { return r.type === 'checkout' && r.store === currentColdStore; }).forEach(function(r) {
     if (!cnGroups[r.cn]) {
       cnGroups[r.cn] = { recs: [], inRec: null };
     }
@@ -762,8 +821,8 @@ function exportCheckout() {
     }
   });
   
-  // 添加没有出库记录的入库集装箱
-  var allInRecs = recs.filter(function(r) { return !r.type; });
+  // 添加没有出库记录的入库集装箱（只显示当前冷库的）
+  var allInRecs = recs.filter(function(r) { return !r.type && r.store === currentColdStore; });
   allInRecs.forEach(function(inRec) {
     if (!cnGroups[inRec.cn]) {
       cnGroups[inRec.cn] = { recs: [], inRec: inRec };
@@ -1289,58 +1348,172 @@ function savePurchaseItem(item) {
 }
 
 function openPurchaseForm() {
-  // 清空表单
-  gid('fp-cn').value = '';
-  gid('fp-supplier').value = '';
-  gid('fp-product').value = '';
-  gid('fp-date').value = nowFmt();
-  gid('fp-qty').value = '0';
-  gid('fp-demurrage').value = '0';
-  gid('fp-customs').value = '0';
-  gid('fp-coldfee').value = '0';
-  gid('fp-repack').value = '0';
-  gid('fp-waste').value = '0';
-  gid('fp-other').value = '0';
+  // 重置表单
+  var cnField = gid('fp-cn');
+  var supplierField = gid('fp-supplier');
+  var dateField = gid('fp-date');
+  var itemsBody = gid('purchaseItemsBody');
+  purchaseItemRowCounter = 0;
+  
+  if (cnField) cnField.value = '';
+  if (supplierField) supplierField.value = '';
+  if (dateField) dateField.value = nowFmt();
+  if (itemsBody) {
+    itemsBody.innerHTML = '<tr class="purchase-item-row">' +
+      '<td style="padding:4px;border:1px solid #ddd;position:relative">' +
+        '<input type="text" class="item-product" placeholder="品名" data-rowid="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px" oninput="showSuggestPurchaseItem(this)" onfocus="showSuggestPurchaseItem(this)" onblur="setTimeout(function(){hideSuggest(\'purchase-item-0\')},200)">' +
+        '<div class="suggest-list" id="suggest-purchase-item-0"></div>' +
+      '</td>' +
+      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-qty" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-demurrage" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-customs" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-coldfee" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-attestation" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-repack" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+      '<td style="padding:4px;border:1px solid #ddd;text-align:center"><button type="button" class="abtn x" onclick="removePurchaseItem(this)" style="color:#ff4444;font-size:16px">×</button></td>' +
+      '</tr>';
+  }
   gid('purchaseModal').classList.add('sh');
 }
 
 function clPurchaseModal() {
+  // 重置表单
+  var cnField = gid('fp-cn');
+  var supplierField = gid('fp-supplier');
+  var dateField = gid('fp-date');
+  var itemsBody = gid('purchaseItemsBody');
+  purchaseItemRowCounter = 0;
+  
+  if (cnField) cnField.value = '';
+  if (supplierField) supplierField.value = '';
+  if (dateField) dateField.value = '';
+  if (itemsBody) {
+    itemsBody.innerHTML = '<tr class="purchase-item-row">' +
+      '<td style="padding:4px;border:1px solid #ddd;position:relative">' +
+        '<input type="text" class="item-product" placeholder="品名" data-rowid="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px" oninput="showSuggestPurchaseItem(this)" onfocus="showSuggestPurchaseItem(this)" onblur="setTimeout(function(){hideSuggest(\'purchase-item-0\')},200)">' +
+        '<div class="suggest-list" id="suggest-purchase-item-0"></div>' +
+      '</td>' +
+      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-qty" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-demurrage" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-customs" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-coldfee" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-attestation" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-repack" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+      '<td style="padding:4px;border:1px solid #ddd;text-align:center"><button type="button" class="abtn x" onclick="removePurchaseItem(this)" style="color:#ff4444;font-size:16px">×</button></td>' +
+      '</tr>';
+  }
+  
   gid('purchaseModal').classList.remove('sh');
 }
 
 function addPurchase() {
   var cn = (gid('fp-cn').value || '').trim().toUpperCase();
   var supplier = (gid('fp-supplier').value || '').trim();
-  var product = (gid('fp-product').value || '').trim();
   var purchaseDate = gid('fp-date').value;
 
   if (!cn) { toast('请输入集装箱号', 'err'); return; }
   if (!supplier) { toast('请输入供应商', 'err'); return; }
-  if (!product) { toast('请输入品名', 'err'); return; }
 
-  var id = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-  var item = {
-    id: id,
-    cn: cn,
-    supplier: supplier,
-    product: product,
-    purchaseDate: purchaseDate,
-    qty: parseFloat(gid('fp-qty').value) || 0,
-    demurrage: parseFloat(gid('fp-demurrage').value) || 0,
-    customs: parseFloat(gid('fp-customs').value) || 0,
-    coldFee: parseFloat(gid('fp-coldfee').value) || 0,
-    repack: parseFloat(gid('fp-repack').value) || 0,
-    waste: parseFloat(gid('fp-waste').value) || 0,
-    other: parseFloat(gid('fp-other').value) || 0
-  };
-
-  // 保存到 Firebase
-  if (purchaseRef) {
-    purchaseRef.child(id).set(item);
-  }
+  // 获取所有品名行
+  var rows = document.querySelectorAll('.purchase-item-row');
+  var items = [];
   
+  rows.forEach(function(row) {
+    var product = (row.querySelector('.item-product').value || '').trim();
+    if (!product) return; // 跳过空品名行
+    
+    var item = {
+      qty: parseFloat(row.querySelector('.item-qty').value) || 0,
+      demurrage: parseFloat(row.querySelector('.item-demurrage').value) || 0,
+      customs: parseFloat(row.querySelector('.item-customs').value) || 0,
+      coldFee: parseFloat(row.querySelector('.item-coldfee').value) || 0,
+      attestation: parseFloat(row.querySelector('.item-attestation').value) || 0,
+      repack: parseFloat(row.querySelector('.item-repack').value) || 0
+    };
+    
+    // 为每个品名创建单独的采购记录
+    var id = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    var rec = {
+      id: id,
+      cn: cn,
+      supplier: supplier,
+      product: product,
+      purchaseDate: purchaseDate,
+      qty: item.qty,
+      demurrage: item.demurrage,
+      customs: item.customs,
+      coldFee: item.coldFee,
+      attestation: item.attestation,
+      repack: item.repack,
+      waste: 0,
+      other: 0
+    };
+    
+    items.push(rec);
+    
+    // 保存到 Firebase
+    if (purchaseRef) {
+      purchaseRef.child(id).set(rec);
+    }
+  });
+
+  if (items.length === 0) {
+    toast('请至少添加一个品名', 'err');
+    return;
+  }
+
+  // 添加到本地数组
+  purchaseRecs = purchaseRecs.concat(items);
+
+  // 重置表单
+  gid('fp-cn').value = '';
+  gid('fp-supplier').value = '';
+  gid('fp-date').value = '';
+  gid('purchaseItemsBody').innerHTML = '<tr class="purchase-item-row">' +
+    '<td style="padding:4px;border:1px solid #ddd"><input type="text" class="item-product" placeholder="品名" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px"></td>' +
+    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-qty" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-demurrage" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-customs" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-coldfee" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-attestation" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-repack" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+    '<td style="padding:4px;border:1px solid #ddd;text-align:center"><button type="button" class="abtn x" onclick="removePurchaseItem(this)" style="color:#ff4444;font-size:16px">×</button></td>' +
+    '</tr>';
+
   clPurchaseModal();
-  toast('✅ 采购记录已添加', 'ok');
+  renderPurchase();
+  toast('✅ 已添加 ' + items.length + ' 条采购记录', 'ok');
+}
+
+// 添加品名行
+function addPurchaseItem() {
+  purchaseItemRowCounter++;
+  var rowId = purchaseItemRowCounter;
+  var newRow = document.createElement('tr');
+  newRow.className = 'purchase-item-row';
+  newRow.innerHTML = 
+    '<td style="padding:4px;border:1px solid #ddd;position:relative">' +
+      '<input type="text" class="item-product" placeholder="品名" data-rowid="' + rowId + '" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px" oninput="showSuggestPurchaseItem(this)" onfocus="showSuggestPurchaseItem(this)" onblur="setTimeout(function(){hideSuggest(\'purchase-item-' + rowId + '\')},200)">' +
+      '<div class="suggest-list" id="suggest-purchase-item-' + rowId + '"></div>' +
+    '</td>' +
+    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-qty" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-demurrage" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-customs" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-coldfee" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-attestation" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-repack" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+    '<td style="padding:4px;border:1px solid #ddd;text-align:center"><button type="button" class="abtn x" onclick="removePurchaseItem(this)" style="color:#ff4444;font-size:16px">×</button></td>';
+  document.getElementById('purchaseItemsBody').appendChild(newRow);
+}
+
+// 删除品名行
+function removePurchaseItem(btn) {
+  var rows = document.querySelectorAll('.purchase-item-row');
+  if (rows.length > 1) {
+    btn.closest('tr').remove();
+  } else {
+    toast('至少保留一行品名', 'err');
+  }
 }
 
 function delPurchase(id) {
@@ -1357,35 +1530,90 @@ function renderPurchase() {
   if (purchaseRecs.length === 0) { tb.innerHTML = ''; es.style.display = 'block'; return; }
   es.style.display = 'none';
 
-  var html = '';
+  // 按集装箱号分组
+  var cnGroups = {};
   purchaseRecs.forEach(function(r) {
-    var total = (r.demurrage||0)+(r.customs||0)+(r.coldFee||0)+(r.repack||0)+(r.waste||0)+(r.other||0);
-    var purchaseDate = r.purchaseDate ? fdt(r.purchaseDate+'T00:00:00') : '-';
+    var key = r.cn || '_empty_';
+    if (!cnGroups[key]) cnGroups[key] = [];
+    cnGroups[key].push(r);
+  });
+
+  var html = '';
+  Object.keys(cnGroups).sort().forEach(function(cn) {
+    var items = cnGroups[cn];
+    var groupId = 'group-' + cn.replace(/[^a-zA-Z0-9]/g, '');
+    var firstItem = items[0];
+    var totalItems = items.length;
+    var totalAmount = items.reduce(function(s, r) { return s + ((r.demurrage||0)+(r.customs||0)+(r.coldFee||0)+(r.attestation||0)+(r.repack||0)+(r.waste||0)+(r.other||0)); }, 0);
+    var purchaseDate = firstItem.purchaseDate ? fdt(firstItem.purchaseDate+'T00:00:00') : '-';
     
-    // 查找对应的入库记录
-    var inRec = null;
+    // 检查是否有入库记录
+    var hasInRec = false;
+    var coldFeeDisplay = '-';
     for (var i = 0; i < recs.length; i++) {
-      if (recs[i].cn === r.cn && !recs[i].type && recs[i].store === currentColdStore) { inRec = recs[i]; break; }
-    }
-    
-    var outRecs = [];
-    if (inRec) {
-      for (var j = 0; j < recs.length; j++) {
-        if (recs[j].refId === inRec.id && recs[j].type === 'checkout') outRecs.push(recs[j]);
+      if (recs[i].cn === cn && !recs[i].type && recs[i].store === currentColdStore) {
+        hasInRec = true;
+        var actualFee = calcActualFee(recs[i]);
+        var remaining_pallets = recs[i].pallets - (recs[i].pallets_out || 0);
+        var isFullyCheckedOut = remaining_pallets === 0 && recs[i].dep;
+        if (actualFee > 0) {
+          if (isFullyCheckedOut) {
+            coldFeeDisplay = '<strong style="color:#0066cc;font-size:15px">' + actualFee.toFixed(2) + '</strong>';
+          } else {
+            coldFeeDisplay = '<strong style="color:#ff9900;background:#fff8e1;padding:2px 6px;border-radius:3px">' + actualFee.toFixed(2) + '</strong>';
+          }
+        }
+        break;
       }
     }
     
-    // 主行
-    html += '<tr id="pur-tr-'+r.id+'">' +
-      '<td><button type="button" class="abtn" style="background:#e8f4ff;border-color:#00bfff;color:#00bfff;padding:2px 6px;font-size:11px" onclick="quickCheckIn(\''+r.id+'\')">📥 一键入库</button> '+(r.cn||'-')+'</td>' +
-      '<td style="font-family:Arial;text-transform:capitalize">'+(r.supplier||'-')+'</td><td style="font-family:Arial;text-transform:capitalize">'+(r.product||'-')+'</td><td>'+purchaseDate+'</td><td>'+(r.qty||0)+'</td>' +
-      '<td>'+(r.demurrage||0)+'</td><td>'+(r.customs||0)+'</td><td>'+(r.coldFee||0)+'</td>' +
-      '<td>'+(r.repack||0)+'</td><td>'+(r.waste||0)+'</td><td>'+(r.other||0)+'</td>' +
-      '<td><strong style="color:#0066cc">'+total.toFixed(2)+'</strong></td>' +
-      '<td><button type="button" class="abtn" onclick="openEditPurchase(\''+r.id+'\')">✏️ 修改</button><button type="button" class="abtn x" onclick="delPurchase(\''+r.id+'\')">🗑 删除</button></td></tr>';
+    if (cn === '_empty_') cn = '-';
+    
+    // 主行：集装箱号 + 展开按钮
+    var expandBtn = totalItems > 1 ? 
+      '<button type="button" class="abtn" style="background:#f0f0f0;border:1px solid #ddd;padding:2px 6px;font-size:14px" onclick="togglePurchaseGroup(\'' + groupId + '\',this)">+</button>' : '';
+    
+    html += '<tr style="background:#f9f9f9;font-weight:bold" id="pur-main-' + groupId + '">' +
+      '<td>' + expandBtn + ' <button type="button" class="abtn" style="background:#e8f4ff;border-color:#00bfff;color:#00bfff;padding:2px 6px;font-size:11px" onclick="quickCheckIn(\'' + firstItem.id + '\')">📥</button> ' + cn + ' <span style="color:#999;font-size:11px">(' + totalItems + '品名)</span></td>' +
+      '<td style="font-family:Arial;text-transform:capitalize">'+(firstItem.supplier||'-')+'</td><td>-</td><td>'+purchaseDate+'</td><td>-</td>' +
+      '<td>-</td><td>-</td><td>'+coldFeeDisplay+'</td><td>-</td><td>-</td><td>-</td><td>-</td>' +
+      '<td><strong style="color:#0066cc">'+totalAmount.toFixed(2)+'</strong></td>' +
+      '<td><button type="button" class="abtn x" onclick="delPurchaseGroup(\'' + cn + '\')">🗑</button></td></tr>';
+    
+    // 子行：每个品名
+    items.forEach(function(r) {
+      var total = (r.demurrage||0)+(r.customs||0)+(r.coldFee||0)+(r.attestation||0)+(r.repack||0)+(r.waste||0)+(r.other||0);
+      html += '<tr class="purchase-sub-row ' + groupId + '" style="display:none;background:#fff">' +
+        '<td style="padding-left:40px;color:#666">└ '+(r.product||'-')+'</td>' +
+        '<td style="font-family:Arial;text-transform:capitalize;color:#666">'+(r.supplier||'-')+'</td><td style="font-family:Arial;text-transform:capitalize">'+(r.product||'-')+'</td><td>-</td><td>'+(r.qty||0)+'</td>' +
+        '<td>'+(r.demurrage||0)+'</td><td>'+(r.customs||0)+'</td><td>-</td>' +
+        '<td>'+(r.attestation||0)+'</td><td>'+(r.repack||0)+'</td><td>'+(r.waste||0)+'</td><td>'+(r.other||0)+'</td>' +
+        '<td><strong style="color:#0066cc">'+total.toFixed(2)+'</strong></td>' +
+        '<td><button type="button" class="abtn" onclick="openEditPurchase(\''+r.id+'\')">✏️</button><button type="button" class="abtn x" onclick="delPurchase(\''+r.id+'\')">🗑</button></td></tr>';
+    });
   });
   
   tb.innerHTML = html;
+}
+
+// 展开/折叠采购组
+function togglePurchaseGroup(groupId, btn) {
+  var rows = document.querySelectorAll('.purchase-sub-row.' + groupId);
+  var isExpanded = btn.textContent === '-';
+  
+  rows.forEach(function(row) {
+    row.style.display = isExpanded ? 'none' : '';
+  });
+  btn.textContent = isExpanded ? '+' : '-';
+}
+
+// 删除整组采购记录
+function delPurchaseGroup(cn) {
+  if (!confirm('确认删除集装箱 ' + cn + ' 的所有采购记录？')) return;
+  var toDelete = purchaseRecs.filter(function(r) { return r.cn === cn; });
+  toDelete.forEach(function(r) {
+    if (purchaseRef) purchaseRef.child(r.id).remove();
+  });
 }
 
 // ============================================================
@@ -1410,6 +1638,7 @@ function openSettings() {
   renderSettList('supplier');
   renderSettList('product');
   renderAccountList();
+  loadRatesToSettings();
   gid('settingsModal').classList.add('sh');
 }
 
@@ -1534,6 +1763,7 @@ function openEditPurchase(id) {
   gid('fe-demurrage').value = r.demurrage || 0;
   gid('fe-customs').value = r.customs || 0;
   gid('fe-coldfee').value = r.coldFee || 0;
+  gid('fe-attestation').value = r.attestation || 0;
   gid('fe-repack').value = r.repack || 0;
   gid('fe-waste').value = r.waste || 0;
   gid('fe-other').value = r.other || 0;
@@ -1556,6 +1786,7 @@ function saveEditPurchase() {
   r.demurrage = parseFloat(gid('fe-demurrage').value) || 0;
   r.customs = parseFloat(gid('fe-customs').value) || 0;
   r.coldFee = parseFloat(gid('fe-coldfee').value) || 0;
+  r.attestation = parseFloat(gid('fe-attestation').value) || 0;
   r.repack = parseFloat(gid('fe-repack').value) || 0;
   r.waste = parseFloat(gid('fe-waste').value) || 0;
   r.other = parseFloat(gid('fe-other').value) || 0;
@@ -1575,60 +1806,97 @@ function saveEditPurchase() {
 var quickInData = null;
 
 function quickCheckIn(purchaseId) {
-  console.log('=== quickCheckIn START ===');
-  console.log('purchaseId:', purchaseId);
-  console.log('purchaseRecs length:', purchaseRecs.length);
-  console.log('purchaseRecs:', JSON.stringify(purchaseRecs));
-  
   if (!purchaseRecs || purchaseRecs.length === 0) {
     toast('采购数据未加载，请刷新页面重试', 'err');
-    console.log('ERROR: purchaseRecs is empty');
     return;
   }
   
   var r = purchaseRecs.find(function(x) { return x.id === purchaseId; });
-  console.log('Found record:', r);
 
   if (!r) {
-    console.log('Record not found! Available IDs:', purchaseRecs.map(function(x) { return x.id; }));
     toast('未找到采购记录', 'err');
     return;
   }
 
-  // 保存采购记录数据
-  quickInData = r;
+  // 查找同一集装箱号的所有品名
+  var sameCnItems = purchaseRecs.filter(function(x) { return x.cn === r.cn; });
+  var productSelect = gid('quickInProductSelect');
+  var productDropdown = gid('quickInProductDropdown');
+  var quickInInfo = gid('quickInInfo');
+  
+  if (sameCnItems.length > 1) {
+    // 多个品名，显示下拉选择（不显示数量）
+    productSelect.style.display = 'block';
+    quickInInfo.innerHTML = '📦 <strong>' + r.cn + '</strong> | ' + r.supplier + '<br><span style="font-size:11px;color:#999">选择入库品名</span>';
+    
+    // 填充下拉选项（只显示品名）
+    productDropdown.innerHTML = sameCnItems.map(function(item, idx) {
+      return '<option value="' + item.id + '">' + (item.product || '品名' + (idx+1)) + '</option>';
+    }).join('');
+    
+    // 保存所有品名数据
+    window.quickInMultiData = sameCnItems;
+  } else {
+    // 单个品名
+    productSelect.style.display = 'none';
+    quickInInfo.innerHTML = '📦 <strong>' + r.cn + '</strong> | ' + r.supplier + ' | ' + r.product;
+    
+    // 保存采购记录数据
+    quickInData = r;
+    window.quickInMultiData = null;
+  }
 
-  // 显示冷库选择弹窗
-  gid('quickInInfo').textContent = '📦 ' + r.cn + ' | ' + r.supplier + ' | ' + r.product;
   gid('quickInModal').classList.add('sh');
 }
 
 function clQuickInModal() {
   gid('quickInModal').classList.remove('sh');
   quickInData = null;
+  window.quickInMultiData = null;
 }
 
 function doQuickIn(storeNum) {
-  if (!quickInData) return;
+  // 获取选中的品名
+  var selectedData = null;
+  
+  if (window.quickInMultiData) {
+    // 多个品名的情况
+    var dropdown = gid('quickInProductDropdown');
+    var selectedId = dropdown.value;
+    selectedData = window.quickInMultiData.find(function(x) { return x.id === selectedId; });
+    
+    if (!selectedData) {
+      toast('请选择入库品名', 'err');
+      return;
+    }
+  } else if (quickInData) {
+    // 单个品名
+    selectedData = quickInData;
+  }
+  
+  if (!selectedData) {
+    toast('未选择入库信息', 'err');
+    return;
+  }
   
   // 切换冷库
   selectColdStore(storeNum);
   
-  // 切换到库存记录 tab
-  swTab('records');
-  
   // 自动填入入库表单
-  gid('f-cn').value = quickInData.cn || '';
-  gid('f-supplier').value = quickInData.supplier || '';
-  gid('f-product').value = quickInData.product || '';
-  gid('f-items').value = quickInData.qty || '1';
+  gid('f-cn').value = selectedData.cn || '';
+  gid('f-supplier').value = selectedData.supplier || '';
+  gid('f-product').value = selectedData.product || '';
+  gid('f-items').value = selectedData.qty || '1';
   gid('f-pallets').value = '1';
   
   // 设置入库日期为今天
   gid('f-at').value = nowFmt();
   
   clQuickInModal();
-  toast('✅ 已填入入库信息，请确认后点击入库', 'ok');
+  toast('✅ 已填入入库信息：' + selectedData.product, 'ok');
+  
+  // 切换到库存记录 tab
+  swTab('records');
   
   // 滚动到入库表单
   document.querySelector('.left').scrollTop = 0;
@@ -1657,6 +1925,38 @@ function showSuggest(inputEl, type) {
     return '<div class="suggest-item" onmousedown="pickSuggest(this,\'' + type + '\')">' + item + '</div>';
   }).join('');
   suggestEl.classList.add('show');
+}
+
+// 品名表格行的模糊搜索
+var purchaseItemRowCounter = 1;
+
+function showSuggestPurchaseItem(inputEl) {
+  var val = (inputEl.value || '').trim().toLowerCase();
+  var rowId = inputEl.getAttribute('data-rowid');
+  var suggestEl = gid('suggest-purchase-item-' + rowId);
+  if (!suggestEl || settData.products.length === 0) return;
+
+  var filtered = val ? settData.products.filter(function(item) {
+    return item.toLowerCase().indexOf(val) !== -1;
+  }) : settData.products;
+
+  if (filtered.length === 0) {
+    suggestEl.classList.remove('show');
+    suggestEl.innerHTML = '';
+    return;
+  }
+
+  suggestEl.innerHTML = filtered.map(function(item) {
+    return '<div class="suggest-item" onmousedown="pickSuggestPurchaseItem(this,\'' + rowId + '\')">' + item + '</div>';
+  }).join('');
+  suggestEl.classList.add('show');
+}
+
+function pickSuggestPurchaseItem(el, rowId) {
+  var val = el.textContent;
+  var inputEl = document.querySelector('.item-product[data-rowid="' + rowId + '"]');
+  if (inputEl) inputEl.value = val;
+  hideSuggest('purchase-item-' + rowId);
 }
 
 function hideSuggest(type) {

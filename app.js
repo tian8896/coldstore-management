@@ -85,7 +85,7 @@ var recs = [];
 var currentColdStore = 1;
 var currentUser = null;
 var isAdmin = false;
-var isCustoms = false;
+var isLogistics = false;
 
 var USERS_KEY = 'csm_users_v2';
 
@@ -198,12 +198,12 @@ function doLogin() {
   
   currentUser = username;
   isAdmin = user.role === 'admin';
-  isCustoms = user.role === 'customs';
+  isLogistics = user.role === 'customs';
   
   gid('loginModal').classList.remove('sh');
   
-  if (isCustoms) {
-    showCustomsView();
+  if (isLogistics) {
+    showLogisticsView();
   } else {
     showAdminView();
   }
@@ -214,7 +214,7 @@ function doLogin() {
 
 // 显示管理员视图
 function showAdminView() {
-  gid('customsView').style.display = 'none';
+  gid('logisticsView').style.display = 'none';
   document.querySelectorAll('.right')[1].style.display = 'block';
   gid('userInfo').style.display = 'flex';
   updateSettingsButton();
@@ -222,14 +222,14 @@ function showAdminView() {
 }
 
 // 显示清关公司视图
-function showCustomsView() {
+function showLogisticsView() {
   document.querySelectorAll('.right')[1].style.display = 'none';
-  gid('customsView').style.display = 'block';
+  gid('logisticsView').style.display = 'block';
   gid('userInfo').style.display = 'none';
   document.querySelector('header h1').textContent = '物流公司系统 / Logistics System';
-  gid('customsUserName').textContent = getUsers()[currentUser].name || currentUser;
+  gid('logisticsUserName').textContent = getUsers()[currentUser].name || currentUser;
   updateSettingsButton();
-  renderCustomsTable();
+  renderLogisticsTable();
 }
 
 // 更新设置按钮显示状态
@@ -244,7 +244,7 @@ function updateSettingsButton() {
 function handleLogout() {
   currentUser = null;
   isAdmin = false;
-  isCustoms = false;
+  isLogistics = false;
   document.querySelector('header h1').textContent = '迪拜大丰收冷库管理系统 - Warehouse 1';
   document.querySelector('header p').textContent = '';
   showLoginModal();
@@ -288,7 +288,7 @@ function toast(msg, type) {
 function checkIn() {
   var cn = (gid('f-cn').value || '').trim().toUpperCase();
   var supplier = (gid('f-supplier').value || '').trim();
-  var product = (gid('f-product').value || '').trim();
+  var addDate = (gid('f-product').value || '').trim();
   var pallets = parseInt(gid('f-pallets').value) || 1;
   var items = parseInt(gid('f-items').value) || 1;
   var at = gid('f-at').value;
@@ -311,7 +311,7 @@ function checkIn() {
     id: id,
     cn: cn,
     supplier: supplier,
-    product: product,
+    addDate: addDate,
     pallets: pallets,
     items: items,
     store: currentColdStore,
@@ -1517,7 +1517,7 @@ function addPurchase() {
   var items = [];
   
   rows.forEach(function(row) {
-    var product = (row.querySelector('.item-product').value || '').trim();
+    var addDate = (row.querySelector('.item-product').value || '').trim();
     if (!product) return; // 跳过空品名行
     
     var item = {
@@ -1535,7 +1535,7 @@ function addPurchase() {
       id: id,
       cn: cn,
       supplier: supplier,
-      product: product,
+      addDate: addDate,
       purchaseDate: purchaseDate,
       qty: item.qty,
       demurrage: item.demurrage,
@@ -2166,64 +2166,65 @@ function pickCnSuggest(el) {
 // ============================================================
 // CUSTOMS COMPANY FUNCTIONS
 // ============================================================
-var CUSTOMS_KEY = 'csm_customs_fees';
+var LOGISTICS_KEY = 'csm_customs_fees';
 
-function getCustomsFees() {
+function getLogisticsFees() {
   try {
-    var stored = localStorage.getItem(CUSTOMS_KEY);
+    var stored = localStorage.getItem(LOGISTICS_KEY);
     return stored ? JSON.parse(stored) : [];
   } catch(e) { return []; }
 }
 
-function saveCustomsFees(fees) {
-  localStorage.setItem(CUSTOMS_KEY, JSON.stringify(fees));
+function saveLogisticsFees(fees) {
+  localStorage.setItem(LOGISTICS_KEY, JSON.stringify(fees));
 }
 
-function openCustomsAddForm(id) {
-  gid('LogisticsModalTitle').textContent = id ? '编辑物流费用' : '添加物流费用';
-  gid('customs-cn').value = '';
-  gid('customs-product').value = '';
-  gid('customs-fee').value = '0';
-  gid('customs-discount').value = '0';
-  gid('customs-remark').value = '';
-  gid('customs-id').value = id || '';
+function openLogisticsAddForm(id) {
+  gid('logisticsModalTitle').textContent = id ? '编辑物流费用' : '添加物流费用';
+  gid('logistics-cn').value = '';
+  gid('logistics-date').value = '';
+  gid('logistics-fee').value = '0';
+  gid('logistics-discount').value = '0';
+  gid('logistics-remark').value = '';
+  gid('logistics-id').value = id || '';
   
   if (id) {
-    var fees = getCustomsFees();
+    var fees = getLogisticsFees();
     var fee = fees.find(function(f) { return f.id === id; });
     if (fee) {
-      gid('customs-cn').value = fee.cn || '';
-      gid('customs-product').value = fee.product || '';
-      gid('customs-fee').value = fee.fee || 0;
-      gid('customs-discount').value = fee.discount || 0;
-      gid('customs-remark').value = fee.remark || '';
+      gid('logistics-cn').value = fee.cn || '';
+      gid('logistics-date').value = fee.product || '';
+      gid('logistics-fee').value = fee.fee || 0;
+      gid('logistics-discount').value = fee.discount || 0;
+      gid('logistics-remark').value = fee.remark || '';
     }
   }
   
-  gid('LogisticsModal').classList.add('sh');
+  gid('logisticsModal').classList.add('sh');
 }
 
 function clLogisticsModal() {
-  gid('LogisticsModal').classList.remove('sh');
+  gid('logisticsModal').classList.remove('sh');
 }
 
-function saveCustomsFee() {
-  var cn = (gid('customs-cn').value || '').trim().toUpperCase();
-  var product = (gid('customs-product').value || '').trim();
-  var fee = parseFloat(gid('customs-fee').value) || 0;
-  var discount = parseFloat(gid('customs-discount').value) || 0;
-  var remark = (gid('customs-remark').value || '').trim();
-  var id = gid('customs-id').value;
+function saveLogisticsFee() {
+  var cn = (gid('logistics-cn').value || '').trim().toUpperCase();
+  var addDate = (gid('logistics-date').value || '').trim();
+  var fee = parseFloat(gid('logistics-fee').value) || 0;
+  var discount = parseFloat(gid('logistics-discount').value) || 0;
+  var remark = (gid('logistics-remark').value || '').trim();
+  var id = gid('logistics-id').value;
   
   if (!cn) { toast('请输入集装箱号 / Enter container no.', 'err'); return; }
+  if (!addDate) { toast('请选择日期 / Select date', 'err'); return; }
   
-  var fees = getCustomsFees();
+  var fees = getLogisticsFees();
   
   if (id) {
     var idx = fees.findIndex(function(f) { return f.id === id; });
     if (idx !== -1) {
       fees[idx].cn = cn;
-      fees[idx].product = product;
+      fees[idx].addDate = addDate;
       fees[idx].fee = fee;
       fees[idx].discount = discount;
       fees[idx].remark = remark;
@@ -2236,7 +2237,7 @@ function saveCustomsFee() {
     fees.push({
       id: Date.now().toString(),
       cn: cn,
-      product: product,
+      addDate: addDate,
       fee: fee,
       discount: discount,
       remark: remark,
@@ -2249,61 +2250,61 @@ function saveCustomsFee() {
     toast('✅ 物流费用已添加 / Added', 'ok');
   }
   
-  saveCustomsFees(fees);
+  saveLogisticsFees(fees);
   clLogisticsModal();
-  renderCustomsTable();
+  renderLogisticsTable();
 }
 
-function delCustomsFee(id) {
+function delLogisticsFee(id) {
   if (!confirm('确认删除这条物流记录？')) return;
-  var fees = getCustomsFees();
+  var fees = getLogisticsFees();
   fees = fees.filter(function(f) { return f.id !== id; });
-  saveCustomsFees(fees);
-  renderCustomsTable();
+  saveLogisticsFees(fees);
+  renderLogisticsTable();
 }
 
-function confirmCustomsFee(id) {
-  var fees = getCustomsFees();
+function confirmLogisticsFee(id) {
+  var fees = getLogisticsFees();
   var idx = fees.findIndex(function(f) { return f.id === id; });
   if (idx !== -1) {
     fees[idx].confirmed = true;
     fees[idx].confirmedBy = currentUser;
     fees[idx].confirmTime = new Date().toISOString();
-    saveCustomsFees(fees);
-    renderCustomsTable();
+    saveLogisticsFees(fees);
+    renderLogisticsTable();
     toast('✅ 已确认物流费用 / Confirmed', 'ok');
   }
 }
 
-function unconfirmCustomsFee(id) {
-  var fees = getCustomsFees();
+function unconfirmLogisticsFee(id) {
+  var fees = getLogisticsFees();
   var idx = fees.findIndex(function(f) { return f.id === id; });
   if (idx !== -1) {
     fees[idx].confirmed = false;
     fees[idx].confirmedBy = null;
     fees[idx].confirmTime = null;
-    saveCustomsFees(fees);
-    renderCustomsTable();
+    saveLogisticsFees(fees);
+    renderLogisticsTable();
     toast('✅ 已取消确认 / Unconfirmed', 'ok');
   }
 }
 
-function filterCustomsTable() {
-  renderCustomsTable();
+function filterLogisticsTable() {
+  renderLogisticsTable();
 }
 
-function renderCustomsTable() {
-  var tb = gid('tb-customs');
-  var es = gid('es-customs');
+function renderLogisticsTable() {
+  var tb = gid('tb-logistics');
+  var es = gid('es-logistics');
   if (!tb || !es) return;
   
-  var searchVal = (gid('customs-search-cn').value || '').trim().toUpperCase();
-  var fees = getCustomsFees();
+  var searchVal = (gid('logistics-search-cn').value || '').trim().toUpperCase();
+  var fees = getLogisticsFees();
   
   if (searchVal) {
     fees = fees.filter(function(f) {
       return (f.cn || '').toUpperCase().indexOf(searchVal) !== -1 ||
-             (f.product || '').toUpperCase().indexOf(searchVal) !== -1;
+             (f.addDate || '').indexOf(searchVal) !== -1;
     });
   }
   
@@ -2321,12 +2322,12 @@ function renderCustomsTable() {
     var actionBtns = '';
     if (isAdmin) {
       if (f.confirmed) {
-        actionBtns = '<button class="abtn" onclick="unconfirmCustomsFee(\'' + f.id + '\')" style="color:#ff9900">取消确认</button> ';
+        actionBtns = '<button class="abtn" onclick="unconfirmLogisticsFee(\'' + f.id + '\')" style="color:#ff9900">取消确认</button> ';
       } else {
-        actionBtns = '<button class="abtn" onclick="confirmCustomsFee(\'' + f.id + '\')" style="background:#4CAF50;color:#fff;border:none;padding:2px 8px;border-radius:3px">确认</button> ';
+        actionBtns = '<button class="abtn" onclick="confirmLogisticsFee(\'' + f.id + '\')" style="background:#4CAF50;color:#fff;border:none;padding:2px 8px;border-radius:3px">确认</button> ';
       }
     }
-    actionBtns += '<button class="abtn" onclick="openCustomsAddForm(\'' + f.id + '\')">✏️</button> <button class="abtn x" onclick="delCustomsFee(\'' + f.id + '\')">🗑</button>';
+    actionBtns += '<button class="abtn" onclick="openLogisticsAddForm(\'' + f.id + '\')">✏️</button> <button class="abtn x" onclick="delLogisticsFee(\'' + f.id + '\')">🗑</button>';
     
     var purchaseMatch = '';
     var matchedPurchase = purchaseRecs.find(function(p) { return p.cn === f.cn; });
@@ -2336,14 +2337,17 @@ function renderCustomsTable() {
     
     return '<tr style="' + statusClass + '">' +
       '<td><strong>' + (f.cn || '-') + '</strong>' + purchaseMatch + '</td>' +
-      '<td style="font-family:Arial;text-transform:capitalize">' + (f.product || '-') + '</td>' +
+      '<td>' + (f.addDate || '-') + '</td>' +
       '<td>' + f.fee.toFixed(2) + ' AED</td>' +
       '<td style="color:#ff4444">-' + f.discount.toFixed(2) + ' AED</td>' +
       '<td>' + statusText + '</td>' +
       '<td>' + actionBtns + '</td></tr>';
   }).join('');
   
-  tb.innerHTML = html;
+  var totalFee = fees.reduce(function(s, f) { return s + (f.fee || 0); }, 0);
+  var totalDiscount = fees.reduce(function(s, f) { return s + (f.discount || 0); }, 0);
+  
+  tb.innerHTML = html + '<tr style="background:#e8f5e9;font-weight:bold"><td colspan="2">📊 总计 Total</td><td>' + totalFee.toFixed(2) + ' AED</td><td style="color:#ff4444">-' + totalDiscount.toFixed(2) + ' AED</td><td></td><td></td></tr>';
 }
 
 function getPurchaseContainers() {
@@ -2363,10 +2367,10 @@ function getPurchaseContainers() {
   return containers.sort(function(a, b) { return a.cn.localeCompare(b.cn); });
 }
 
-function openCustomsFromPurchase() {
+function openLogisticsFromPurchase() {
   var containers = getPurchaseContainers();
-  var modal = gid('customsFromPurchaseModal');
-  var list = gid('customs-purchase-list');
+  var modal = gid('logisticsFromPurchaseModal');
+  var list = gid('logistics-purchase-list');
   
   if (containers.length === 0) {
     toast('暂无采购记录 / No purchase records', 'err');
@@ -2374,27 +2378,32 @@ function openCustomsFromPurchase() {
   }
   
   list.innerHTML = containers.map(function(c) {
-    var existingFee = getCustomsFees().find(function(f) { return f.cn === c.cn; });
+    var existingFee = getLogisticsFees().find(function(f) { return f.cn === c.cn; });
     var badge = existingFee ? '<span style="background:#4CAF50;color:#fff;font-size:10px;padding:1px 4px;border-radius:2px">已添加</span>' : '';
     
     return '<div style="padding:8px 12px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">' +
       '<div><strong>' + c.cn + '</strong><br><span style="font-size:12px;color:#666">' + (c.product || '-') + '</span></div>' +
-      '<div>' + badge + ' <button class="abtn" style="background:#4CAF50;color:#fff;border:none;padding:4px 8px;border-radius:3px" onclick="selectPurchaseCn(\'' + c.cn + '\')">+ 添加</button></div>' +
+      '<div>' + badge + ' <button class="abtn" style="background:#4CAF50;color:#fff;border:none;padding:4px 8px;border-radius:3px" onclick="selectLogisticsCn(\'' + c.cn + '\')">+ 添加</button></div>' +
       '</div>';
   }).join('');
   
   modal.classList.add('sh');
 }
 
-function clCustomsFromPurchaseModal() {
-  gid('customsFromPurchaseModal').classList.remove('sh');
+function clLogisticsFromPurchaseModal() {
+  gid('logisticsFromPurchaseModal').classList.remove('sh');
 }
 
-function selectPurchaseCn(cn) {
-  clCustomsFromPurchaseModal();
-  openCustomsAddForm('');
-  gid('customs-cn').value = cn;
+function selectLogisticsCn(cn) {
+  clLogisticsFromPurchaseModal();
+  openLogisticsAddForm('');
+  gid('logistics-cn').value = cn;
 }
+
+
+
+
+
 
 
 

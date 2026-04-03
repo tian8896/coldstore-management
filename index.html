@@ -204,7 +204,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <div class="fg"><label>供应商 Supplier</label>
       <input type="text" id="f-supplier" placeholder="输入供应商名称" autocomplete="off">
     </div>
-    <div class="fg"><label>品名 Product Name <span style="color:var(--rd)">*</span></label>
+    <div class="fg"><label>日期 Date <span style="color:var(--rd)">*</span></label>
       <input type="text" id="f-product" placeholder="输入品名" autocomplete="off">
     </div>
     <div class="fg"><label>托盘数量 Pallets</label>
@@ -249,26 +249,26 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <button class="btn btn-g" onclick="handleLogout()" style="background:#fff;color:#4CAF50;border:none">退出登录 / Logout</button>
   </div>
   <div class="brow" style="margin-bottom:14px">
-    <input type="text" id="logistics-search-cn" placeholder="搜索集装箱号 / Search Container..." style="padding:8px 12px;border:1px solid #ddd;border-radius:4px;width:220px" oninput="filterLogisticsTable()">
+    <input type="text" id="logistics-search-cn" placeholder="按日期或箱号搜索 / Search by date or container..." style="padding:8px 12px;border:1px solid #ddd;border-radius:4px;width:220px" oninput="filterLogisticsTable()">
     <button class="btn btn-s" onclick="openLogisticsFromPurchase()" style="margin-left:10px">📦 从采购记录选择 / From Purchase</button>
     <button class="btn btn-s" onclick="openLogisticsAddForm('')" style="margin-left:10px">+ 手动添加 / Manual Add</button>
   </div>
-  <div class="tw"><table><thead><tr><th>集装箱号<br>Container</th><th>品名<br>Product</th><th>清关费<br>Customs Fee</th><th>折扣<br>Discount</th><th>状态<br>Status</th><th>操作<br>Action</th></tr></thead><tbody id="tb-logistics"></tbody></table></div>
-  <div class="es" id="es-logistics" style="display:none"><div class="em">📭</div><div>暂无清关记录 / No Records</div></div>
+  <div class="tw"><table><thead><tr><th>集装箱号<br>Container</th><th>日期<br>Date</th><th>物流费<br>Logistics Fee</th><th>折扣<br>Discount</th><th>状态<br>Status</th><th>操作<br>Action</th></tr></thead><tbody id="tb-logistics"></tbody></table></div>
+  <div class="es" id="es-logistics" style="display:none"><div class="em">📭</div><div>暂无物流记录 / No Records</div></div>
 </div>
 
 <!-- 物流公司添加/编辑弹窗 -->
 <div class="mov" id="logisticsModal">
   <div class="mdl" style="width:420px">
-    <h3 id="logisticsModalTitle">📋 添加清关费用 / Add Customs Fee</h3>
+    <h3 id="logisticsModalTitle">📋 添加物流费用 / Add Logistics Fee</h3>
     <div class="fg"><label>集装箱号 Container No. *</label>
       <input type="text" id="logistics-cn" placeholder="输入集装箱号码" maxlength="11" style="text-transform:uppercase" autocomplete="off">
     </div>
-    <div class="fg"><label>品名 Product Name</label>
-      <input type="text" id="logistics-product" placeholder="输入品名" autocomplete="off">
+    <div class="fg"><label>日期 Date</label>
+      <input type="date" id="logistics-date" autocomplete="off">
     </div>
-    <div class="fg"><label>清关费 Customs Fee (AED)</label>
-      <input type="number" id="logistics-fee" placeholder="输入清关费" min="0" value="0">
+    <div class="fg"><label>物流费 Logistics Fee (AED)</label>
+      <input type="number" id="logistics-fee" placeholder="输入物流费" min="0" value="0">
     </div>
     <div class="fg"><label>折扣 Discount (AED)</label>
       <input type="number" id="logistics-discount" placeholder="输入折扣金额" min="0" value="0">
@@ -279,7 +279,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <input type="hidden" id="logistics-id">
     <div class="brow">
       <button class="btn btn-s" onclick="saveLogisticsFee()">✓ 保存 Save</button>
-      <button class="btn btn-g" onclick="cllogisticsModal()">取消 Cancel</button>
+      <button class="btn btn-g" onclick="clLogisticsModal()">取消 Cancel</button>
     </div>
   </div>
 </div>
@@ -290,7 +290,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <h3>📦 从采购记录选择集装箱号 / Select from Purchase</h3>
     <div id="logistics-purchase-list"></div>
     <div class="brow" style="margin-top:14px">
-      <button class="btn btn-g" onclick="cllogisticsFromPurchaseModal()">关闭 Close</button>
+      <button class="btn btn-g" onclick="clLogisticsFromPurchaseModal()">关闭 Close</button>
     </div>
   </div>
 </div>
@@ -472,7 +472,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
       <input type="text" id="fe-supplier" oninput="showSuggestEdit(this,'supplier')" onfocus="showSuggestEdit(this,'supplier')" onblur="setTimeout(function(){hideSuggest('edit-supplier')},200)">
       <div class="suggest-list" id="suggest-edit-supplier"></div>
     </div>
-    <div class="fg" style="position:relative"><label>品名 Product Name</label>
+    <div class="fg" style="position:relative"><label>日期 Date</label>
       <input type="text" id="fe-product" oninput="showSuggestEdit(this,'product')" onfocus="showSuggestEdit(this,'product')" onblur="setTimeout(function(){hideSuggest('edit-product')},200)">
       <div class="suggest-list" id="suggest-edit-product"></div>
     </div>
@@ -665,5 +665,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
 
 </body>
 </html>
+
+
 
 

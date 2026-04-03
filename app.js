@@ -86,7 +86,6 @@ var currentColdStore = 1;
 var currentUser = null;
 var isAdmin = false;
 var isLogistics = false;
-var LAST_LOGIN_KEY = 'csm_last_login';
 
 var USERS_KEY = 'csm_users_v2';
 
@@ -97,30 +96,7 @@ window.addEventListener('load', function() {
   initFirebase();
   setDefTimes();
   loadSettings();
-  checkAutoLogin();
 });
-
-// 自动登录检查
-function checkAutoLogin() {
-  var lastUser = localStorage.getItem(LAST_LOGIN_KEY);
-  if (lastUser) {
-    var users = getUsers();
-    var user = users[lastUser];
-    if (user) {
-      currentUser = lastUser;
-      isAdmin = user.role === 'admin';
-      isLogistics = user.role === 'customs';
-      
-      if (isLogistics) {
-        showLogisticsView();
-      } else {
-        showAdminView();
-      }
-      return;
-    }
-  }
-  showLoginModal();
-}
 
 function initFirebase() {
   // 加载 Firebase SDK
@@ -221,7 +197,6 @@ function doLogin() {
   }
   
   currentUser = username;
-      localStorage.setItem(LAST_LOGIN_KEY, username);
   isAdmin = user.role === 'admin';
   isLogistics = user.role === 'customs';
   
@@ -311,16 +286,26 @@ function toast(msg, type) {
 // CHECK IN
 // ============================================================
 function checkIn() {
+  console.log('checkIn called, isCheckingIn:', isCheckingIn);
+  if (isCheckingIn) {
+    console.log('Already checking in, ignoring');
+    return;
+  }
+  isCheckingIn = true;
   var cn = (gid('f-cn').value || '').trim().toUpperCase();
   var supplier = (gid('f-supplier').value || '').trim();
-  var addDate = (gid('f-product').value || '').trim();
+  var product = (gid('f-product').value || '').trim();
   var pallets = parseInt(gid('f-pallets').value) || 1;
   var items = parseInt(gid('f-items').value) || 1;
   var at = gid('f-at').value;
 
-  if (!cn || cn.length < 4) { toast('请输入有效的集装箱号码 (至少4个字符)', 'err'); return; }
-  if (!product) { toast('请输入品名', 'err'); return; }
-  if (!at) { toast('请输入入库日期', 'err'); return; }
+  console.log('checkIn values:', {cn: cn, supplier: supplier, product: product, pallets: pallets, items: items, at: at});
+
+  if (!cn || cn.length < 2) { toast('请输入有效的集装箱号码 (至少2个字符)', 'err'); console.log('validation failed: cn, length:', cn ? cn.length : 0); return; }
+  if (!product) { toast('请输入品名', 'err'); console.log('validation failed: product'); return; }
+  if (!at) { toast('请输入入库日期', 'err'); console.log('validation failed: at'); return; }
+
+  console.log('validation passed, checking exists...');
 
   // 检查是否已存在
   var exists = recs.some(function(r) { 
@@ -336,7 +321,7 @@ function checkIn() {
     id: id,
     cn: cn,
     supplier: supplier,
-    addDate: addDate,
+    product: product,
     pallets: pallets,
     items: items,
     store: currentColdStore,
@@ -348,16 +333,39 @@ function checkIn() {
 
   // 保存到 Firebase
   if (dbRef) {
-    dbRef.child(id).set(rec);
+    dbRef.child(id).set(rec).then(function() {
+      console.log('Check-in saved:', id);
+      // Firebase 监听器会自动更新 recs，不需要手动 push
+      isCheckingIn = false;
+      // 改变按钮状态为已入库
+      var btn = gid('checkInBtn');
+      console.log('Changing button status, btn:', btn);
+      if (btn) {
+        btn.classList.remove('btn-s');
+        btn.classList.add('btn-g');
+        btn.innerHTML = '✓ 已入库 Checked In';
+        btn.disabled = true;
+        console.log('Button changed to green');
+      } else {
+        console.log('Button not found!');
+      }
+      toast('✅ 入库成功: ' + cn, 'ok');
+      // 清空表单
+      gid('f-cn').value = '';
+      gid('f-supplier').value = '';
+      gid('f-product').value = '';
+      gid('f-pallets').value = '1';
+      gid('f-items').value = '1';
+    }).catch(function(e) {
+      console.error('Check-in error:', e);
+      toast('入库失败: ' + e.message, 'err');
+      isCheckingIn = false;
+    });
+  } else {
+    console.error('dbRef is null');
+    toast('数据库未连接', 'err');
+    isCheckingIn = false;
   }
-  toast('✅ 入库成功: ' + cn, 'ok');
-
-  // 清空表单
-  gid('f-cn').value = '';
-  gid('f-supplier').value = '';
-  gid('f-product').value = '';
-  gid('f-pallets').value = '1';
-  gid('f-items').value = '1';
 }
 
 // ============================================================
@@ -1471,6 +1479,15 @@ function savePurchaseItem(item) {
 }
 
 function openPurchaseForm() {
+  // 重置入库按钮状态
+  var checkInBtn = gid('checkInBtn');
+  if (checkInBtn) {
+    checkInBtn.classList.remove('btn-g');
+    checkInBtn.classList.add('btn-s');
+    checkInBtn.innerHTML = '✓ 入库 Check In';
+    checkInBtn.disabled = false;
+  }
+  
   // 重置表单
   var cnField = gid('fp-cn');
   var supplierField = gid('fp-supplier');
@@ -1530,6 +1547,7 @@ function clPurchaseModal() {
 }
 
 function addPurchase() {
+  console.log('addPurchase called');
   var cn = (gid('fp-cn').value || '').trim().toUpperCase();
   var supplier = (gid('fp-supplier').value || '').trim();
   var purchaseDate = gid('fp-date').value;
@@ -1539,10 +1557,13 @@ function addPurchase() {
 
   // 获取所有品名行
   var rows = document.querySelectorAll('.purchase-item-row');
+  console.log('Found rows:', rows.length);
   var items = [];
   
-  rows.forEach(function(row) {
-    var product = (row.querySelector('.item-product').value || '').trim();
+  rows.forEach(function(row, idx) {
+    var productInput = row.querySelector('.item-product');
+    var product = (productInput.value || '').trim();
+    console.log('Row', idx, 'product:', product);
     if (!product) return; // 跳过空品名行
     
     var item = {
@@ -1573,20 +1594,23 @@ function addPurchase() {
     };
     
     items.push(rec);
+    console.log('Added item:', rec.product);
     
     // 保存到 Firebase
     if (purchaseRef) {
-      purchaseRef.child(id).set(rec).then(function(){console.log('Firebase saved:',id);}).catch(function(e){console.error('Firebase error:',e);});
+      purchaseRef.child(id).set(rec).then(function(){console.log('Saved:',id);}).catch(function(e){console.error('Error:',e);});
     }
   });
+
+  console.log('Total items to add:', items.length);
 
   if (items.length === 0) {
     toast('请至少添加一个品名', 'err');
     return;
   }
 
-  // 添加到本地数组
-  purchaseRecs = purchaseRecs.concat(items);
+  // 注意：数据会通过 Firebase 监听器自动添加到 purchaseRecs，这里不需要手动 concat
+  // 只需要保存到 Firebase 即可
 
   // 重置表单
   gid('fp-cn').value = '';
@@ -1646,16 +1670,39 @@ function delPurchase(id) {
   }
 }
 
-function renderPurchase() {
+function filterPurchase() { renderPurchase(); }
+
+function resetPurchaseSearch() {
+  gid('search-purchase-date').value = '';
+  gid('search-purchase-cn').value = '';
+  gid('search-purchase-supplier').value = '';
+  renderPurchase();
+}
+
+function renderPurchase() { console.log("purchaseRecs:", purchaseRecs);
   var tb = gid('tb-purchase');
   var es = gid('es-purchase');
   if (!tb || !es) return;
-  if (purchaseRecs.length === 0) { tb.innerHTML = ''; es.style.display = 'block'; return; }
+  
+  // 获取搜索条件
+  var searchDate = (gid('search-purchase-date').value || '').trim();
+  var searchCn = (gid('search-purchase-cn').value || '').trim().toUpperCase();
+  var searchSupplier = (gid('search-purchase-supplier').value || '').trim().toUpperCase();
+  
+  // 过滤记录
+  var filteredRecs = purchaseRecs.filter(function(r) {
+    var matchDate = !searchDate || (r.purchaseDate || '').indexOf(searchDate) !== -1;
+    var matchCn = !searchCn || (r.cn || '').indexOf(searchCn) !== -1;
+    var matchSupplier = !searchSupplier || (r.supplier || '').toUpperCase().indexOf(searchSupplier) !== -1;
+    return matchDate && matchCn && matchSupplier;
+  });
+  
+  if (filteredRecs.length === 0) { tb.innerHTML = ''; es.style.display = 'block'; return; }
   es.style.display = 'none';
 
   // 按集装箱号分组
   var cnGroups = {};
-  purchaseRecs.forEach(function(r) {
+  filteredRecs.forEach(function(r) {
     var key = r.cn || '_empty_';
     if (!cnGroups[key]) cnGroups[key] = [];
     cnGroups[key].push(r);
@@ -1701,7 +1748,7 @@ function renderPurchase() {
     
     html += '<tr style="background:#f9f9f9;font-weight:bold" id="pur-main-' + groupId + '">' +
       '<td>' + expandBtn + ' <button type="button" class="abtn" style="background:#e8f4ff;border-color:#00bfff;color:#00bfff;padding:2px 6px;font-size:11px" onclick="quickCheckIn(\'' + firstItem.id + '\')">📥</button> ' + cn + ' <span style="color:#999;font-size:11px">(' + totalItems + '品名)</span></td>' +
-      '<td style="font-family:Arial;text-transform:capitalize">'+(firstItem.supplier||'-')+'</td><td style="font-family:Arial">'+firstProduct+'</td><td style="font-family:Arial">'+firstQty+'</td><td>'+purchaseDate+'</td><td>-</td>' +
+      '<td style="font-family:Arial;text-transform:capitalize">'+(firstItem.supplier||'-')+'</td><td style="font-family:Arial">'+firstProduct+'</td><td>'+purchaseDate+'</td><td style="font-family:Arial">'+firstQty+'</td><td>-</td>' +
       '<td>-</td><td>-</td><td>'+coldFeeDisplay+'</td><td>-</td><td>-</td><td>-</td><td>-</td>' +
       '<td><strong style="color:#0066cc">'+totalAmount.toFixed(2)+'</strong></td>' +
       '<td><button type="button" class="abtn x" onclick="delPurchaseGroup(\'' + cn + '\')">🗑</button></td></tr>';
@@ -1723,7 +1770,7 @@ function renderPurchase() {
 }
 
 // 展开/折叠采购组
-function togglePurchaseGroup(groupId, btn) {
+function togglePurchaseGroup(groupId, btn) { console.log('togglePurchaseGroup:', groupId);
   var rows = document.querySelectorAll('.purchase-sub-row.' + groupId);
   var isExpanded = btn.textContent === '-';
   
@@ -1953,7 +2000,7 @@ function saveEditPurchase() {
 // ============================================================
 var quickInData = null;
 
-function quickCheckIn(purchaseId) {
+function quickCheckIn(purchaseId) { console.log('quickCheckIn called:', purchaseId);
   if (!purchaseRecs || purchaseRecs.length === 0) {
     toast('采购数据未加载，请刷新页面重试', 'err');
     return;
@@ -2003,7 +2050,11 @@ function clQuickInModal() {
   window.quickInMultiData = null;
 }
 
-function doQuickIn(storeNum) {
+var isCheckingIn = false;
+
+function doQuickIn(storeNum) { console.log('doQuickIn called, storeNum:', storeNum, 'quickInData:', quickInData);
+  if (isCheckingIn) { console.log('Already checking in, ignoring'); return; }
+  isCheckingIn = true;
   // 获取选中的品名
   var selectedData = null;
   
@@ -2015,6 +2066,7 @@ function doQuickIn(storeNum) {
     
     if (!selectedData) {
       toast('请选择入库品名', 'err');
+      isCheckingIn = false;
       return;
     }
   } else if (quickInData) {
@@ -2024,14 +2076,19 @@ function doQuickIn(storeNum) {
   
   if (!selectedData) {
     toast('未选择入库信息', 'err');
+    isCheckingIn = false;
     return;
   }
+  
+  console.log('selectedData:', selectedData);
+  console.log('selectedData.cn:', selectedData.cn);
   
   // 切换冷库
   selectColdStore(storeNum);
   
   // 自动填入入库表单
   gid('f-cn').value = selectedData.cn || '';
+  console.log('f-cn value after set:', gid('f-cn').value);
   gid('f-supplier').value = selectedData.supplier || '';
   gid('f-product').value = selectedData.product || '';
   gid('f-items').value = selectedData.qty || '1';
@@ -2041,9 +2098,18 @@ function doQuickIn(storeNum) {
   gid('f-at').value = nowFmt();
   
   clQuickInModal();
-  toast('✅ 已填入入库信息：' + selectedData.product, 'ok');
   
-  // 切换到库存记录 tab
+  // 重置入库按钮状态（确保是黄色，等待用户手动确认）
+  isCheckingIn = false;
+  var checkInBtn = gid('checkInBtn');
+  if (checkInBtn) {
+    checkInBtn.classList.remove('btn-g');
+    checkInBtn.classList.add('btn-s');
+    checkInBtn.innerHTML = '✓ 入库 Check In';
+    checkInBtn.disabled = false;
+  }
+  
+  // 切换到库存记录 tab，让用户手动点击入库按钮确认
   swTab('records');
   
   // 滚动到入库表单
@@ -2427,6 +2493,11 @@ function selectLogisticsCn(cn) {
   openLogisticsAddForm('');
   gid('logistics-cn').value = cn;
 }
+
+
+
+
+
 
 
 

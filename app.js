@@ -86,6 +86,7 @@ var currentColdStore = 1;
 var currentUser = null;
 var isAdmin = false;
 var isLogistics = false;
+var LAST_LOGIN_KEY = 'csm_last_login';
 
 var USERS_KEY = 'csm_users_v2';
 
@@ -96,7 +97,30 @@ window.addEventListener('load', function() {
   initFirebase();
   setDefTimes();
   loadSettings();
+  checkAutoLogin();
 });
+
+// 自动登录检查
+function checkAutoLogin() {
+  var lastUser = localStorage.getItem(LAST_LOGIN_KEY);
+  if (lastUser) {
+    var users = getUsers();
+    var user = users[lastUser];
+    if (user) {
+      currentUser = lastUser;
+      isAdmin = user.role === 'admin';
+      isLogistics = user.role === 'customs';
+      
+      if (isLogistics) {
+        showLogisticsView();
+      } else {
+        showAdminView();
+      }
+      return;
+    }
+  }
+  showLoginModal();
+}
 
 function initFirebase() {
   // 加载 Firebase SDK
@@ -197,6 +221,7 @@ function doLogin() {
   }
   
   currentUser = username;
+      localStorage.setItem(LAST_LOGIN_KEY, username);
   isAdmin = user.role === 'admin';
   isLogistics = user.role === 'customs';
   
@@ -1517,7 +1542,7 @@ function addPurchase() {
   var items = [];
   
   rows.forEach(function(row) {
-    var addDate = (row.querySelector('.item-product').value || '').trim();
+    var product = (row.querySelector('.item-product').value || '').trim();
     if (!product) return; // 跳过空品名行
     
     var item = {
@@ -1535,7 +1560,7 @@ function addPurchase() {
       id: id,
       cn: cn,
       supplier: supplier,
-      addDate: addDate,
+      product: product,
       purchaseDate: purchaseDate,
       qty: item.qty,
       demurrage: item.demurrage,
@@ -1551,7 +1576,7 @@ function addPurchase() {
     
     // 保存到 Firebase
     if (purchaseRef) {
-      purchaseRef.child(id).set(rec);
+      purchaseRef.child(id).set(rec).then(function(){console.log('Firebase saved:',id);}).catch(function(e){console.error('Firebase error:',e);});
     }
   });
 
@@ -1671,9 +1696,12 @@ function renderPurchase() {
     var expandBtn = totalItems > 1 ? 
       '<button type="button" class="abtn" style="background:#f0f0f0;border:1px solid #ddd;padding:2px 6px;font-size:14px" onclick="togglePurchaseGroup(\'' + groupId + '\',this)">+</button>' : '';
     
+    var firstProduct = firstItem.product || '-';
+    var firstQty = firstItem.qty || '-';
+    
     html += '<tr style="background:#f9f9f9;font-weight:bold" id="pur-main-' + groupId + '">' +
       '<td>' + expandBtn + ' <button type="button" class="abtn" style="background:#e8f4ff;border-color:#00bfff;color:#00bfff;padding:2px 6px;font-size:11px" onclick="quickCheckIn(\'' + firstItem.id + '\')">📥</button> ' + cn + ' <span style="color:#999;font-size:11px">(' + totalItems + '品名)</span></td>' +
-      '<td style="font-family:Arial;text-transform:capitalize">'+(firstItem.supplier||'-')+'</td><td>-</td><td>'+purchaseDate+'</td><td>-</td>' +
+      '<td style="font-family:Arial;text-transform:capitalize">'+(firstItem.supplier||'-')+'</td><td style="font-family:Arial">'+firstProduct+'</td><td style="font-family:Arial">'+firstQty+'</td><td>'+purchaseDate+'</td><td>-</td>' +
       '<td>-</td><td>-</td><td>'+coldFeeDisplay+'</td><td>-</td><td>-</td><td>-</td><td>-</td>' +
       '<td><strong style="color:#0066cc">'+totalAmount.toFixed(2)+'</strong></td>' +
       '<td><button type="button" class="abtn x" onclick="delPurchaseGroup(\'' + cn + '\')">🗑</button></td></tr>';
@@ -2399,6 +2427,8 @@ function selectLogisticsCn(cn) {
   openLogisticsAddForm('');
   gid('logistics-cn').value = cn;
 }
+
+
 
 
 

@@ -16,6 +16,8 @@ var firebaseConfig = {
 };
 var dbRef = null;
 var purchaseRef = null;
+var settingsRef = null;  // 供应商、品名设置
+var usersRef = null;     // 用户账号
 
 // 冷库费率（可配置，默认值）
 // 冷库1: 38 AED/托盘/周 + 5% VAT
@@ -121,6 +123,8 @@ function initApp() {
     firebase.initializeApp(firebaseConfig);
     dbRef = firebase.database().ref(SK);
     purchaseRef = firebase.database().ref('csm_purchase');
+    settingsRef = firebase.database().ref('csm_settings');
+    usersRef = firebase.database().ref('csm_users');
     
     // 监听数据变化
     dbRef.on('value', function(snap) {
@@ -144,10 +148,32 @@ function initApp() {
       renderPurchase();
     });
     
-    toast('✅ Firebase 连接成功', 'ok');
+    // 监听设置数据（供应商、品名）
+    settingsRef.on('value', function(snap) {
+      var data = snap.val() || {};
+      settData = {
+        suppliers: data.suppliers || [],
+        products: data.products || []
+      };
+      renderSettList('supplier');
+      renderSettList('product');
+    });
     
-    // 初始化默认账号
-    initDefaultUsers();
+    // 监听用户数据
+    usersRef.on('value', function(snap) {
+      var data = snap.val() || {};
+      usersData = data;
+      // 如果没有用户，初始化默认管理员账号
+      if (Object.keys(data).length === 0) {
+        usersData = {
+          'admin': { password: 'admin123', role: 'admin', name: '管理员' }
+        };
+        usersRef.set(usersData);
+      }
+      renderAccountList();
+    });
+    
+    toast('✅ Firebase 连接成功', 'ok');
     
     // 显示登录弹窗
     showLoginModal();
@@ -1794,20 +1820,20 @@ function delPurchaseGroup(cn) {
 // ============================================================
 var SETTINGS_KEY = 'csm_settings_v1';
 var settData = { suppliers: [], products: [] };
+var usersData = {};
 
 function loadSettings() {
-  try {
-    var stored = localStorage.getItem(SETTINGS_KEY);
-    if (stored) settData = JSON.parse(stored);
-  } catch(e) { settData = { suppliers: [], products: [] }; }
+  // Firebase 会自动同步，这里只是初始化默认值
 }
 
 function saveSettings() {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settData));
+  // 保存到 Firebase
+  if (settingsRef) {
+    settingsRef.set(settData);
+  }
 }
 
 function openSettings() {
-  loadSettings();
   renderSettList('supplier');
   renderSettList('product');
   renderAccountList();
@@ -1823,31 +1849,18 @@ function clSettings() {
 // ACCOUNT MANAGEMENT
 // ============================================================
 function getUsers() {
-  try {
-    var stored = localStorage.getItem(USERS_KEY);
-    if (stored) {
-      var data = JSON.parse(stored);
-      // 兼容旧格式
-      if (typeof data.admin === 'string') {
-        var newData = {
-          'admin': { password: data.admin, role: 'admin', name: '管理员' }
-        };
-        saveUsers(newData);
-        return newData;
-      }
-      return data;
-    }
-    return {
-      'admin': { password: 'admin123', role: 'admin', name: '管理员' }
-    };
-  } catch(e) { 
-    return { 
-      'admin': { password: 'admin123', role: 'admin', name: '管理员' }
-    }; 
-  }
+  return usersData || {
+    'admin': { password: 'admin123', role: 'admin', name: '管理员' }
+  };
 }
 
 function saveUsers(users) {
+  usersData = users;
+  // 保存到 Firebase
+  if (usersRef) {
+    usersRef.set(users);
+  }
+}
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 

@@ -1861,8 +1861,6 @@ function saveUsers(users) {
     usersRef.set(users);
   }
 }
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-}
 
 function addAccount() {
   var username = (gid('sett-user-input').value || '').trim();

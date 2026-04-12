@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Cold store">
+  <rect width="32" height="32" rx="6" fill="#00bfff"/>
+  <path fill="#fff" d="M8 16h16v12H8z"/>
+  <path fill="none" stroke="#0066cc" stroke-width="1.5" d="M8 16L16 10l8 6"/>
+  <path fill="#0066cc" d="M14 20h4v5h-4z"/>
+</svg>

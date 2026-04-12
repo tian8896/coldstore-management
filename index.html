@@ -665,6 +665,9 @@ tr:hover td{background:rgba(0,191,255,.03)}
         <span style="margin-left:8px">AED/托盘/周</span>
       </div>
       <button class="sett-add-btn" onclick="saveRates()" style="margin-top:10px;background:#0066cc">💾 保存费率</button>
+      <div style="margin-top:20px;padding-top:15px;border-top:1px solid #ddd">
+        <button onclick="openUserManagement()" class="sett-add-btn" style="background:#2196F3">👥 用户管理 / User Management</button>
+      </div>
     </div>
     <div class="sett-section">
       <h4>👥 用户管理 / User Management</h4>
@@ -767,6 +770,22 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <div class="brow">
       <button class="btn" style="background:#cc0000;color:#fff;border-color:#cc0000" onclick="confirmClear()">确认清空</button>
       <button class="btn btn-g" onclick="closeClearModal()">取消</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- User Management Modal -->
+<div id="userMgmtModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:2000;justify-content:center;align-items:center">
+  <div style="background:#fff;border-radius:8px;width:90%;max-width:800px;max-height:80vh;overflow-y:auto;box-shadow:0 4px 20px rgba(0,0,0,0.2)">
+    <div style="padding:15px 20px;background:#2196F3;color:#fff;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center">
+      <h3 style="margin:0">👥 用户管理 / User Management</h3>
+      <button onclick="closeUserManagement()" style="background:none;border:none;color:#fff;font-size:24px;cursor:pointer">&times;</button>
+    </div>
+    <div style="padding:20px">
+      <div id="userListContainer" style="min-height:100px">
+        <div style="text-align:center;color:#888;padding:20px">加载中...</div>
+      </div>
     </div>
   </div>
 </div>

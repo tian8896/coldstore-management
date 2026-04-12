@@ -139,18 +139,25 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <button type="button" class="btn btn-s" id="btn-login-submit" style="width:100%;padding:12px;font-size:16px;margin-top:10px">登录 Login</button>
   </div>
 </div>
-<!-- 主脚本：用「当前页面所在目录」拼 app.js，避免 GitHub Pages 项目地址无末尾 / 时相对路径错成 /app.js 导致 404、auth/doLogin 未定义 -->
-<script>
-(function () {
-  var p = location.pathname;
-  var base = p.endsWith('/') ? p : (/\.html?$/i.test(p) ? p.substring(0, p.lastIndexOf('/') + 1) : p + '/');
-  window.__csmDirPath = base;
-  document.write('<script src="' + base + 'app.js"><\/script>');
-})();
-</script>
+<!-- 必须先加载 Firebase，再同步加载 app.js。app.js 用绝对地址，避免相对路径 / document.write 顺序问题；fork 部署请改下面仓库 URL -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script>
+(function () {
+  var ghAppJs = 'https://tian8896.github.io/coldstore-management/app.js';
+  window.__csmDirPath = '/coldstore-management/';
+  var src = location.protocol === 'file:' ? new URL('app.js', location.href).href : ghAppJs;
+  if (location.protocol === 'file:') {
+    try {
+      window.__csmDirPath = new URL('./', location.href).pathname;
+    } catch (e) {
+      window.__csmDirPath = '';
+    }
+  }
+  document.write('<script charset="utf-8" src="' + src.replace(/"/g, '') + '"><\/script>');
+})();
+</script>
 <!-- Firebase 初始化改由 app.js 在 DOMContentLoaded 执行，避免在 header/main 尚未解析时 initApp 触发 render 导致报错 -->
 <script>
   window.csmDiagnoseLogin = function () {

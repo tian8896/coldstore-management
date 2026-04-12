@@ -139,8 +139,15 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <button type="button" class="btn btn-s" id="btn-login-submit" style="width:100%;padding:12px;font-size:16px;margin-top:10px">登录 Login</button>
   </div>
 </div>
-<!-- 主脚本紧跟登录区：避免用户先点击时 app.js 尚未解析，导致 doLogin 未定义 -->
-<script src="app.js"></script>
+<!-- 主脚本：用「当前页面所在目录」拼 app.js，避免 GitHub Pages 项目地址无末尾 / 时相对路径错成 /app.js 导致 404、auth/doLogin 未定义 -->
+<script>
+(function () {
+  var p = location.pathname;
+  var base = p.endsWith('/') ? p : (/\.html?$/i.test(p) ? p.substring(0, p.lastIndexOf('/') + 1) : p + '/');
+  window.__csmDirPath = base;
+  document.write('<script src="' + base + 'app.js"><\/script>');
+})();
+</script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
@@ -149,6 +156,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
   window.csmDiagnoseLogin = function () {
     var lines = [];
     lines.push('href=' + location.href);
+    lines.push('__csmDirPath=' + (typeof window.__csmDirPath !== 'undefined' ? window.__csmDirPath : ''));
     lines.push('doLogin_defined=' + (typeof doLogin === 'function'));
     lines.push('auth_defined=' + (typeof auth !== 'undefined'));
     lines.push('auth_ready=' + (typeof auth !== 'undefined' && auth != null));

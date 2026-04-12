@@ -119,7 +119,12 @@ function closeUserManagement() {
   if (!b || b.dataset.csmWired) return;
   b.dataset.csmWired = '1';
   function tryLogin() {
-    if (typeof doLogin === 'function') doLogin();
+    var real = window.__csmRealDoLogin;
+    if (typeof real === 'function') {
+      real();
+      return;
+    }
+    if (typeof window.doLogin === 'function') window.doLogin();
   }
   b.addEventListener('click', function (e) {
     e.preventDefault();

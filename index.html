@@ -72,7 +72,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
 .mr .mv{color:var(--tx)}
 .mr:last-child .mv{color:var(--ac);font-size:18px}
 .mdl .brow{margin-top:18px}
-.tst{position:fixed;bottom:24px;right:24px;padding:12px 18px;border-radius:6px;font-size:13px;letter-spacing:.5px;z-index:2000;animation:ti .3s ease;max-width:320px;line-height:1.6}
+.tst{position:fixed;bottom:24px;right:24px;padding:12px 18px;border-radius:6px;font-size:13px;letter-spacing:.5px;z-index:12000;animation:ti .3s ease;max-width:320px;line-height:1.6}
 .tst-ok{background:var(--bg3);border:1px solid var(--gr);color:var(--gr);box-shadow:0 0 18px var(--gr15)}
 .tst-err{background:var(--bg3);border:1px solid var(--rd);color:var(--rd);box-shadow:0 0 18px var(--rd15)}
 @keyframes ti{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
@@ -134,7 +134,8 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <div class="fg"><label>密码 Password</label>
       <input type="password" id="login-password" placeholder="输入密码" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px">
     </div>
-    <div id="login-error" style="color:#cc0000;font-size:13px;margin:8px 0;display:none"></div>
+    <div id="login-error" style="color:#cc0000;font-size:13px;margin:8px 0;display:none;min-height:1.2em;word-break:break-word"></div>
+    <p id="login-hint" style="font-size:11px;color:#666;margin-top:6px;line-height:1.5">Authentication 里已有账号后，还须在 Realtime Database 的 <code style="font-size:10px">csm_users/您的UID</code> 写入角色；GitHub Pages 需在 Firebase 控制台「身份验证 → 设置 → 已授权网域」添加 <code style="font-size:10px">tian8896.github.io</code>。</p>
     <button type="button" class="btn btn-s" id="btn-login-submit" style="width:100%;padding:12px;font-size:16px;margin-top:10px">登录 Login</button>
   </div>
 </div>

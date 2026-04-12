@@ -788,10 +788,11 @@ tr:hover td{background:rgba(0,191,255,.03)}
   </div>
 </div>
 
+<!-- app.js 必须在 Firebase 之前：否则外网脚本卡住时整页永远不执行 app.js，onclick 会报 doLogin 未定义 -->
+<script src="app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-<script src="app.js"></script>
 
 </body>
 </html>

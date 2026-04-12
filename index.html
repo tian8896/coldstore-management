@@ -144,7 +144,45 @@ tr:hover td{background:rgba(0,191,255,.03)}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-<script>if (typeof initFirebase === 'function') initFirebase();</script>
+<!-- Firebase 初始化改由 app.js 在 DOMContentLoaded 执行，避免在 header/main 尚未解析时 initApp 触发 render 导致报错 -->
+<script>
+  window.csmDiagnoseLogin = function () {
+    var lines = [];
+    lines.push('href=' + location.href);
+    lines.push('doLogin_defined=' + (typeof doLogin === 'function'));
+    lines.push('auth_defined=' + (typeof auth !== 'undefined'));
+    lines.push('auth_ready=' + (typeof auth !== 'undefined' && auth != null));
+    lines.push('firebase_ok=' + (typeof firebase !== 'undefined' && !!firebase.database));
+    if (typeof firebase === 'undefined' || !firebase.database) {
+      console.log('[csmDiagnoseLogin]\n' + lines.join('\n'));
+      return Promise.resolve(lines);
+    }
+    if (typeof auth === 'undefined' || !auth) {
+      console.log('[csmDiagnoseLogin]\n' + lines.join('\n'));
+      return Promise.resolve(lines);
+    }
+    var u = auth.currentUser;
+    lines.push('currentUser=' + !!u);
+    if (!u) {
+      console.log('[csmDiagnoseLogin]\n' + lines.join('\n'));
+      return Promise.resolve(lines);
+    }
+    lines.push('uid=' + u.uid);
+    lines.push('email=' + (u.email || ''));
+    return firebase.database().ref('csm_users/' + u.uid).once('value')
+      .then(function (snap) {
+        lines.push('csm_users_has_data=' + (snap.val() != null));
+        lines.push('csm_users_json=' + JSON.stringify(snap.val()));
+        console.log('[csmDiagnoseLogin]\n' + lines.join('\n'));
+        return lines;
+      })
+      .catch(function (e) {
+        lines.push('rtdb_read_error=' + (e.code || '') + ' ' + (e.message || e));
+        console.log('[csmDiagnoseLogin]\n' + lines.join('\n'));
+        return lines;
+      });
+  };
+</script>
 <!-- LOGIN SCREEN (disabled for testing) -->
 <!-- <div class="login-screen" id="loginScreen">
   <div class="login-box">

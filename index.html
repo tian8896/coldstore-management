@@ -133,9 +133,14 @@ tr:hover td{background:rgba(0,191,255,.03)}
       <input type="password" id="login-password" placeholder="输入密码" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px">
     </div>
     <div id="login-error" style="color:#cc0000;font-size:13px;margin:8px 0;display:none"></div>
-    <button class="btn btn-s" style="width:100%;padding:12px;font-size:16px;margin-top:10px" onclick="doLogin()">登录 Login</button>
+    <button type="button" class="btn btn-s" id="btn-login-submit" style="width:100%;padding:12px;font-size:16px;margin-top:10px">登录 Login</button>
   </div>
 </div>
+<!-- 主脚本紧跟登录区：避免用户先点击时 app.js 尚未解析，导致 doLogin 未定义 -->
+<script src="app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <!-- LOGIN SCREEN (disabled for testing) -->
 <!-- <div class="login-screen" id="loginScreen">
   <div class="login-box">
@@ -787,12 +792,6 @@ tr:hover td{background:rgba(0,191,255,.03)}
     </div>
   </div>
 </div>
-
-<!-- app.js 必须在 Firebase 之前：否则外网脚本卡住时整页永远不执行 app.js，onclick 会报 doLogin 未定义 -->
-<script src="app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 
 </body>
 </html>

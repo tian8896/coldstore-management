@@ -135,7 +135,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
       <input type="password" id="login-password" placeholder="输入密码" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px">
     </div>
     <div id="login-error" style="color:#cc0000;font-size:13px;margin:8px 0;display:none;min-height:1.2em;word-break:break-word"></div>
-    <p id="login-hint" style="font-size:11px;color:#666;margin-top:6px;line-height:1.5">① 用户资料必须在 <strong>Realtime Database</strong>（不是 Firestore），路径 <code style="font-size:10px">csm_users/&lt;Authentication 里的 UID&gt;</code>，字段 <code style="font-size:10px">role</code> 为 admin / logistics / supplier（大小写不敏感）。② GitHub Pages 需在「身份验证 → 设置 → 已授权网域」加入当前域名。③ 登录后若仍失败，按 F12 在控制台执行 <code style="font-size:10px">csmDiagnoseLogin()</code> 查看能否读到 csm_users。</p>
+    <p id="login-hint" style="font-size:11px;color:#666;margin-top:6px;line-height:1.5">① 用户资料在 <strong>Realtime Database</strong>，路径 <code style="font-size:10px">csm_users/&lt;UID&gt;</code>，<code style="font-size:10px">role</code>：admin / logistics / supplier。② Firebase 控制台 → 身份验证 → 设置 → <strong>已授权网域</strong> 须添加 <code style="font-size:10px">tian8896.github.io</code>（仅域名，勿带 <code style="font-size:10px">/coldstore-management</code> 路径）。③ 数据库规则须允许已登录用户读取 <code style="font-size:10px">csm_users</code>、<code style="font-size:10px">csm_meta</code>。④ 仍失败时 F12 控制台执行 <code style="font-size:10px">csmDiagnoseLogin()</code> 查看读写结果。</p>
     <button type="button" class="btn btn-s" id="btn-login-submit" style="width:100%;padding:12px;font-size:16px;margin-top:10px">登录 Login</button>
   </div>
 </div>
@@ -169,10 +169,14 @@ tr:hover td{background:rgba(0,191,255,.03)}
     }
     lines.push('uid=' + u.uid);
     lines.push('email=' + (u.email || ''));
-    return firebase.database().ref('csm_users/' + u.uid).once('value')
-      .then(function (snap) {
-        lines.push('csm_users_has_data=' + (snap.val() != null));
-        lines.push('csm_users_json=' + JSON.stringify(snap.val()));
+    return Promise.all([
+      firebase.database().ref('csm_users/' + u.uid).once('value'),
+      firebase.database().ref('csm_meta/site_initialized').once('value')
+    ])
+      .then(function (snaps) {
+        lines.push('csm_users_has_data=' + (snaps[0].val() != null));
+        lines.push('csm_users_json=' + JSON.stringify(snaps[0].val()));
+        lines.push('csm_meta_site_initialized=' + JSON.stringify(snaps[1].val()));
         console.log('[csmDiagnoseLogin]\n' + lines.join('\n'));
         return lines;
       })

@@ -144,7 +144,8 @@ tr:hover td{background:rgba(0,191,255,.03)}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script>window.__csmDirPath = '/coldstore-management/';</script>
-<script src="https://tian8896.github.io/coldstore-management/csm-bundle.js" charset="utf-8" onerror="console.error('[CSM] 主脚本加载失败：检查 Network 是否被拦截/404；可关闭广告拦截或换无痕窗口')"></script>
+<script src="https://tian8896.github.io/coldstore-management/csm-bundle.js" charset="utf-8" crossorigin="anonymous" integrity="sha384-KacGWY0auO3ttElzv0vhVwmfQvwW3nVN6C5wM9qTRFKpILkIT4o8MXme3eENx6E1" onload="if (typeof window.doLogin !== 'function') console.error('[CSM] 脚本字节校验通过但 doLogin 仍缺失：请把控制台左上角上下文切到本页面（勿选扩展），并禁用会改写 JS 的扩展。')" onerror="console.error('[CSM] 主脚本未执行：可能被拦截、hash 与站点不一致（更新 csm-bundle 后需在 index.html 重算 integrity）、或网络失败。')"></script>
+<!-- 更新 csm-bundle.js 后请重算 integrity：openssl dgst -sha384 -binary csm-bundle.js | openssl base64 -A -->
 <!-- Firebase 初始化改由主脚本在 DOMContentLoaded 执行 -->
 <script>
   window.csmDiagnoseLogin = function () {
@@ -153,6 +154,8 @@ tr:hover td{background:rgba(0,191,255,.03)}
     lines.push('__csmDirPath=' + (typeof window.__csmDirPath !== 'undefined' ? window.__csmDirPath : ''));
     lines.push('main_script_srcs=' + [].slice.call(document.querySelectorAll('script[src]')).map(function (n) { return n.getAttribute('src') || ''; }).filter(function (u) { return /csm-bundle\.js|app\.js/i.test(u); }).join(' | '));
     lines.push('main_js_ran=' + (window.__csmMainScriptRan === 1));
+    lines.push('window_doLogin_type=' + typeof window.doLogin);
+    lines.push('window_auth_type=' + typeof window.auth);
     lines.push('doLogin_defined=' + (typeof doLogin === 'function'));
     lines.push('auth_defined=' + (typeof auth !== 'undefined'));
     lines.push('auth_ready=' + (typeof auth !== 'undefined' && auth != null));

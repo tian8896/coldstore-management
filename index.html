@@ -144,8 +144,19 @@ tr:hover td{background:rgba(0,191,255,.03)}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script>window.__csmDirPath = '/coldstore-management/';</script>
-<script src="https://tian8896.github.io/coldstore-management/csm-bundle.js" charset="utf-8" crossorigin="anonymous" integrity="sha384-KacGWY0auO3ttElzv0vhVwmfQvwW3nVN6C5wM9qTRFKpILkIT4o8MXme3eENx6E1" onload="if (typeof window.doLogin !== 'function') console.error('[CSM] 脚本字节校验通过但 doLogin 仍缺失：请把控制台左上角上下文切到本页面（勿选扩展），并禁用会改写 JS 的扩展。')" onerror="console.error('[CSM] 主脚本未执行：可能被拦截、hash 与站点不一致（更新 csm-bundle 后需在 index.html 重算 integrity）、或网络失败。')"></script>
-<!-- 更新 csm-bundle.js 后请重算 integrity：openssl dgst -sha384 -binary csm-bundle.js | openssl base64 -A -->
+<script>
+(function () {
+  window.doLogin = function () {
+    var impl = window.__csmRealDoLogin;
+    if (typeof impl === 'function') return impl.apply(this, arguments);
+    var el = document.getElementById('login-error');
+    var msg = '主程序仍在加载，请稍候再点「登录」或刷新页面。若在 F12 控制台调试，请把左上角上下文选为「顶级」本页面（勿选扩展），否则 typeof window.doLogin 会显示 undefined。';
+    if (el) { el.textContent = msg; el.style.display = 'block'; }
+    console.warn('[CSM]', msg);
+  };
+})();
+</script>
+<script src="https://tian8896.github.io/coldstore-management/csm-bundle.js" charset="utf-8" crossorigin="anonymous"></script>
 <!-- Firebase 初始化改由主脚本在 DOMContentLoaded 执行 -->
 <script>
   window.csmDiagnoseLogin = function () {
@@ -154,8 +165,11 @@ tr:hover td{background:rgba(0,191,255,.03)}
     lines.push('__csmDirPath=' + (typeof window.__csmDirPath !== 'undefined' ? window.__csmDirPath : ''));
     lines.push('main_script_srcs=' + [].slice.call(document.querySelectorAll('script[src]')).map(function (n) { return n.getAttribute('src') || ''; }).filter(function (u) { return /csm-bundle\.js|app\.js/i.test(u); }).join(' | '));
     lines.push('main_js_ran=' + (window.__csmMainScriptRan === 1));
+    lines.push('real_doLogin_ready=' + (typeof window.__csmRealDoLogin === 'function'));
     lines.push('window_doLogin_type=' + typeof window.doLogin);
+    lines.push('doc_defaultView_doLogin_type=' + (document.defaultView ? typeof document.defaultView.doLogin : 'n/a'));
     lines.push('window_auth_type=' + typeof window.auth);
+    lines.push('window_csmAuth_type=' + typeof window.csmAuth);
     lines.push('doLogin_defined=' + (typeof doLogin === 'function'));
     lines.push('auth_defined=' + (typeof auth !== 'undefined'));
     lines.push('auth_ready=' + (typeof auth !== 'undefined' && auth != null));
@@ -164,11 +178,12 @@ tr:hover td{background:rgba(0,191,255,.03)}
       console.log('[csmDiagnoseLogin]\n' + lines.join('\n'));
       return Promise.resolve(lines);
     }
-    if (typeof auth === 'undefined' || !auth) {
+    var authRef = (typeof auth !== 'undefined' && auth) ? auth : window.csmAuth;
+    if (!authRef) {
       console.log('[csmDiagnoseLogin]\n' + lines.join('\n'));
       return Promise.resolve(lines);
     }
-    var u = auth.currentUser;
+    var u = authRef.currentUser;
     lines.push('currentUser=' + !!u);
     if (!u) {
       console.log('[csmDiagnoseLogin]\n' + lines.join('\n'));

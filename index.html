@@ -122,8 +122,8 @@ tr:hover td{background:rgba(0,191,255,.03)}
 </style>
 </head>
 <body>
-<!-- 登录弹窗 -->
-<div class="mov" id="loginModal">
+<!-- 登录弹窗：默认显示，避免 Firebase 脚本未加载时无法出现；登录成功后由脚本隐藏 -->
+<div class="mov sh" id="loginModal" style="display:flex;z-index:10050">
   <div class="mdl" style="width:360px;text-align:center">
     <h3 style="margin-bottom:20px">🏭 冷库管理系统登录</h3>
     <div class="fg"><label>邮箱 Email</label>

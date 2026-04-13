@@ -135,18 +135,64 @@ function closeUserManagement() {
     });
   }
 })();
-if (typeof window.__csmRealDoLogin !== 'function') {
-  try { window.__csmRealDoLogin = doLogin; } catch(e) { console.warn('[CSM] expose doLogin failed', e.message); }
-}
-try{window.initApp=initApp;}catch(e){console.warn('[CSM] expose initApp failed',e.message);}
-try{window.initFirebase=initFirebase;}catch(e){}
-try{window.showLoginModal=showLoginModal;}catch(e){}
-try{window.doRegister=doRegister;}catch(e){}
-try{window.doLogout=doLogout;}catch(e){}
-try{window.doGoogleLogin=doGoogleLogin;}catch(e){}
-try{window.firebaseConfig=firebaseConfig;}catch(e){console.warn('[CSM] expose firebaseConfig failed',e.message);}
-try{window.auth=auth;}catch(e){}
-try{window.dbRef=dbRef;}catch(e){}
-try{window.purchaseRef=purchaseRef;}catch(e){}
-console.log('[CSM] bundle ready. initApp=',typeof window.initApp,'firebaseConfig=',typeof window.firebaseConfig,'auth=',typeof window.auth);
+(function csmExposeAll() {
+  var fns = [
+    'initApp','initFirebase','doLogin','doLogout','doRegister','doGoogleLogin',
+    'showLoginModal','handleLogout','togglePassword',
+    'checkIn','checkOut','selectColdStore','swTab',
+    'openPurchaseForm','clPurchaseModal','addPurchase','addPurchaseItem','removePurchaseItem',
+    'filterPurchase','resetPurchaseSearch','renderPurchase','renderAll','renderRecords','renderCheckout',
+    'openEditPurchase','clEditPurchaseModal','saveEditPurchase',
+    'delPurchase','delPurchaseGroup','togglePurchaseGroup',
+    'quickCheckIn','clQuickInModal','doQuickIn',
+    'showDet','clModal','showCheckoutDetail','showOutDet',
+    'showEditRecord','closeEditRecordModal','saveEditRecord',
+    'showEditOutRecord','closeEditOutRecordModal','saveEditOutRecord',
+    'showClearModal','closeClearModal','confirmClear',
+    'applySearch','resetSearch','exportCheckout',
+    'openSettings','clSettings','addSettItem','delSettItem','renderSettList',
+    'saveRates','loadRatesToSettings',
+    'loadUserList','renderUserList','changeUserRole','deleteUser','createUser',
+    'openLogisticsAddForm','clLogisticsModal','saveLogisticsFee','delLogisticsFee',
+    'confirmLogisticsFee','unconfirmLogisticsFee',
+    'filterLogisticsTable','clearLogisticsSearch','renderLogisticsTable',
+    'openLogisticsFromPurchase','clLogisticsFromPurchaseModal','selectLogisticsCn',
+    'showAdminView','showLogisticsView','showSupplierView',
+    'openSupplierForm','clSupplierModal','saveSupplierRec','editSupplierRec','delSupplierRec',
+    'submitSupplierRec','undoSubmitSupplierRec','confirmSupplierRec',
+    'filterSupplierTable','clearSupplierSearch','renderSupplierTable',
+    'openSupplierCNDetail','openSupplierCNDetailByCN','editSupplierRecByCN',
+    'onUserRoleChange','updateSettingsButton',
+    'showSuggest','showSuggestEdit','showSuggestCn','showSuggestPurchaseItem',
+    'pickSuggest','pickSuggestEdit','pickCnSuggest','pickSuggestPurchaseItem','hideSuggest',
+    'gid','toast','fdt','nowFmt','setDefTimes','generateSeq',
+    'calcFee','calcActualFee','getRateByStore','updStats',
+    'saveData','saveRecord','removeRecordFromFirebase','deleteRecord',
+    'backfillSeq','backfillCheckoutSeq','backfillPurchaseSeq',
+    'loadSettings','saveSettings','loadRates','saveRatesToStorage',
+    'getLogisticsFees','saveLogisticsFees','getPurchaseContainers',
+    'clearLoginVerifyTimer','setLoginVerifyTimer'
+  ];
+  var exposed = 0;
+  fns.forEach(function(name) {
+    try {
+      var fn = eval(name);
+      if (typeof fn !== 'undefined') { window[name] = fn; exposed++; }
+    } catch(e) {}
+  });
+  var vars = ['firebaseConfig','auth','dbRef','purchaseRef','supplierRef','legacyDbRef',
+    'seqCounterRef','recs','purchaseRecs','supplierRecs','currentColdStore',
+    'currentUser','currentUserEmail','isAdmin','isLogistics','isSupplier','currentSupplierName',
+    'warehouseRates','settData','checkoutSearchFilters'];
+  vars.forEach(function(name) {
+    try {
+      var v = eval(name);
+      if (typeof v !== 'undefined') window[name] = v;
+    } catch(e) {}
+  });
+  if (typeof window.__csmRealDoLogin !== 'function') {
+    try { window.__csmRealDoLogin = doLogin; } catch(e) {}
+  }
+  console.log('[CSM] exposed', exposed, 'functions to window. initApp=', typeof window.initApp, 'auth=', typeof window.auth);
+})();
 window.__csmMainScriptRan=1;

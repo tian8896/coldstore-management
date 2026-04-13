@@ -461,27 +461,295 @@ toast('✅ 导出成功', 'ok');
 // ============================================================
 // DETAIL MODAL
 // ============================================================
-function showDet(id) {  var r = recs.find(function(x) { return x.id === id; });  if (!r || r.type === 'checkout') return;  var remaining_pallets = r.pallets - (r.pallets_out || 0);  var remaining_items = r.items - (r.items_out || 0);  var fee = calcFee(r);  // 获取所有出库记录  var outRecs = recs.filter(function(x) { return x.refId === r.id && x.type === 'checkout'; });  var mcon = gid('mcon');  if (mcon) {    var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">';    html += '<div class="mr"><span class="ml">集装箱号</span><span class="mv"><strong>' + r.cn + '</strong></span></div>';    html += '<div class="mr"><span class="ml">供应商</span><span class="mv">' + (r.supplier || '-') + '</span></div>';    html += '<div class="mr"><span class="ml">品名</span><span class="mv">' + r.product + '</span></div>';    html += '<div class="mr"><span class="ml">冷库</span><span class="mv">冷库 ' + r.store + '</span></div>';    html += '<div class="mr"><span class="ml">入库时间</span><span class="mv">' + fdt(r.arr) + '</span></div>';    html += '<div class="mr"><span class="ml">出库时间</span><span class="mv">' + fdt(r.dep) + '</span></div>';    html += '<div class="mr"><span class="ml">入库托盘</span><span class="mv">' + r.pallets + '</span></div>';    html += '<div class="mr"><span class="ml">已出托盘</span><span class="mv" style="color:#cc0000">' + (r.pallets_out || 0) + '</span></div>';    html += '<div class="mr"><span class="ml">剩余托盘</span><span class="mv" style="color:#ff9900;font-weight:bold">' + remaining_pallets + '</span></div>';    html += '<div class="mr"><span class="ml">入库件数</span><span class="mv">' + r.items + '</span></div>';    html += '<div class="mr"><span class="ml">已出件数</span><span class="mv" style="color:#cc0000">' + (r.items_out || 0) + '</span></div>';    html += '<div class="mr"><span class="ml">剩余件数</span><span class="mv" style="color:#ff9900;font-weight:bold">' + remaining_items + '</span></div>';    html += '<div class="mr"><span class="ml">冷库费用</span><span class="mv" style="color:#0066cc;font-weight:bold;font-size:16px">' + fee.toFixed(2) + ' AED</span></div>';    html += '</div>';    // 出库记录表格（横向）    if (outRecs.length > 0) {      html += '<div style="margin-top:14px;border-top:1px solid #ddd;padding-top:12px">';      html += '<div style="font-size:11px;color:#666;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">出库记录 (' + outRecs.length + ' 次)</div>';      html += '<table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #ddd">';      html += '<tr style="background:#f5f5f5"><th style="padding:6px;border:1px solid #ddd">#</th>';      html += '<th style="padding:6px;border:1px solid #ddd">出库日期</th>';      html += '<th style="padding:6px;border:1px solid #ddd">托盘</th>';      html += '<th style="padding:6px;border:1px solid #ddd">件数</th></tr>';      outRecs.forEach(function(or, i) {        html += '<tr><td style="padding:6px;border:1px solid #ddd;text-align:center">' + (i+1) + '</td>';        html += '<td style="padding:6px;border:1px solid #ddd">' + fdt(or.dep) + '</td>';        html += '<td style="padding:6px;border:1px solid #ddd;color:#cc0000">' + or.pallets_out + '</td>';        html += '<td style="padding:6px;border:1px solid #ddd;color:#cc0000">' + or.items_out + '</td></tr>';      });      html += '</table></div>';    }    html += '<div style="margin-top:10px;padding:8px;background:#f0f0f0;border-radius:4px;font-size:11px;color:#666">';    var rate = getRateByStore(r.store);    html += '费率: ' + rate + ' AED/托盘/周 + ' + (VAT_RATE*100) + '% VAT = ' + (rate * (1 + VAT_RATE)).toFixed(2) + ' AED/托盘/周';    html += '</div>';    mcon.innerHTML = html;  }  gid('modal').classList.add('sh');}function clModal() {  gid('modal').classList.remove('sh');}
+function showDet(id) {
+  var r = recs.find(function(x) { return x.id === id; });
+  if (!r || r.type === 'checkout') return;
+  var remaining_pallets = r.pallets - (r.pallets_out || 0);
+  var remaining_items = r.items - (r.items_out || 0);
+  var fee = calcFee(r);
+  var outRecs = recs.filter(function(x) { return x.refId === r.id && x.type === 'checkout'; });
+  var mcon = gid('mcon');
+  if (mcon) {
+    var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">';
+    html += '<div class="mr"><span class="ml">集装箱号</span><span class="mv"><strong>' + r.cn + '</strong></span></div>';
+    html += '<div class="mr"><span class="ml">供应商</span><span class="mv">' + (r.supplier || '-') + '</span></div>';
+    html += '<div class="mr"><span class="ml">品名</span><span class="mv">' + r.product + '</span></div>';
+    html += '<div class="mr"><span class="ml">冷库</span><span class="mv">冷库 ' + r.store + '</span></div>';
+    html += '<div class="mr"><span class="ml">入库时间</span><span class="mv">' + fdt(r.arr) + '</span></div>';
+    html += '<div class="mr"><span class="ml">出库时间</span><span class="mv">' + fdt(r.dep) + '</span></div>';
+    html += '<div class="mr"><span class="ml">入库托盘</span><span class="mv">' + r.pallets + '</span></div>';
+    html += '<div class="mr"><span class="ml">已出托盘</span><span class="mv" style="color:#cc0000">' + (r.pallets_out || 0) + '</span></div>';
+    html += '<div class="mr"><span class="ml">剩余托盘</span><span class="mv" style="color:#ff9900;font-weight:bold">' + remaining_pallets + '</span></div>';
+    html += '<div class="mr"><span class="ml">入库件数</span><span class="mv">' + r.items + '</span></div>';
+    html += '<div class="mr"><span class="ml">已出件数</span><span class="mv" style="color:#cc0000">' + (r.items_out || 0) + '</span></div>';
+    html += '<div class="mr"><span class="ml">剩余件数</span><span class="mv" style="color:#ff9900;font-weight:bold">' + remaining_items + '</span></div>';
+    html += '<div class="mr"><span class="ml">冷库费用</span><span class="mv" style="color:#0066cc;font-weight:bold;font-size:16px">' + fee.toFixed(2) + ' AED</span></div>';
+    html += '</div>';
+    if (outRecs.length > 0) {
+      html += '<div style="margin-top:14px;border-top:1px solid #ddd;padding-top:12px">';
+      html += '<div style="font-size:11px;color:#666;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">出库记录 (' + outRecs.length + ' 次)</div>';
+      html += '<table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #ddd">';
+      html += '<tr style="background:#f5f5f5"><th style="padding:6px;border:1px solid #ddd">#</th>';
+      html += '<th style="padding:6px;border:1px solid #ddd">出库日期</th>';
+      html += '<th style="padding:6px;border:1px solid #ddd">托盘</th>';
+      html += '<th style="padding:6px;border:1px solid #ddd">件数</th></tr>';
+      outRecs.forEach(function(or, i) {
+        html += '<tr><td style="padding:6px;border:1px solid #ddd;text-align:center">' + (i + 1) + '</td>';
+        html += '<td style="padding:6px;border:1px solid #ddd">' + fdt(or.dep) + '</td>';
+        html += '<td style="padding:6px;border:1px solid #ddd;color:#cc0000">' + or.pallets_out + '</td>';
+        html += '<td style="padding:6px;border:1px solid #ddd;color:#cc0000">' + or.items_out + '</td></tr>';
+      });
+      html += '</table></div>';
+    }
+    html += '<div style="margin-top:10px;padding:8px;background:#f0f0f0;border-radius:4px;font-size:11px;color:#666">';
+    var rate = getRateByStore(r.store);
+    html += '费率: ' + rate + ' AED/托盘/周 + ' + (VAT_RATE * 100) + '% VAT = ' + (rate * (1 + VAT_RATE)).toFixed(2) + ' AED/托盘/周';
+    html += '</div>';
+    mcon.innerHTML = html;
+  }
+  gid('modal').classList.add('sh');
+}
+function clModal() {
+  gid('modal').classList.remove('sh');
+}
 // ============================================================
 // 出库记录详情 - 点击集装箱号显示剩余托盘和件数
 // ============================================================
-function showCheckoutDetail(cn) {  // 找到该集装箱的入库记录  var inRec = recs.find(function(r) { return r.cn === cn && !r.type; });  if (!inRec) return;  var remaining_pallets = inRec.pallets - (inRec.pallets_out || 0);  var remaining_items = inRec.items - (inRec.items_out || 0);  // 显示弹窗  var mcon = gid('mcon');  if (mcon) {    mcon.innerHTML = '<div style="text-align:center;padding:20px">' +      '<div style="font-size:18px;font-weight:bold;margin-bottom:16px">' + cn + '</div>' +      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;text-align:center">' +        '<div style="background:#fff3cd;padding:16px;border-radius:8px">' +          '<div style="font-size:12px;color:#666;margin-bottom:4px">剩余托盘</div>' +          '<div style="font-size:28px;font-weight:bold;color:#ff9900">' + remaining_pallets + '</div>' +        '</div>' +        '<div style="background:#e8f4ff;padding:16px;border-radius:8px">' +          '<div style="font-size:12px;color:#666;margin-bottom:4px">剩余件数</div>' +          '<div style="font-size:28px;font-weight:bold;color:#0066cc">' + remaining_items + '</div>' +        '</div>' +      '</div>' +      '<div style="margin-top:16px;padding:12px;background:#f5f5f5;border-radius:6px;font-size:12px;color:#666">' +        '入库时间: ' + fdt(inRec.arr) + '<br>' +        '入库托盘: ' + inRec.pallets + ' | 入库件数: ' + inRec.items +      '</div>' +    '</div>';  }  gid('modal').classList.add('sh');}
+function showCheckoutDetail(cn) {
+  var inRec = recs.find(function(r) { return r.cn === cn && !r.type; });
+  if (!inRec) return;
+  var remaining_pallets = inRec.pallets - (inRec.pallets_out || 0);
+  var remaining_items = inRec.items - (inRec.items_out || 0);
+  var mcon = gid('mcon');
+  if (mcon) {
+    mcon.innerHTML = '<div style="text-align:center;padding:20px">' +
+      '<div style="font-size:18px;font-weight:bold;margin-bottom:16px">' + cn + '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;text-align:center">' +
+        '<div style="background:#fff3cd;padding:16px;border-radius:8px">' +
+          '<div style="font-size:12px;color:#666;margin-bottom:4px">剩余托盘</div>' +
+          '<div style="font-size:28px;font-weight:bold;color:#ff9900">' + remaining_pallets + '</div>' +
+        '</div>' +
+        '<div style="background:#e8f4ff;padding:16px;border-radius:8px">' +
+          '<div style="font-size:12px;color:#666;margin-bottom:4px">剩余件数</div>' +
+          '<div style="font-size:28px;font-weight:bold;color:#0066cc">' + remaining_items + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="margin-top:16px;padding:12px;background:#f5f5f5;border-radius:6px;font-size:12px;color:#666">' +
+        '入库时间: ' + fdt(inRec.arr) + '<br>' +
+        '入库托盘: ' + inRec.pallets + ' | 入库件数: ' + inRec.items +
+      '</div>' +
+    '</div>';
+  }
+  gid('modal').classList.add('sh');
+}
 // ============================================================
 // 出库记录详情
 // ============================================================
-function showOutDet(id) {  var r = recs.find(function(x) { return x.id === id; });  if (!r || r.type !== 'checkout') return;  // 获取原始入库记录来计算剩余数量  var inRec = recs.find(function(x) { return x.id === r.refId; });  var remaining_pallets = inRec ? (inRec.pallets - (inRec.pallets_out || 0)) : 0;  var remaining_items = inRec ? (inRec.items - (inRec.items_out || 0)) : 0;  var mcon = gid('mcon');  if (mcon) {    mcon.innerHTML = '<div style="text-align:center;padding:20px">' +      '<div style="font-size:18px;font-weight:bold;margin-bottom:16px">' + r.cn + '</div>' +      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;text-align:center">' +        '<div style="background:#e8f4ff;padding:16px;border-radius:8px">' +          '<div style="font-size:12px;color:#666;margin-bottom:4px">出库托盘</div>' +          '<div style="font-size:28px;font-weight:bold;color:#cc0000">' + r.pallets_out + '</div>' +        '</div>' +        '<div style="background:#e8f4ff;padding:16px;border-radius:8px">' +          '<div style="font-size:12px;color:#666;margin-bottom:4px">出库件数</div>' +          '<div style="font-size:28px;font-weight:bold;color:#cc0000">' + r.items_out + '</div>' +        '</div>' +      '</div>' +      '<div style="margin-top:16px;padding:12px;background:#f5f5f5;border-radius:6px;font-size:12px;color:#666">' +        '出库时间: ' + fdt(r.dep) +      '</div>' +    '</div>';  }  gid('modal').classList.add('sh');}
+function showOutDet(id) {
+  var r = recs.find(function(x) { return x.id === id; });
+  if (!r || r.type !== 'checkout') return;
+  var inRec = recs.find(function(x) { return x.id === r.refId; });
+  var remaining_pallets = inRec ? (inRec.pallets - (inRec.pallets_out || 0)) : 0;
+  var remaining_items = inRec ? (inRec.items - (inRec.items_out || 0)) : 0;
+  var mcon = gid('mcon');
+  if (mcon) {
+    mcon.innerHTML = '<div style="text-align:center;padding:20px">' +
+      '<div style="font-size:18px;font-weight:bold;margin-bottom:16px">' + r.cn + '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;text-align:center">' +
+        '<div style="background:#e8f4ff;padding:16px;border-radius:8px">' +
+          '<div style="font-size:12px;color:#666;margin-bottom:4px">出库托盘</div>' +
+          '<div style="font-size:28px;font-weight:bold;color:#cc0000">' + r.pallets_out + '</div>' +
+        '</div>' +
+        '<div style="background:#e8f4ff;padding:16px;border-radius:8px">' +
+          '<div style="font-size:12px;color:#666;margin-bottom:4px">出库件数</div>' +
+          '<div style="font-size:28px;font-weight:bold;color:#cc0000">' + r.items_out + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="margin-top:16px;padding:12px;background:#f5f5f5;border-radius:6px;font-size:12px;color:#666">' +
+        '出库时间: ' + fdt(r.dep) +
+      '</div>' +
+    '</div>';
+  }
+  gid('modal').classList.add('sh');
+}
 // ============================================================
 // 编辑入库记录（管理员权限）
 // ============================================================
-function showEditRecord(id) {  if (!isAdmin) {    toast('需要管理员权限', 'err');    return;  }  var r = recs.find(function(x) { return x.id === id; });  if (!r || r.type === 'checkout') return;  gid('edit-record-id').value = id;  gid('edit-cn').value = r.cn;  gid('edit-pallets').value = r.pallets;  gid('edit-items').value = r.items;  gid('editRecordModal').classList.add('sh');}function closeEditRecordModal() {  gid('editRecordModal').classList.remove('sh');}function saveEditRecord() {  var id = gid('edit-record-id').value;  var r = recs.find(function(x) { return x.id === id; });  if (!r) return;  var newPallets = parseInt(gid('edit-pallets').value) || 0;  var newItems = parseInt(gid('edit-items').value) || 0;  if (newPallets < (r.pallets_out || 0)) {    toast('入库托盘不能小于已出库托盘', 'err');    return;  }  if (newItems < (r.items_out || 0)) {    toast('入库件数不能小于已出库件数', 'err');    return;  }  r.pallets = newPallets;  r.items = newItems;  // 保存到 Firebase  if (dbRef) {    dbRef.child(id).set(r);  }  closeEditRecordModal();  renderAll();  toast('✅ 修改成功', 'ok');}
+function showEditRecord(id) {
+  if (!isAdmin) {
+    toast('需要管理员权限', 'err');
+    return;
+  }
+  var r = recs.find(function(x) { return x.id === id; });
+  if (!r || r.type === 'checkout') return;
+  gid('edit-record-id').value = id;
+  gid('edit-cn').value = r.cn;
+  gid('edit-pallets').value = r.pallets;
+  gid('edit-items').value = r.items;
+  gid('editRecordModal').classList.add('sh');
+}
+function closeEditRecordModal() {
+  gid('editRecordModal').classList.remove('sh');
+}
+function saveEditRecord() {
+  var id = gid('edit-record-id').value;
+  var r = recs.find(function(x) { return x.id === id; });
+  if (!r) return;
+  var newPallets = parseInt(gid('edit-pallets').value) || 0;
+  var newItems = parseInt(gid('edit-items').value) || 0;
+  if (newPallets < (r.pallets_out || 0)) {
+    toast('入库托盘不能小于已出库托盘', 'err');
+    return;
+  }
+  if (newItems < (r.items_out || 0)) {
+    toast('入库件数不能小于已出库件数', 'err');
+    return;
+  }
+  r.pallets = newPallets;
+  r.items = newItems;
+  if (dbRef) {
+    dbRef.child(id).set(r);
+  }
+  closeEditRecordModal();
+  renderAll();
+  toast('✅ 修改成功', 'ok');
+}
 // ============================================================
 // 清空记录功能
 // ============================================================
-function showClearModal(type) {  gid('clear-type').value = type;  gid('clear-option').value = 'all';  gid('clear-cn-select-container').style.display = 'none';  // 填充集装箱号选项  var cnSelect = gid('clear-cn-select');  cnSelect.innerHTML = '';  if (type === 'records') {    // 库存记录：获取所有入库记录的集装箱号    var inRecs = recs.filter(function(r) { return !r.type; });    var cns = [...new Set(inRecs.map(function(r) { return r.cn; }))];    cns.sort().forEach(function(cn) {      cnSelect.innerHTML += '<option value="' + cn + '">' + cn + '</option>';    });  } else if (type === 'checkout') {    // 出库记录：获取所有出库记录的集装箱号    var outRecs = recs.filter(function(r) { return r.type === 'checkout'; });    var cns = [...new Set(outRecs.map(function(r) { return r.cn; }))];    cns.sort().forEach(function(cn) {      cnSelect.innerHTML += '<option value="' + cn + '">' + cn + '</option>';    });  }  gid('clearModal').classList.add('sh');}function closeClearModal() {  gid('clearModal').classList.remove('sh');}// 监听清空选项变化document.addEventListener('DOMContentLoaded', function() {  var clearOption = gid('clear-option');  if (clearOption) {    clearOption.addEventListener('change', function() {      var cnContainer = gid('clear-cn-select-container');      if (this.value === 'by-cn') {        cnContainer.style.display = 'block';      } else {        cnContainer.style.display = 'none';      }    });  }});function confirmClear() {  var type = gid('clear-type').value;  var option = gid('clear-option').value;  var cn = gid('clear-cn-select').value;  var confirmMsg = '';  var idsToDelete = [];  if (type === 'records') {    if (option === 'all') {      confirmMsg = '确定要清空所有库存记录吗？这将同时删除相关的出库记录！';      idsToDelete = recs.filter(function(r) { return !r.type || r.type === 'checkout'; }).map(function(r) { return r.id; });    } else {      confirmMsg = '确定要清空集装箱 ' + cn + ' 的所有记录吗？这将同时删除相关的出库记录！';      var inRec = recs.find(function(r) { return r.cn === cn && !r.type; });      if (inRec) {        idsToDelete.push(inRec.id);        // 同时删除相关的出库记录        recs.filter(function(r) { return r.type === 'checkout' && r.cn === cn; }).forEach(function(r) {          idsToDelete.push(r.id);        });      }    }  } else if (type === 'checkout') {    if (option === 'all') {      confirmMsg = '确定要清空所有出库记录吗？';      idsToDelete = recs.filter(function(r) { return r.type === 'checkout'; }).map(function(r) { return r.id; });    } else {      confirmMsg = '确定要清空集装箱 ' + cn + ' 的出库记录吗？';      idsToDelete = recs.filter(function(r) { return r.type === 'checkout' && r.cn === cn; }).map(function(r) { return r.id; });    }  }  if (idsToDelete.length === 0) {    toast('没有可清空的记录', 'err');    closeClearModal();    return;  }  if (!confirm(confirmMsg + '\n\n共 ' + idsToDelete.length + ' 条记录将被删除！')) {    return;  }  // 二次确认  if (!confirm('⚠️ 最后确认：此操作不可恢复！确定继续吗？')) {    return;  }  // 执行删除  idsToDelete.forEach(function(id) { removeRecordFromFirebase(id); });  closeClearModal();  toast('✅ 已清空 ' + idsToDelete.length + ' 条记录', 'ok');}
+function showClearModal(type) {
+  gid('clear-type').value = type;
+  gid('clear-option').value = 'all';
+  gid('clear-cn-select-container').style.display = 'none';
+  var cnSelect = gid('clear-cn-select');
+  cnSelect.innerHTML = '';
+  if (type === 'records') {
+    var inRecs = recs.filter(function(r) { return !r.type; });
+    var cns = Array.from(new Set(inRecs.map(function(r) { return r.cn; })));
+    cns.sort().forEach(function(cn) {
+      cnSelect.innerHTML += '<option value="' + cn + '">' + cn + '</option>';
+    });
+  } else if (type === 'checkout') {
+    var outRecs = recs.filter(function(r) { return r.type === 'checkout'; });
+    var outCns = Array.from(new Set(outRecs.map(function(r) { return r.cn; })));
+    outCns.sort().forEach(function(cn) {
+      cnSelect.innerHTML += '<option value="' + cn + '">' + cn + '</option>';
+    });
+  }
+  gid('clearModal').classList.add('sh');
+}
+function closeClearModal() {
+  gid('clearModal').classList.remove('sh');
+}
+document.addEventListener('DOMContentLoaded', function() {
+  var clearOption = gid('clear-option');
+  if (clearOption) {
+    clearOption.addEventListener('change', function() {
+      var cnContainer = gid('clear-cn-select-container');
+      cnContainer.style.display = this.value === 'by-cn' ? 'block' : 'none';
+    });
+  }
+});
+function confirmClear() {
+  var type = gid('clear-type').value;
+  var option = gid('clear-option').value;
+  var cn = gid('clear-cn-select').value;
+  var confirmMsg = '';
+  var idsToDelete = [];
+  if (type === 'records') {
+    if (option === 'all') {
+      confirmMsg = '确定要清空所有库存记录吗？这将同时删除相关的出库记录！';
+      idsToDelete = recs.filter(function(r) { return !r.type || r.type === 'checkout'; }).map(function(r) { return r.id; });
+    } else {
+      confirmMsg = '确定要清空集装箱 ' + cn + ' 的所有记录吗？这将同时删除相关的出库记录！';
+      var inRec = recs.find(function(r) { return r.cn === cn && !r.type; });
+      if (inRec) {
+        idsToDelete.push(inRec.id);
+        recs.filter(function(r) { return r.type === 'checkout' && r.cn === cn; }).forEach(function(r) {
+          idsToDelete.push(r.id);
+        });
+      }
+    }
+  } else if (type === 'checkout') {
+    if (option === 'all') {
+      confirmMsg = '确定要清空所有出库记录吗？';
+      idsToDelete = recs.filter(function(r) { return r.type === 'checkout'; }).map(function(r) { return r.id; });
+    } else {
+      confirmMsg = '确定要清空集装箱 ' + cn + ' 的出库记录吗？';
+      idsToDelete = recs.filter(function(r) { return r.type === 'checkout' && r.cn === cn; }).map(function(r) { return r.id; });
+    }
+  }
+  if (idsToDelete.length === 0) {
+    toast('没有可清空的记录', 'err');
+    closeClearModal();
+    return;
+  }
+  if (!confirm(confirmMsg + '\n\n共 ' + idsToDelete.length + ' 条记录将被删除！')) {
+    return;
+  }
+  if (!confirm('⚠️ 最后确认：此操作不可恢复！确定继续吗？')) {
+    return;
+  }
+  idsToDelete.forEach(function(id) {
+    removeRecordFromFirebase(id);
+  });
+  closeClearModal();
+  toast('✅ 已清空 ' + idsToDelete.length + ' 条记录', 'ok');
+}
 // ============================================================
 // 编辑出库记录（管理员权限）
 // ============================================================
-function showEditOutRecord(id) {  if (!isAdmin) {    toast('需要管理员权限', 'err');    return;  }  var r = recs.find(function(x) { return x.id === id; });  if (!r || r.type !== 'checkout') return;  gid('edit-out-id').value = id;  gid('edit-out-cn').value = r.cn;  gid('edit-out-pallets').value = r.pallets_out;  gid('edit-out-items').value = r.items_out;  gid('editOutRecordModal').classList.add('sh');}function closeEditOutRecordModal() {  gid('editOutRecordModal').classList.remove('sh');}function saveEditOutRecord() {  var id = gid('edit-out-id').value;  var r = recs.find(function(x) { return x.id === id; });  if (!r) return;  var inRec = recs.find(function(x) { return x.id === r.refId; });  if (!inRec) return;  var oldPalletsOut = r.pallets_out;  var oldItemsOut = r.items_out;  var newPalletsOut = parseInt(gid('edit-out-pallets').value) || 0;  var newItemsOut = parseInt(gid('edit-out-items').value) || 0;  // 计算入库记录的新出库总数  var totalPalletsOut = (inRec.pallets_out || 0) - oldPalletsOut + newPalletsOut;  var totalItemsOut = (inRec.items_out || 0) - oldItemsOut + newItemsOut;  if (totalPalletsOut > inRec.pallets) {    toast('出库托盘总数超过入库托盘', 'err');    return;  }  if (totalItemsOut > inRec.items) {    toast('出库件数总数超过入库件数', 'err');    return;  }  // 更新出库记录  r.pallets_out = newPalletsOut;  r.items_out = newItemsOut;  // 更新入库记录的出库总数  inRec.pallets_out = totalPalletsOut;  inRec.items_out = totalItemsOut;  // 检查是否全部出库  if (inRec.pallets_out >= inRec.pallets && !inRec.dep) {    inRec.dep = r.dep;  }  // 保存到 Firebase  if (dbRef) {    dbRef.child(id).set(r);    dbRef.child(inRec.id).set(inRec);  }  closeEditOutRecordModal();  renderAll();  toast('✅ 修改成功', 'ok');}
+function showEditOutRecord(id) {
+  if (!isAdmin) {
+    toast('需要管理员权限', 'err');
+    return;
+  }
+  var r = recs.find(function(x) { return x.id === id; });
+  if (!r || r.type !== 'checkout') return;
+  gid('edit-out-id').value = id;
+  gid('edit-out-cn').value = r.cn;
+  gid('edit-out-pallets').value = r.pallets_out;
+  gid('edit-out-items').value = r.items_out;
+  gid('editOutRecordModal').classList.add('sh');
+}
+function closeEditOutRecordModal() {
+  gid('editOutRecordModal').classList.remove('sh');
+}
+function saveEditOutRecord() {
+  var id = gid('edit-out-id').value;
+  var r = recs.find(function(x) { return x.id === id; });
+  if (!r) return;
+  var inRec = recs.find(function(x) { return x.id === r.refId; });
+  if (!inRec) return;
+  var oldPalletsOut = r.pallets_out;
+  var oldItemsOut = r.items_out;
+  var newPalletsOut = parseInt(gid('edit-out-pallets').value) || 0;
+  var newItemsOut = parseInt(gid('edit-out-items').value) || 0;
+  var totalPalletsOut = (inRec.pallets_out || 0) - oldPalletsOut + newPalletsOut;
+  var totalItemsOut = (inRec.items_out || 0) - oldItemsOut + newItemsOut;
+  if (totalPalletsOut > inRec.pallets) {
+    toast('出库托盘总数超过入库托盘', 'err');
+    return;
+  }
+  if (totalItemsOut > inRec.items) {
+    toast('出库件数总数超过入库件数', 'err');
+    return;
+  }
+  r.pallets_out = newPalletsOut;
+  r.items_out = newItemsOut;
+  inRec.pallets_out = totalPalletsOut;
+  inRec.items_out = totalItemsOut;
+  if (inRec.pallets_out >= inRec.pallets && !inRec.dep) {
+    inRec.dep = r.dep;
+  }
+  if (dbRef) {
+    dbRef.child(id).set(r);
+    dbRef.child(inRec.id).set(inRec);
+  }
+  closeEditOutRecordModal();
+  renderAll();
+  toast('✅ 修改成功', 'ok');
+}
 // ============================================================
 // COLD STORE SWITCH
 // ============================================================

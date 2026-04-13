@@ -1,0 +1,48 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "csm_meta": {
+      ".read": "auth != null",
+      "site_initialized": {
+        ".write": "auth != null && ((!data.exists() && newData.val() == true) || (data.exists() && root.child('csm_users').child(auth.uid).child('role').val() == 'admin'))"
+      }
+    },
+
+    "csm_users": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && (($uid == auth.uid) || root.child('csm_users').child(auth.uid).child('role').val() == 'admin')"
+      }
+    },
+
+    "csm_seq_counter": {
+      ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics')",
+      ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics')"
+    },
+
+    "csm_warehouse1": {
+      ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics')",
+      ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics')"
+    },
+
+    "csm_records_v3": {
+      ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics')",
+      ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics')"
+    },
+
+    "csm_purchase": {
+      ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics')",
+      ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics')"
+    },
+
+    "csm_supplier_recs": {
+      ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics' || (root.child('csm_users').child(auth.uid).child('role').val() == 'supplier' && query.orderByChild == 'ownerUid' && query.equalTo == auth.uid))",
+      ".indexOn": ["ownerUid", "supplier", "status", "purchaseDate", "cn"],
+      "$id": {
+        ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics' || (root.child('csm_users').child(auth.uid).child('role').val() == 'supplier' && ((!data.exists() && newData.child('ownerUid').val() == auth.uid && newData.child('supplier').val() == root.child('csm_users').child(auth.uid).child('supplierName').val() && newData.child('status').val() == 'draft') || (data.exists() && ((!data.child('ownerUid').exists() || data.child('ownerUid').val() == null) && data.child('supplier').val() == root.child('csm_users').child(auth.uid).child('supplierName').val() && newData.child('supplier').val() == data.child('supplier').val() && newData.child('ownerUid').val() == auth.uid && newData.child('status').val() == data.child('status').val())) || (data.exists() && data.child('ownerUid').val() == auth.uid && newData.child('ownerUid').val() == auth.uid && newData.child('supplier').val() == data.child('supplier').val() && ((!data.child('status').exists() || data.child('status').val() == 'draft') && (newData.child('status').val() == 'draft' || (newData.child('status').val() == 'submitted' && newData.child('submittedBy').exists() && newData.child('submittedAt').exists()))) || (data.child('status').val() == 'submitted' && newData.child('status').val() == 'draft' && !newData.child('submittedBy').exists() && !newData.child('submittedAt').exists())))))"
+      }
+    }
+  }
+}

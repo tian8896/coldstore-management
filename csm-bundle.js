@@ -136,12 +136,15 @@ function closeUserManagement() {
   }
 })();
 window.__csmRealDoLogin=doLogin;
-window.firebaseConfig=firebaseConfig;
-window.initApp=initApp;
-window.initFirebase=initFirebase;
-window.showLoginModal=showLoginModal;
-window.doRegister=doRegister;
-window.doLogout=doLogout;
-window.doGoogleLogin=doGoogleLogin;
+try{window.initApp=initApp;}catch(e){console.warn('[CSM] expose initApp failed',e.message);}
+try{window.initFirebase=initFirebase;}catch(e){}
+try{window.showLoginModal=showLoginModal;}catch(e){}
+try{window.doRegister=doRegister;}catch(e){}
+try{window.doLogout=doLogout;}catch(e){}
+try{window.doGoogleLogin=doGoogleLogin;}catch(e){}
+try{window.firebaseConfig=firebaseConfig;}catch(e){console.warn('[CSM] expose firebaseConfig failed',e.message);}
+try{window.auth=auth;}catch(e){}
+try{window.dbRef=dbRef;}catch(e){}
+try{window.purchaseRef=purchaseRef;}catch(e){}
+console.log('[CSM] bundle ready. initApp=',typeof window.initApp,'firebaseConfig=',typeof window.firebaseConfig,'auth=',typeof window.auth);
 window.__csmMainScriptRan=1;
-console.log('[CSM] bundle ready. firebaseConfig=', !!firebaseConfig, 'initApp=', typeof initApp);

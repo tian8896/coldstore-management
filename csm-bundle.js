@@ -249,13 +249,13 @@ function applyPortalHeaderTitles(mode) {
   var hs = gid('headerSubtitle');
   if (mode === 'w2') {
     if (ht) ht.textContent = '❄️ Warehouse 2';
-    if (hs) hs.textContent = 'Super Harvest — secondary cold store (separate management logic)';
+    if (hs) hs.textContent = '独立业务域 · 与 W1/财务数据分离，将来可通过引用或同步产生关联';
   } else if (mode === 'fin') {
     if (ht) ht.textContent = '💼 公司财务 · Company Financial';
-    if (hs) hs.textContent = 'Company-wide finance module (reserved for future workflows)';
+    if (hs) hs.textContent = '独立业务域 · 与 W1/W2 仓储数据分离，将来可通过单号/金额快照等建立关联';
   } else {
     if (ht) ht.textContent = '🧊 迪拜大丰收冷库管理系统';
-    if (hs) hs.textContent = 'Super Harvest Cold Store Management System - Warehouse 1';
+    if (hs) hs.textContent = 'Warehouse 1 独立域 · Super Harvest — 与 W2、财务域分离，可按引用/聚合与它们联动（规划中）';
   }
 }
 function updateAdminPortalShellVisibility() {

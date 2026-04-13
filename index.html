@@ -210,7 +210,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260414b" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260414c" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -529,13 +529,17 @@ tr:hover td{background:rgba(0,191,255,.03)}
 
 <div id="adminPortalShell" class="portal-shell" aria-hidden="true">
   <div class="portal-btn-row">
-    <button type="button" class="portal-app-btn ac" id="portalBtnW1" onclick="switchMainSuite('w1')">Warehouse 1<br><span style="font-size:10px;font-weight:normal;opacity:.85">迪拜冷库主系统</span></button>
-    <button type="button" class="portal-app-btn" id="portalBtnW2" onclick="switchMainSuite('w2')">Warehouse 2<br><span style="font-size:10px;font-weight:normal;opacity:.85">另一冷库 · 独立逻辑</span></button>
-    <button type="button" class="portal-app-btn" id="portalBtnFin" onclick="switchMainSuite('fin')">公司财务<br><span style="font-size:10px;font-weight:normal;opacity:.85">Company Financial</span></button>
+    <button type="button" class="portal-app-btn ac" id="portalBtnW1" onclick="switchMainSuite('w1')">Warehouse 1<br><span style="font-size:10px;font-weight:normal;opacity:.85">独立业务域 · 迪拜冷库主系统</span></button>
+    <button type="button" class="portal-app-btn" id="portalBtnW2" onclick="switchMainSuite('w2')">Warehouse 2<br><span style="font-size:10px;font-weight:normal;opacity:.85">独立业务域 · 另一冷库</span></button>
+    <button type="button" class="portal-app-btn" id="portalBtnFin" onclick="switchMainSuite('fin')">公司财务<br><span style="font-size:10px;font-weight:normal;opacity:.85">独立业务域 · Company Financial</span></button>
+  </div>
+  <div class="portal-arch-note" style="margin-top:10px;font-size:12px;color:#555;line-height:1.7;max-width:980px">
+    <strong>架构说明</strong>：Warehouse 1、Warehouse 2 与<strong>公司财务</strong>为三套<strong>相互独立</strong>的产品域（各自界面、数据模型与权限边界）。将来若需要联动，建议通过<strong>业务主键引用</strong>（如单据 ID、集装箱号、供应商编码）、<strong>只读聚合</strong>或<strong>异步同步</strong>建立关联，避免把不同域的核心表硬耦合在一起。
+    <span style="display:block;margin-top:6px;font-size:11px;color:#888">Architecture: three independent domains; future cross-domain ties via explicit references, read-only rollups, or sync—not shared mutable core tables.</span>
   </div>
 </div>
 
-<div id="suiteWarehouse1" class="portal-suite">
+<div id="suiteWarehouse1" class="portal-suite" data-portal-suite="w1">
   <div class="hstats" style="position:relative;z-index:1;padding:14px 36px 0;background:linear-gradient(135deg,#ffffff,#f5f5f5);border-bottom:1px solid var(--ice)">
     <div class="hstat"><div class="v" id="s-total">0</div><div class="l">总入库 Total</div></div>
     <div class="hstat"><div class="v" id="s-pallets">0</div><div class="l">总托盘 Pallets</div></div>
@@ -858,19 +862,21 @@ tr:hover td{background:rgba(0,191,255,.03)}
 </div>
 </div>
 
-<div id="suiteWarehouse2" class="portal-suite" style="display:none">
+<div id="suiteWarehouse2" class="portal-suite" style="display:none" data-portal-suite="w2">
   <div class="portal-placeholder">
     <h2>Warehouse 2</h2>
-    <p>此处为 <strong>另一座冷库</strong> 的独立管理界面预留入口。后续可接入不同的业务流程、数据库路径或费率规则。</p>
-    <p>This area is reserved for the second cold-store product with its own management logic. Use the <strong>Warehouse 1</strong> button above to return to the current system.</p>
+    <p>此处为 <strong>第二座冷库</strong> 的<strong>独立</strong>管理域预留入口：可与 Warehouse 1 使用不同的流程、规则与数据库路径（例如独立的 <code style="font-size:11px">Realtime DB</code> 前缀或子项目）。</p>
+    <p>与 Warehouse 1、公司财务<strong>不共享核心表</strong>；将来若要对账或汇总，可通过<strong>引用字段</strong>（采购单号、入库单号、金额凭证 ID 等）或<strong>只读报表</strong>拉通数据，而不是直接写入对方业务库。</p>
+    <p style="font-size:13px;color:#888">Independent domain from W1 &amp; Finance; optional future links via references / ETL / aggregated views.</p>
   </div>
 </div>
 
-<div id="suiteCompanyFinancial" class="portal-suite" style="display:none">
+<div id="suiteCompanyFinancial" class="portal-suite" style="display:none" data-portal-suite="fin">
   <div class="portal-placeholder">
     <h2>公司财务 · Company Financial</h2>
-    <p>此处预留 <strong>公司级财务管理</strong> 模块（报表、对账、收付款等）。功能开发完成后在同一导航栏一键切换即可。</p>
-    <p>Reserved for company-wide financial workflows. Switch back to <strong>Warehouse 1</strong> when you need cold-store operations.</p>
+    <p>此处预留 <strong>公司级财务</strong> 的<strong>独立</strong>模块（总账、应收应付、报表、对账等），与两座冷库的<strong>仓储业务数据域分离</strong>。</p>
+    <p>将来若财务需要引用冷库侧数据，建议只保存<strong>外部引用</strong>（例如业务单号、金额快照、对账批次号），需要实时明细时再按需查询或同步，以保持各域边界清晰、审计可追溯。</p>
+    <p style="font-size:13px;color:#888">Independent from W1/W2 ops data; future ties via document IDs, amounts snapshots, or controlled sync—not tight table coupling.</p>
   </div>
 </div>
 

@@ -201,36 +201,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
   };
 })();
 </script>
-<script>
-(function(){
-  var xhr = new XMLHttpRequest();
-  xhr.open('GET', './csm-bundle.js?v=20260413j', false);
-  try { xhr.send(); } catch(e) {
-    console.error('[CSM-LOADER] fetch failed:', e);
-    var el = document.getElementById('login-error');
-    if (el) { el.textContent = '主程序加载失败，请刷新页面。'; el.style.display = 'block'; }
-    return;
-  }
-  if (xhr.status === 200) {
-    try {
-      var code = xhr.responseText;
-      // Fix: minified single-line JS has // comments that comment out all code after them.
-      // Convert // comments to /* */ block comments so code after them is preserved.
-      code = code.replace(/(^|[^:])\/\/(.*?)(?=(?:const |var |function |let |\(function))/g, function(m, p1, p2) {
-        return p1 + '/* ' + p2.replace(/\*\//g, '* /') + ' */';
-      });
-      (0, eval)(code);
-      console.log('[CSM-LOADER] eval OK. swTab=', typeof window.swTab, 'initApp=', typeof window.initApp, 'gid=', typeof window.gid);
-    } catch(e) {
-      console.error('[CSM-LOADER] eval error:', e);
-    }
-  } else {
-    console.error('[CSM-LOADER] HTTP', xhr.status);
-    var el2 = document.getElementById('login-error');
-    if (el2) { el2.textContent = '主程序 csm-bundle.js 加载失败 (HTTP ' + xhr.status + ')'; el2.style.display = 'block'; }
-  }
-})();
-</script>
+<script src="./csm-bundle.js?v=20260413k" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {

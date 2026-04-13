@@ -148,7 +148,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
 (function () {
   window.doLogin = function () {
     var impl = window.__csmRealDoLogin;
-    if (typeof impl === 'function') return impl.apply(this, arguments);
+    if (typeof impl === 'function' && impl !== window.doLogin) return impl.apply(this, arguments);
     var el = document.getElementById('login-error');
     var msg = '登录脚本未就绪：请强刷(Ctrl+F5)；在 Network 确认 csm-bundle.js 为 200；F12 左上角选「顶级」本页面（勿选扩展）；控制台执行 csmDiagnoseLogin() 查看 main_js_ran / real_doLogin_ready。';
     if (el) { el.textContent = msg; el.style.display = 'block'; }

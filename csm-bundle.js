@@ -1157,6 +1157,97 @@ function createUser() {
       }
     });
 }
+function migrateSupplierRecordOwners() {
+  if (!isAdmin) {
+    toast('需要管理员权限', 'err');
+    return;
+  }
+  if (!confirm('确认批量补齐旧供应商记录的 ownerUid 吗？该操作会按“供应商名称 -> 用户账号”自动匹配。')) {
+    return;
+  }
+  var statusEl = gid('supplier-owner-migration-status');
+  if (statusEl) {
+    statusEl.style.display = 'block';
+    statusEl.style.color = '#0066cc';
+    statusEl.textContent = '正在扫描并补齐旧记录...';
+  }
+  Promise.all([
+    firebase.database().ref('csm_users').once('value'),
+    firebase.database().ref('csm_supplier_recs').once('value')
+  ]).then(function(snaps) {
+    var users = snaps[0].val() || {};
+    var recsData = snaps[1].val() || {};
+    var supplierMap = {};
+    Object.keys(users).forEach(function(uid) {
+      var user = users[uid] || {};
+      if (String(user.role || '').toLowerCase() !== 'supplier') return;
+      var name = String(user.supplierName || '').trim().toLowerCase();
+      if (!name) return;
+      if (!supplierMap[name]) supplierMap[name] = [];
+      supplierMap[name].push(uid);
+    });
+    var updates = {};
+    var migrated = 0;
+    var alreadyOk = 0;
+    var skippedNoName = 0;
+    var skippedNoMatch = 0;
+    var skippedAmbiguous = 0;
+    Object.keys(recsData).forEach(function(id) {
+      var rec = recsData[id] || {};
+      if (rec.ownerUid) {
+        alreadyOk++;
+        return;
+      }
+      var supplierName = String(rec.supplier || '').trim().toLowerCase();
+      if (!supplierName) {
+        skippedNoName++;
+        return;
+      }
+      var matched = supplierMap[supplierName] || [];
+      if (matched.length === 1) {
+        updates['csm_supplier_recs/' + id + '/ownerUid'] = matched[0];
+        migrated++;
+      } else if (matched.length === 0) {
+        skippedNoMatch++;
+      } else {
+        skippedAmbiguous++;
+      }
+    });
+    if (migrated === 0) {
+      var msg0 = '未发现可补齐记录。已就绪: ' + alreadyOk + '，无匹配: ' + skippedNoMatch + '，无供应商名: ' + skippedNoName + '，重名冲突: ' + skippedAmbiguous;
+      if (statusEl) {
+        statusEl.style.color = '#666';
+        statusEl.textContent = msg0;
+      }
+      toast('没有需要补齐的记录', 'ok');
+      return;
+    }
+    firebase.database().ref().update(updates).then(function() {
+      var msg = '补齐完成：成功 ' + migrated + ' 条，已就绪 ' + alreadyOk + ' 条，无匹配 ' + skippedNoMatch + ' 条，无供应商名 ' + skippedNoName + ' 条，重名冲突 ' + skippedAmbiguous + ' 条。';
+      if (statusEl) {
+        statusEl.style.color = '#2e7d32';
+        statusEl.textContent = msg;
+      }
+      toast('✅ ownerUid 补齐完成', 'ok');
+      attachDataListenersForRole();
+    }).catch(function(err) {
+      console.error('Supplier owner migration update failed', err);
+      if (statusEl) {
+        statusEl.style.color = '#cc0000';
+        statusEl.textContent = '补齐失败：' + (err.message || err);
+      }
+      toast('❌ 补齐失败', 'err');
+    });
+  }).catch(function(err) {
+    console.error('Supplier owner migration scan failed', err);
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.style.color = '#cc0000';
+      statusEl.textContent = '扫描失败：' + (err.message || err);
+    }
+    toast('❌ 无法读取迁移数据', 'err');
+  });
+}
 function addSettItem(type) {
   var inputId = 'sett-' + type + '-input';
   var val = (gid(inputId).value || '').trim();

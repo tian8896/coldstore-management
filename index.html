@@ -1038,6 +1038,14 @@ tr:hover td{background:rgba(0,191,255,.03)}
         </div>
         <div id="create-user-error" style="color:#cc0000;font-size:12px;margin-top:4px;display:none"></div>
       </div>
+      <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:6px;padding:12px;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:bold;color:#8d6e00;margin-bottom:8px">🧩 旧供应商记录迁移 / Supplier ownerUid migration</div>
+        <div style="font-size:12px;color:#666;line-height:1.6;margin-bottom:8px">为旧的 `csm_supplier_recs` 记录批量补齐 `ownerUid`，用于更严格的权限规则。系统会按“供应商名称 -> 供应商账号”自动匹配。</div>
+        <div class="sett-row">
+          <button class="sett-add-btn" onclick="migrateSupplierRecordOwners()" style="background:#ff9800">补齐 ownerUid</button>
+        </div>
+        <div id="supplier-owner-migration-status" style="display:none;font-size:12px;margin-top:6px"></div>
+      </div>
     </div>
     <div class="brow">
       <button class="btn btn-g" onclick="clSettings()">关闭 Close</button>

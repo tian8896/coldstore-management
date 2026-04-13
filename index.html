@@ -156,29 +156,68 @@ tr:hover td{background:rgba(0,191,255,.03)}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260413b" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序 csm-bundle.js 加载失败（网络/CORS/拦截）。请换网络、关广告拦截或刷新。控制台应出现 Failed to load script。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260413c" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序 csm-bundle.js 加载失败（网络/CORS/拦截）。请换网络、关广告拦截或刷新。控制台应出现 Failed to load script。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
+  var fallbackConfig = {
+    apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',
+    authDomain: 'superharves-cold-store.firebaseapp.com',
+    databaseURL: 'https://superharves-cold-store-default-rtdb.firebaseio.com',
+    projectId: 'superharves-cold-store',
+    storageBucket: 'superharves-cold-store.firebasestorage.app',
+    messagingSenderId: '379038228954',
+    appId: '1:379038228954:web:e64fa3be3f2f49b3aae0e3'
+  };
+  function tryInitAuth() {
+    if (typeof firebase === 'undefined' || typeof firebase.auth !== 'function') return null;
+    try {
+      var cfg = window.firebaseConfig || fallbackConfig;
+      console.log('[CSM-POST] using config apiKey=', cfg.apiKey ? cfg.apiKey.substring(0,10) + '...' : 'MISSING');
+      if (!firebase.apps || !firebase.apps.length) {
+        firebase.initializeApp(cfg);
+        console.log('[CSM-POST] firebase app initialized');
+      }
+      var a = firebase.auth();
+      console.log('[CSM-POST] firebase.auth() OK');
+      return a;
+    } catch(e) {
+      console.error('[CSM-POST] auth init error:', e.code || e.message, e);
+      return null;
+    }
+  }
   function verify() {
-    console.log('[CSM-POST] auth=', typeof window.auth, '| csmAuth=', typeof window.csmAuth,
-                '| firebase=', typeof firebase, '| firebase.auth=', typeof (typeof firebase !== 'undefined' && firebase.auth),
-                '| __csmInitDone=', window.__csmInitDone);
-    if (typeof window.auth !== 'undefined' && window.auth) return;
-    if (typeof firebase === 'undefined' || typeof firebase.auth !== 'function') {
-      console.warn('[CSM-POST] firebase.auth SDK not loaded — cannot recover');
+    console.log('[CSM-POST] check: window.auth=', typeof window.auth,
+                '| csmAuth=', typeof window.csmAuth,
+                '| firebase=', typeof firebase,
+                '| firebase.auth=', (typeof firebase !== 'undefined' ? typeof firebase.auth : 'n/a'),
+                '| apps=', (typeof firebase !== 'undefined' && firebase.apps ? firebase.apps.length : 'n/a'),
+                '| __csmInitDone=', window.__csmInitDone,
+                '| firebaseConfig=', typeof window.firebaseConfig);
+    if (window.csmAuth || (typeof window.auth !== 'undefined' && window.auth)) {
+      console.log('[CSM-POST] auth already OK');
       return;
     }
-    try {
-      if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(window.firebaseConfig || {});
-      var a = firebase.auth();
-      if (typeof window.auth === 'undefined' || !window.auth) window.auth = a;
+    var a = tryInitAuth();
+    if (a) {
+      window.auth = a;
       window.csmAuth = a;
-      console.log('[CSM-POST] auth recovered:', a);
-    } catch(e) { console.error('[CSM-POST] auth recovery failed:', e); }
+      if (!window.__csmInitDone) {
+        try {
+          window.dbRef = firebase.database().ref('csm_warehouse1');
+          window.purchaseRef = firebase.database().ref('csm_purchase');
+          window.supplierRef = firebase.database().ref('csm_supplier_recs');
+          console.log('[CSM-POST] db refs set');
+        } catch(de) { console.error('[CSM-POST] db ref error:', de); }
+      }
+      console.log('[CSM-POST] auth recovered successfully');
+    } else {
+      console.error('[CSM-POST] auth recovery FAILED — login will not work');
+    }
   }
-  if (document.readyState === 'complete') { setTimeout(verify, 200); }
-  else { window.addEventListener('load', function() { setTimeout(verify, 200); }); }
+  function run() { setTimeout(verify, 500); setTimeout(verify, 3000); }
+  if (document.readyState === 'complete') { run(); }
+  else { window.addEventListener('load', run); }
 })();
 </script>
 <script>

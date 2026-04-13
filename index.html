@@ -147,16 +147,61 @@ tr:hover td{background:rgba(0,191,255,.03)}
 <script>
 (function () {
   window.doLogin = function () {
-    var impl = window.__csmRealDoLogin;
-    if (typeof impl === 'function' && impl !== window.doLogin) return impl.apply(this, arguments);
-    var el = document.getElementById('login-error');
-    var msg = '登录脚本未就绪：请强刷(Ctrl+F5)；在 Network 确认 csm-bundle.js 为 200；F12 左上角选「顶级」本页面（勿选扩展）；控制台执行 csmDiagnoseLogin() 查看 main_js_ran / real_doLogin_ready。';
-    if (el) { el.textContent = msg; el.style.display = 'block'; }
-    console.warn('[CSM]', msg);
+    var gid = function(id) { return document.getElementById(id); };
+    var email = (gid('login-username').value || '').trim().toLowerCase();
+    var password = (gid('login-password').value || '').trim();
+    var le = gid('login-error');
+    if (!email || !password) {
+      if (le) { le.textContent = '请输入邮箱和密码'; le.style.color = '#cc0000'; le.style.display = 'block'; }
+      return;
+    }
+    if (le) { le.style.display = 'none'; le.style.color = '#cc0000'; }
+    var a = window.csmAuth || window.auth || null;
+    if (!a && typeof firebase !== 'undefined' && typeof firebase.auth === 'function') {
+      try {
+        if (!firebase.apps || !firebase.apps.length) {
+          firebase.initializeApp(window.firebaseConfig || {
+            apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',
+            authDomain: 'superharves-cold-store.firebaseapp.com',
+            databaseURL: 'https://superharves-cold-store-default-rtdb.firebaseio.com',
+            projectId: 'superharves-cold-store',
+            storageBucket: 'superharves-cold-store.firebasestorage.app',
+            messagingSenderId: '379038228954',
+            appId: '1:379038228954:web:e64fa3be3f2f49b3aae0e3'
+          });
+        }
+        a = firebase.auth();
+        window.csmAuth = a;
+        window.auth = a;
+      } catch(re) { console.error('[CSM-LOGIN] auth init failed:', re); }
+    }
+    if (!a) {
+      var authMsg = 'Firebase Auth 未就绪。';
+      if (typeof firebase === 'undefined') authMsg += ' SDK未加载，请刷新页面。';
+      if (le) { le.textContent = authMsg; le.style.display = 'block'; }
+      return;
+    }
+    a.signInWithEmailAndPassword(email, password)
+      .then(function(uc) {
+        console.log('[CSM-LOGIN] success:', uc.user.email);
+        if (le) { le.style.color = '#0066cc'; le.textContent = '正在验证账号与权限…'; le.style.display = 'block'; }
+      })
+      .catch(function(error) {
+        console.error('[CSM-LOGIN] failed:', error);
+        var m = '登录失败';
+        var c = error.code || '';
+        if (c === 'auth/user-not-found') m = '用户不存在';
+        else if (c === 'auth/wrong-password' || c === 'auth/invalid-credential') m = '邮箱或密码错误';
+        else if (c === 'auth/invalid-email') m = '邮箱格式错误';
+        else if (c === 'auth/too-many-requests') m = '尝试次数过多，请稍后再试';
+        else if (c === 'auth/network-request-failed') m = '网络错误，请检查连接';
+        else if (c === 'auth/unauthorized-domain') m = '当前域名未授权，请在 Firebase 控制台添加';
+        if (le) { le.textContent = m + ' (' + c + ')'; le.style.color = '#cc0000'; le.style.fontWeight = 'bold'; le.style.display = 'block'; }
+      });
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260413f" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序 csm-bundle.js 加载失败（网络/CORS/拦截）。请换网络、关广告拦截或刷新。控制台应出现 Failed to load script。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260413g" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序 csm-bundle.js 加载失败（网络/CORS/拦截）。请换网络、关广告拦截或刷新。控制台应出现 Failed to load script。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -169,6 +214,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
     messagingSenderId: '379038228954',
     appId: '1:379038228954:web:e64fa3be3f2f49b3aae0e3'
   };
+  var gid = function(id) { return document.getElementById(id); };
   function tryInitAuth() {
     if (typeof firebase === 'undefined' || typeof firebase.auth !== 'function') return null;
     try {
@@ -186,32 +232,129 @@ tr:hover td{background:rgba(0,191,255,.03)}
       return null;
     }
   }
+  function setupFallbackAuthListener(a) {
+    if (window.__csmPostAuthListenerSet) return;
+    window.__csmPostAuthListenerSet = true;
+    console.log('[CSM-POST] setting up fallback onAuthStateChanged listener');
+    a.onAuthStateChanged(function(user) {
+      if (user) {
+        console.log('[CSM-POST-AUTH] user logged in:', user.email);
+        window.currentUser = user.uid;
+        window.currentUserEmail = user.email;
+        var usersRef = firebase.database().ref('csm_users/' + user.uid);
+        usersRef.once('value').then(function(snap) {
+          var userData = snap.val();
+          if (userData) {
+            var r = String(userData.role || '').toLowerCase().replace(/\s/g, '');
+            window.isAdmin = r === 'admin';
+            window.isLogistics = r === 'logistics';
+            window.isSupplier = r === 'supplier';
+            window.currentSupplierName = userData.supplierName || null;
+            var roleText = window.isLogistics ? '物流公司' : (window.isSupplier ? '供应商' : '管理员');
+            var ud = gid('currentUserDisplay');
+            if (ud) ud.textContent = (user.email || 'User') + ' (' + roleText + ')';
+            var lm = gid('loginModal');
+            if (lm) { lm.style.display = 'none'; lm.classList.remove('sh'); }
+            var le = gid('login-error');
+            if (le) { le.style.display = 'none'; }
+            if (typeof window.showAdminView === 'function' && window.isAdmin) window.showAdminView();
+            else if (typeof window.showLogisticsView === 'function' && window.isLogistics) window.showLogisticsView();
+            else if (typeof window.showSupplierView === 'function' && window.isSupplier) window.showSupplierView();
+            if (typeof window.toast === 'function') window.toast('欢迎 ' + (user.email || 'User'), 'ok');
+            console.log('[CSM-POST-AUTH] user role applied:', roleText);
+          } else {
+            var rootRef = firebase.database().ref();
+            rootRef.child('csm_meta/site_initialized').once('value').then(function(metaSnap) {
+              if (metaSnap.val() === true) {
+                var le2 = gid('login-error');
+                if (le2) { le2.textContent = '您的账号未在系统中登记，请联系管理员添加。'; le2.style.display = 'block'; le2.style.color = '#cc0000'; }
+                a.signOut();
+              } else {
+                rootRef.child('csm_users').once('value').then(function(allSnap) {
+                  var all = allSnap.val() || {};
+                  if (Object.keys(all).length > 0) {
+                    rootRef.child('csm_meta/site_initialized').set(true);
+                    var le3 = gid('login-error');
+                    if (le3) { le3.textContent = '账号未登记，请联系管理员。'; le3.style.display = 'block'; le3.style.color = '#cc0000'; }
+                    a.signOut();
+                  } else {
+                    var profile = { email: user.email || '', role: 'admin', createdAt: firebase.database.ServerValue.TIMESTAMP };
+                    var upd = {};
+                    upd['csm_users/' + user.uid] = profile;
+                    upd['csm_meta/site_initialized'] = true;
+                    rootRef.update(upd).then(function() {
+                      window.isAdmin = true;
+                      var ud2 = gid('currentUserDisplay');
+                      if (ud2) ud2.textContent = (user.email || 'User') + ' (管理员)';
+                      var lm2 = gid('loginModal');
+                      if (lm2) { lm2.style.display = 'none'; lm2.classList.remove('sh'); }
+                      if (typeof window.showAdminView === 'function') window.showAdminView();
+                      if (typeof window.toast === 'function') window.toast('首次登录：已创建管理员', 'ok');
+                    });
+                  }
+                });
+              }
+            });
+          }
+        }).catch(function(e) {
+          console.error('[CSM-POST-AUTH] profile read error:', e);
+          var le4 = gid('login-error');
+          if (le4) { le4.textContent = '读取用户资料失败: ' + (e.message || e); le4.style.display = 'block'; le4.style.color = '#cc0000'; }
+          a.signOut();
+        });
+      } else {
+        console.log('[CSM-POST-AUTH] user signed out');
+        window.currentUser = null;
+        window.currentUserEmail = null;
+        window.isAdmin = false;
+        window.isLogistics = false;
+        window.isSupplier = false;
+        if (typeof window.showLoginModal === 'function') window.showLoginModal();
+        else {
+          var lm3 = gid('loginModal');
+          if (lm3) { lm3.style.display = 'flex'; lm3.classList.add('sh'); }
+        }
+      }
+    });
+  }
+  function setupFallbackDataListeners() {
+    if (window.__csmPostDataListenerSet || window.__csmInitDone) return;
+    window.__csmPostDataListenerSet = true;
+    console.log('[CSM-POST] setting up fallback data listeners');
+    try {
+      var SK = 'csm_warehouse1';
+      if (!window.dbRef) window.dbRef = firebase.database().ref(SK);
+      if (!window.purchaseRef) window.purchaseRef = firebase.database().ref('csm_purchase');
+      if (!window.supplierRef) window.supplierRef = firebase.database().ref('csm_supplier_recs');
+      if (!window.seqCounterRef) window.seqCounterRef = window.dbRef.parent.child('csm_seq_counter');
+    } catch(e) { console.error('[CSM-POST] data refs setup error:', e); }
+  }
   function verify() {
     console.log('[CSM-POST] check: window.auth=', typeof window.auth,
                 '| csmAuth=', typeof window.csmAuth,
-                '| firebase=', typeof firebase,
-                '| firebase.auth=', (typeof firebase !== 'undefined' ? typeof firebase.auth : 'n/a'),
-                '| apps=', (typeof firebase !== 'undefined' && firebase.apps ? firebase.apps.length : 'n/a'),
-                '| __csmInitDone=', window.__csmInitDone,
-                '| firebaseConfig=', typeof window.firebaseConfig);
-    if (window.csmAuth || (typeof window.auth !== 'undefined' && window.auth)) {
-      console.log('[CSM-POST] auth already OK');
-      return;
-    }
-    var a = tryInitAuth();
-    if (a) {
-      window.auth = a;
-      window.csmAuth = a;
-      console.log('[CSM-POST] auth recovered successfully');
-      if (!window.__csmInitDone && typeof window.initApp === 'function') {
-        console.log('[CSM-POST] calling initApp() to set up listeners...');
-        try { window.initApp(); } catch(ie) { console.error('[CSM-POST] initApp error:', ie); }
+                '| __csmInitDone=', window.__csmInitDone);
+    var a = window.csmAuth || window.auth || null;
+    if (!a) {
+      a = tryInitAuth();
+      if (a) {
+        window.auth = a;
+        window.csmAuth = a;
+        console.log('[CSM-POST] auth recovered successfully');
+      } else {
+        console.error('[CSM-POST] auth recovery FAILED');
+        return;
       }
-    } else {
-      console.error('[CSM-POST] auth recovery FAILED — login will not work');
+    }
+    if (!window.__csmInitDone && typeof window.initApp === 'function') {
+      console.log('[CSM-POST] calling initApp()...');
+      try { window.initApp(); } catch(ie) { console.error('[CSM-POST] initApp error:', ie); }
+    }
+    if (!window.__csmInitDone) {
+      setupFallbackAuthListener(a);
+      setupFallbackDataListeners();
     }
   }
-  function run() { setTimeout(verify, 500); setTimeout(verify, 3000); }
+  function run() { setTimeout(verify, 500); setTimeout(verify, 3000); setTimeout(verify, 8000); }
   if (document.readyState === 'complete') { run(); }
   else { window.addEventListener('load', run); }
 })();

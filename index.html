@@ -156,8 +156,31 @@ tr:hover td{background:rgba(0,191,255,.03)}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260413" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序 csm-bundle.js 加载失败（网络/CORS/拦截）。请换网络、关广告拦截或刷新。控制台应出现 Failed to load script。';el.style.display='block';}})()"></script>
-<!-- Firebase 初始化改由主脚本在 DOMContentLoaded 执行 -->
+<script src="./csm-bundle.js?v=20260413b" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序 csm-bundle.js 加载失败（网络/CORS/拦截）。请换网络、关广告拦截或刷新。控制台应出现 Failed to load script。';el.style.display='block';}})()"></script>
+<!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
+<script>
+(function csmPostCheck() {
+  function verify() {
+    console.log('[CSM-POST] auth=', typeof window.auth, '| csmAuth=', typeof window.csmAuth,
+                '| firebase=', typeof firebase, '| firebase.auth=', typeof (typeof firebase !== 'undefined' && firebase.auth),
+                '| __csmInitDone=', window.__csmInitDone);
+    if (typeof window.auth !== 'undefined' && window.auth) return;
+    if (typeof firebase === 'undefined' || typeof firebase.auth !== 'function') {
+      console.warn('[CSM-POST] firebase.auth SDK not loaded — cannot recover');
+      return;
+    }
+    try {
+      if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(window.firebaseConfig || {});
+      var a = firebase.auth();
+      if (typeof window.auth === 'undefined' || !window.auth) window.auth = a;
+      window.csmAuth = a;
+      console.log('[CSM-POST] auth recovered:', a);
+    } catch(e) { console.error('[CSM-POST] auth recovery failed:', e); }
+  }
+  if (document.readyState === 'complete') { setTimeout(verify, 200); }
+  else { window.addEventListener('load', function() { setTimeout(verify, 200); }); }
+})();
+</script>
 <script>
   window.csmDiagnoseLogin = function () {
     var lines = [];
@@ -169,11 +192,15 @@ tr:hover td{background:rgba(0,191,255,.03)}
     lines.push('window_doLogin_type=' + typeof window.doLogin);
     lines.push('doc_defaultView_doLogin_type=' + (document.defaultView ? typeof document.defaultView.doLogin : 'n/a'));
     lines.push('window_auth_type=' + typeof window.auth);
+    lines.push('window_auth_value=' + String(window.auth));
     lines.push('window_csmAuth_type=' + typeof window.csmAuth);
     lines.push('doLogin_defined=' + (typeof doLogin === 'function'));
     lines.push('auth_defined=' + (typeof auth !== 'undefined'));
     lines.push('auth_ready=' + (typeof auth !== 'undefined' && auth != null));
     lines.push('firebase_ok=' + (typeof firebase !== 'undefined' && !!firebase.database));
+    lines.push('firebase_auth_fn=' + (typeof firebase !== 'undefined' && typeof firebase.auth === 'function'));
+    lines.push('firebase_apps=' + (typeof firebase !== 'undefined' && firebase.apps ? firebase.apps.length : 'n/a'));
+    lines.push('__csmInitDone=' + !!window.__csmInitDone);
     if (typeof firebase === 'undefined' || !firebase.database) {
       console.log('[csmDiagnoseLogin]\n' + lines.join('\n'));
       return Promise.resolve(lines);

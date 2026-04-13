@@ -150,13 +150,13 @@ tr:hover td{background:rgba(0,191,255,.03)}
     var impl = window.__csmRealDoLogin;
     if (typeof impl === 'function') return impl.apply(this, arguments);
     var el = document.getElementById('login-error');
-    var msg = '主程序仍在加载，请稍候再点「登录」或刷新页面。若在 F12 控制台调试，请把左上角上下文选为「顶级」本页面（勿选扩展），否则 typeof window.doLogin 会显示 undefined。';
+    var msg = '登录脚本未就绪：请强刷(Ctrl+F5)；在 Network 确认 csm-bundle.js 为 200；F12 左上角选「顶级」本页面（勿选扩展）；控制台执行 csmDiagnoseLogin() 查看 main_js_ran / real_doLogin_ready。';
     if (el) { el.textContent = msg; el.style.display = 'block'; }
     console.warn('[CSM]', msg);
   };
 })();
 </script>
-<script src="https://tian8896.github.io/coldstore-management/csm-bundle.js" charset="utf-8" crossorigin="anonymous"></script>
+<script src="https://tian8896.github.io/coldstore-management/csm-bundle.js" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序 csm-bundle.js 加载失败（网络/CORS/拦截）。请换网络、关广告拦截或刷新。控制台应出现 Failed to load script。';el.style.display='block';}})()"></script>
 <!-- Firebase 初始化改由主脚本在 DOMContentLoaded 执行 -->
 <script>
   window.csmDiagnoseLogin = function () {

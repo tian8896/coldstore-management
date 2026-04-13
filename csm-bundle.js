@@ -58,7 +58,8 @@ function backfillPurchaseSeq() {  if (!purchaseRef || !seqCounterRef) return;  v
 (function () {  function csmBoot() {    initFirebase();    setDefTimes();    loadSettings();  }  if (document.readyState === 'loading') {    window.addEventListener('DOMContentLoaded', csmBoot);  } else {    csmBoot();  }})();function initFirebase() {  if (typeof firebase !== 'undefined' && firebase.initializeApp) {    initApp();    return;  }  var ver = '10.14.1';  var bases = ['https://cdn.jsdelivr.net/npm/firebase@' + ver + '/', 'https://www.gstatic.com/firebasejs/' + ver + '/'];  function loadScriptsSequential(urls, i, onOk, onFail) {    if (i >= urls.length) { onOk(); return; }    var s = document.createElement('script');    s.src = urls[i];    s.onload = function() { loadScriptsSequential(urls, i + 1, onOk, onFail); };    s.onerror = function() { onFail(); };    document.head.appendChild(s);  }  function tryBase(bi) {    if (bi >= bases.length) {      toast('❌ Firebase 无法加载，请换网络或稍后再试', 'err');      showLoginModal();      return;    }    var b = bases[bi];    var urls = [b + 'firebase-app-compat.js', b + 'firebase-database-compat.js', b + 'firebase-auth-compat.js'];    loadScriptsSequential(urls, 0, function() { initApp(); }, function() { tryBase(bi + 1); });  }  tryBase(0);}function initApp() {  if (window.__csmInitDone) return;  window.__csmInitDone = true;  
 // 加载保存的费率  
 loadRates();  try {    if (!firebase.apps || !firebase.apps.length) { firebase.initializeApp(firebaseConfig); }    auth = firebase.auth();    try { window.csmAuth = auth; } catch (e1) {}    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function () {});    dbRef = firebase.database().ref(SK);    purchaseRef = firebase.database().ref('csm_purchase');    supplierRef = firebase.database().ref('csm_supplier_recs');    legacyDbRef = (SK !== LOCAL_STORAGE_KEY) ? firebase.database().ref(LOCAL_STORAGE_KEY) : null;    
-// 初始化序号计数器引用（必须在这里做，避免 onAuthStateChanged 同步触发时 seqCounterRef 为 null）    seqCounterRef = dbRef.parent.child('csm_seq_counter');    
+// 初始化序号计数器引用（必须在这里做，避免 onAuthStateChanged 同步触发时 seqCounterRef 为 null）
+seqCounterRef = dbRef.parent.child('csm_seq_counter');    
 // Firebase Auth 状态监听    
 auth.onAuthStateChanged(function(user) {      if (user) {        
 // 用户已登录        
@@ -74,7 +75,11 @@ function rebuildMergedRecs() {      var data = {};      Object.keys(legacyRecsVa
 purchaseRef.on('value', function(snap) {      purchaseRecs = [];      var data = snap.val() || {};      Object.keys(data).forEach(function(k) {        var item = data[k];        item.id = k;        purchaseRecs.push(item);      });      renderPurchase();      backfillPurchaseSeq();    });    
 // 监听供应商采购数据    
 supplierRef.on('value', function(snap) {      supplierRecs = [];      var data = snap.val() || {};      var hasMigration = false;      Object.keys(data).forEach(function(k) {        var item = data[k];        item.id = k;        if (!item.status) {          item.status = 'draft'; 
-// 旧数据默认初始状态          hasMigration = true;        }        supplierRecs.push(item);      });      
+// 旧数据默认初始状态
+hasMigration = true;
+}
+supplierRecs.push(item);
+});      
 // 一次性迁移：给没有status字段的旧记录补上draft      
 if (hasMigration) {        supplierRecs.forEach(function(r) {          if (!r.status || r.status === 'draft') {            supplierRef.child(r.id).update({ status: 'draft' });          }        });      }      if (isSupplier) renderSupplierTable();    });    toast('✅ Firebase 连接成功', 'ok');  } catch(e) {    console.error('Firebase init error:', e);    window.__csmInitDone = false;    toast('❌ Firebase 连接失败: ' + e.message, 'err');    showLoginModal();  }}
 // 初始化默认账号
@@ -315,11 +320,14 @@ var editBtn = isAdmin ? '<button class="abtn" onclick="showEditRecord(\'' + r.id
 // 1. 在库（未出库或部分出库）：黄色背景显示预估费用    
 // 2. 已全部出库：显示实际冷库费总和（关联出库记录）    
 var feeDisplay;    if (isFullyCheckedOut && actualFee > 0) {      
-// 已全部出库，显示实际费用总和，蓝色加大加粗      feeDisplay = '<strong style="color:#0066cc;font-size:16px">' + actualFee.toFixed(2) + ' AED</strong>';    } 
+// 已全部出库，显示实际费用总和，蓝色加大加粗
+feeDisplay = '<strong style="color:#0066cc;font-size:16px">' + actualFee.toFixed(2) + ' AED</strong>';    } 
 else if (actualFee > 0) {      
-// 部分出库，显示已产生的费用，黄色背景      feeDisplay = '<strong style="color:#ff9900;background:#fff8e1;padding:2px 6px;border-radius:3px">' + actualFee.toFixed(2) + ' AED</strong>';    } 
+// 部分出库，显示已产生的费用，黄色背景
+feeDisplay = '<strong style="color:#ff9900;background:#fff8e1;padding:2px 6px;border-radius:3px">' + actualFee.toFixed(2) + ' AED</strong>';    } 
 else {      
-// 刚入库未出库，显示 "-"      feeDisplay = '<span style="color:#999">-</span>';    }    
+// 刚入库未出库，显示 "-"
+feeDisplay = '<span style="color:#999">-</span>';    }    
 return '<tr style="background:#fff">' +      '<td><strong>' + (r.seq || '-') + '</strong></td>' +      '<td><strong>' + r.cn + '</strong></td>' +      '<td style="font-family:Arial;text-transform:capitalize">' + (r.supplier || '-') + '</td><td style="font-family:Arial;text-transform:capitalize">' + r.product + '</td>' +      '<td>冷库 ' + r.store + '</td>' +      '<td>' + r.pallets + ' / <span style="color:#ff9900">' + remaining_pallets + '</span></td>' +      '<td>' + r.items + ' / <span style="color:#ff9900">' + remaining_items + '</span></td>' +      '<td>' + fdt(r.arr) + '</td><td>' + fdt(r.dep) + '</td>' +      '<td>' + feeDisplay + '</td>' +      '<td>' + status + '</td>' +      '<td><button class="abtn" onclick="showDet(\'' + r.id + '\')">详情</button>' + editBtn + '</td></tr>';  });  tb.innerHTML = html.join('');}
 // 计算已产生的实际费用（基于出库记录表的逻辑）
 function calcActualFee(inRec) {  
@@ -504,13 +512,15 @@ productDropdown.innerHTML = sameCnItems.map(function(item, idx) {      return '<
 window.quickInMultiData = sameCnItems;  } else {    
 // 单个品名    
 productSelect.style.display = 'none';    quickInInfo.innerHTML = '📦 <strong>' + r.cn + '</strong> | ' + r.supplier + ' | ' + r.product;    
-// 保存采购记录数据    quickInData = r;    
+// 保存采购记录数据
+quickInData = r;    
 window.quickInMultiData = null;  }  gid('quickInModal').classList.add('sh');}function clQuickInModal() {  gid('quickInModal').classList.remove('sh');  quickInData = null;  window.quickInMultiData = null;}var isCheckingIn = false;function doQuickIn(storeNum) { console.log('doQuickIn called, storeNum:', storeNum, 'quickInData:', quickInData);  if (isCheckingIn) { console.log('Already checking in, ignoring'); return; }  isCheckingIn = true;  
 // 获取选中的品名  
 var selectedData = null;  if (window.quickInMultiData) {    
 // 多个品名的情况    
 var dropdown = gid('quickInProductDropdown');    var selectedId = dropdown.value;    selectedData = window.quickInMultiData.find(function(x) { return x.id === selectedId; });    if (!selectedData) {      toast('请选择入库品名', 'err');      isCheckingIn = false;      return;    }  } else if (quickInData) {    
-// 单个品名    selectedData = quickInData;  }  
+// 单个品名
+selectedData = quickInData;  }  
 if (!selectedData) {    toast('未选择入库信息', 'err');    isCheckingIn = false;    return;  }  console.log('selectedData:', selectedData);  console.log('selectedData.cn:', selectedData.cn);  
 // 切换冷库  
 selectColdStore(storeNum);  
@@ -518,7 +528,8 @@ selectColdStore(storeNum);
 gid('f-cn').value = selectedData.cn || '';  console.log('f-cn value after set:', gid('f-cn').value);  gid('f-supplier').value = selectedData.supplier || '';  gid('f-product').value = selectedData.product || '';  gid('f-items').value = selectedData.qty || '1';  gid('f-pallets').value = '1';  
 // 设置入库日期为今天  
 gid('f-at').value = nowFmt();  clQuickInModal();  
-// 重置入库按钮状态（确保是黄色，等待用户手动确认）  isCheckingIn = false;  
+// 重置入库按钮状态（确保是黄色，等待用户手动确认）
+isCheckingIn = false;  
 var checkInBtn = gid('checkInBtn');  if (checkInBtn) {    checkInBtn.classList.remove('btn-g');    checkInBtn.classList.add('btn-s');    checkInBtn.innerHTML = '✓ 入库 Check In';    checkInBtn.disabled = false;  }  
 // 切换到库存记录 tab，让用户手动点击入库按钮确认  
 swTab('records');  

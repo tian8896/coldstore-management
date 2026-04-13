@@ -88,6 +88,9 @@ function updateSupplierRecsFromData(data, canMigrateStatus) {
       }
     });
   }
+  if (isAdmin || isLogistics) {
+    renderPurchase();
+  }
   if (isSupplier) renderSupplierTable();
 }
 function mergeSupplierScopedData() {

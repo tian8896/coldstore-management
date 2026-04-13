@@ -135,64 +135,139 @@ function closeUserManagement() {
     });
   }
 })();
-(function csmExposeAll() {
-  var fns = [
-    'initApp','initFirebase','doLogin','doLogout','doRegister','doGoogleLogin',
-    'showLoginModal','handleLogout','togglePassword',
-    'checkIn','checkOut','selectColdStore','swTab',
-    'openPurchaseForm','clPurchaseModal','addPurchase','addPurchaseItem','removePurchaseItem',
-    'filterPurchase','resetPurchaseSearch','renderPurchase','renderAll','renderRecords','renderCheckout',
-    'openEditPurchase','clEditPurchaseModal','saveEditPurchase',
-    'delPurchase','delPurchaseGroup','togglePurchaseGroup',
-    'quickCheckIn','clQuickInModal','doQuickIn',
-    'showDet','clModal','showCheckoutDetail','showOutDet',
-    'showEditRecord','closeEditRecordModal','saveEditRecord',
-    'showEditOutRecord','closeEditOutRecordModal','saveEditOutRecord',
-    'showClearModal','closeClearModal','confirmClear',
-    'applySearch','resetSearch','exportCheckout',
-    'openSettings','clSettings','addSettItem','delSettItem','renderSettList',
-    'saveRates','loadRatesToSettings',
-    'loadUserList','renderUserList','changeUserRole','deleteUser','createUser',
-    'openLogisticsAddForm','clLogisticsModal','saveLogisticsFee','delLogisticsFee',
-    'confirmLogisticsFee','unconfirmLogisticsFee',
-    'filterLogisticsTable','clearLogisticsSearch','renderLogisticsTable',
-    'openLogisticsFromPurchase','clLogisticsFromPurchaseModal','selectLogisticsCn',
-    'showAdminView','showLogisticsView','showSupplierView',
-    'openSupplierForm','clSupplierModal','saveSupplierRec','editSupplierRec','delSupplierRec',
-    'submitSupplierRec','undoSubmitSupplierRec','confirmSupplierRec',
-    'filterSupplierTable','clearSupplierSearch','renderSupplierTable',
-    'openSupplierCNDetail','openSupplierCNDetailByCN','editSupplierRecByCN',
-    'onUserRoleChange','updateSettingsButton',
-    'showSuggest','showSuggestEdit','showSuggestCn','showSuggestPurchaseItem',
-    'pickSuggest','pickSuggestEdit','pickCnSuggest','pickSuggestPurchaseItem','hideSuggest',
-    'gid','toast','fdt','nowFmt','setDefTimes','generateSeq',
-    'calcFee','calcActualFee','getRateByStore','updStats',
-    'saveData','saveRecord','removeRecordFromFirebase','deleteRecord',
-    'backfillSeq','backfillCheckoutSeq','backfillPurchaseSeq',
-    'loadSettings','saveSettings','loadRates','saveRatesToStorage',
-    'getLogisticsFees','saveLogisticsFees','getPurchaseContainers',
-    'clearLoginVerifyTimer','setLoginVerifyTimer'
-  ];
-  var exposed = 0;
-  fns.forEach(function(name) {
-    try {
-      var fn = eval(name);
-      if (typeof fn !== 'undefined') { window[name] = fn; exposed++; }
-    } catch(e) {}
-  });
-  var vars = ['firebaseConfig','auth','dbRef','purchaseRef','supplierRef','legacyDbRef',
-    'seqCounterRef','recs','purchaseRecs','supplierRecs','currentColdStore',
-    'currentUser','currentUserEmail','isAdmin','isLogistics','isSupplier','currentSupplierName',
-    'warehouseRates','settData','checkoutSearchFilters'];
-  vars.forEach(function(name) {
-    try {
-      var v = eval(name);
-      if (typeof v !== 'undefined') window[name] = v;
-    } catch(e) {}
-  });
-  if (typeof window.__csmRealDoLogin !== 'function') {
-    try { window.__csmRealDoLogin = doLogin; } catch(e) {}
-  }
-  console.log('[CSM] exposed', exposed, 'functions to window. initApp=', typeof window.initApp, 'auth=', typeof window.auth);
-})();
+console.log('[CSM-DIAG] typeof initApp=', typeof initApp, 'typeof swTab=', typeof swTab, 'typeof gid=', typeof gid, 'typeof checkIn=', typeof checkIn, 'typeof loadUserList=', typeof loadUserList, 'typeof openSettings=', typeof openSettings);
+try{window.initApp=initApp;}catch(e){console.warn('[CSM-X] initApp',e.message);}
+try{window.initFirebase=initFirebase;}catch(e){console.warn('[CSM-X] initFirebase',e.message);}
+try{window.doLogin=doLogin;}catch(e){console.warn('[CSM-X] doLogin',e.message);}
+try{window.doLogout=doLogout;}catch(e){console.warn('[CSM-X] doLogout',e.message);}
+try{window.doRegister=doRegister;}catch(e){console.warn('[CSM-X] doRegister',e.message);}
+try{window.doGoogleLogin=doGoogleLogin;}catch(e){console.warn('[CSM-X] doGoogleLogin',e.message);}
+try{window.showLoginModal=showLoginModal;}catch(e){console.warn('[CSM-X] showLoginModal',e.message);}
+try{window.handleLogout=handleLogout;}catch(e){console.warn('[CSM-X] handleLogout',e.message);}
+try{window.togglePassword=togglePassword;}catch(e){console.warn('[CSM-X] togglePassword',e.message);}
+try{window.firebaseConfig=firebaseConfig;}catch(e){console.warn('[CSM-X] firebaseConfig',e.message);}
+try{window.auth=auth;}catch(e){console.warn('[CSM-X] auth',e.message);}
+try{window.gid=gid;}catch(e){console.warn('[CSM-X] gid',e.message);}
+try{window.toast=toast;}catch(e){console.warn('[CSM-X] toast',e.message);}
+try{window.fdt=fdt;}catch(e){console.warn('[CSM-X] fdt',e.message);}
+try{window.nowFmt=nowFmt;}catch(e){console.warn('[CSM-X] nowFmt',e.message);}
+try{window.setDefTimes=setDefTimes;}catch(e){console.warn('[CSM-X] setDefTimes',e.message);}
+try{window.checkIn=checkIn;}catch(e){console.warn('[CSM-X] checkIn',e.message);}
+try{window.checkOut=checkOut;}catch(e){console.warn('[CSM-X] checkOut',e.message);}
+try{window.selectColdStore=selectColdStore;}catch(e){console.warn('[CSM-X] selectColdStore',e.message);}
+try{window.swTab=swTab;}catch(e){console.warn('[CSM-X] swTab',e.message);}
+try{window.renderAll=renderAll;}catch(e){console.warn('[CSM-X] renderAll',e.message);}
+try{window.renderRecords=renderRecords;}catch(e){console.warn('[CSM-X] renderRecords',e.message);}
+try{window.renderCheckout=renderCheckout;}catch(e){console.warn('[CSM-X] renderCheckout',e.message);}
+try{window.renderPurchase=renderPurchase;}catch(e){console.warn('[CSM-X] renderPurchase',e.message);}
+try{window.updStats=updStats;}catch(e){console.warn('[CSM-X] updStats',e.message);}
+try{window.openPurchaseForm=openPurchaseForm;}catch(e){console.warn('[CSM-X] openPurchaseForm',e.message);}
+try{window.clPurchaseModal=clPurchaseModal;}catch(e){console.warn('[CSM-X] clPurchaseModal',e.message);}
+try{window.addPurchase=addPurchase;}catch(e){console.warn('[CSM-X] addPurchase',e.message);}
+try{window.addPurchaseItem=addPurchaseItem;}catch(e){console.warn('[CSM-X] addPurchaseItem',e.message);}
+try{window.removePurchaseItem=removePurchaseItem;}catch(e){console.warn('[CSM-X] removePurchaseItem',e.message);}
+try{window.filterPurchase=filterPurchase;}catch(e){console.warn('[CSM-X] filterPurchase',e.message);}
+try{window.resetPurchaseSearch=resetPurchaseSearch;}catch(e){console.warn('[CSM-X] resetPurchaseSearch',e.message);}
+try{window.openEditPurchase=openEditPurchase;}catch(e){console.warn('[CSM-X] openEditPurchase',e.message);}
+try{window.clEditPurchaseModal=clEditPurchaseModal;}catch(e){console.warn('[CSM-X] clEditPurchaseModal',e.message);}
+try{window.saveEditPurchase=saveEditPurchase;}catch(e){console.warn('[CSM-X] saveEditPurchase',e.message);}
+try{window.delPurchase=delPurchase;}catch(e){console.warn('[CSM-X] delPurchase',e.message);}
+try{window.delPurchaseGroup=delPurchaseGroup;}catch(e){console.warn('[CSM-X] delPurchaseGroup',e.message);}
+try{window.togglePurchaseGroup=togglePurchaseGroup;}catch(e){console.warn('[CSM-X] togglePurchaseGroup',e.message);}
+try{window.quickCheckIn=quickCheckIn;}catch(e){console.warn('[CSM-X] quickCheckIn',e.message);}
+try{window.clQuickInModal=clQuickInModal;}catch(e){console.warn('[CSM-X] clQuickInModal',e.message);}
+try{window.doQuickIn=doQuickIn;}catch(e){console.warn('[CSM-X] doQuickIn',e.message);}
+try{window.showDet=showDet;}catch(e){console.warn('[CSM-X] showDet',e.message);}
+try{window.clModal=clModal;}catch(e){console.warn('[CSM-X] clModal',e.message);}
+try{window.showCheckoutDetail=showCheckoutDetail;}catch(e){console.warn('[CSM-X] showCheckoutDetail',e.message);}
+try{window.showOutDet=showOutDet;}catch(e){console.warn('[CSM-X] showOutDet',e.message);}
+try{window.showEditRecord=showEditRecord;}catch(e){console.warn('[CSM-X] showEditRecord',e.message);}
+try{window.closeEditRecordModal=closeEditRecordModal;}catch(e){console.warn('[CSM-X] closeEditRecordModal',e.message);}
+try{window.saveEditRecord=saveEditRecord;}catch(e){console.warn('[CSM-X] saveEditRecord',e.message);}
+try{window.showEditOutRecord=showEditOutRecord;}catch(e){console.warn('[CSM-X] showEditOutRecord',e.message);}
+try{window.closeEditOutRecordModal=closeEditOutRecordModal;}catch(e){console.warn('[CSM-X] closeEditOutRecordModal',e.message);}
+try{window.saveEditOutRecord=saveEditOutRecord;}catch(e){console.warn('[CSM-X] saveEditOutRecord',e.message);}
+try{window.showClearModal=showClearModal;}catch(e){console.warn('[CSM-X] showClearModal',e.message);}
+try{window.closeClearModal=closeClearModal;}catch(e){console.warn('[CSM-X] closeClearModal',e.message);}
+try{window.confirmClear=confirmClear;}catch(e){console.warn('[CSM-X] confirmClear',e.message);}
+try{window.applySearch=applySearch;}catch(e){console.warn('[CSM-X] applySearch',e.message);}
+try{window.resetSearch=resetSearch;}catch(e){console.warn('[CSM-X] resetSearch',e.message);}
+try{window.exportCheckout=exportCheckout;}catch(e){console.warn('[CSM-X] exportCheckout',e.message);}
+try{window.openSettings=openSettings;}catch(e){console.warn('[CSM-X] openSettings',e.message);}
+try{window.clSettings=clSettings;}catch(e){console.warn('[CSM-X] clSettings',e.message);}
+try{window.addSettItem=addSettItem;}catch(e){console.warn('[CSM-X] addSettItem',e.message);}
+try{window.delSettItem=delSettItem;}catch(e){console.warn('[CSM-X] delSettItem',e.message);}
+try{window.renderSettList=renderSettList;}catch(e){console.warn('[CSM-X] renderSettList',e.message);}
+try{window.saveRates=saveRates;}catch(e){console.warn('[CSM-X] saveRates',e.message);}
+try{window.loadRatesToSettings=loadRatesToSettings;}catch(e){console.warn('[CSM-X] loadRatesToSettings',e.message);}
+try{window.loadUserList=loadUserList;}catch(e){console.warn('[CSM-X] loadUserList',e.message);}
+try{window.renderUserList=renderUserList;}catch(e){console.warn('[CSM-X] renderUserList',e.message);}
+try{window.changeUserRole=changeUserRole;}catch(e){console.warn('[CSM-X] changeUserRole',e.message);}
+try{window.deleteUser=deleteUser;}catch(e){console.warn('[CSM-X] deleteUser',e.message);}
+try{window.createUser=createUser;}catch(e){console.warn('[CSM-X] createUser',e.message);}
+try{window.openLogisticsAddForm=openLogisticsAddForm;}catch(e){console.warn('[CSM-X] openLogisticsAddForm',e.message);}
+try{window.clLogisticsModal=clLogisticsModal;}catch(e){console.warn('[CSM-X] clLogisticsModal',e.message);}
+try{window.saveLogisticsFee=saveLogisticsFee;}catch(e){console.warn('[CSM-X] saveLogisticsFee',e.message);}
+try{window.delLogisticsFee=delLogisticsFee;}catch(e){console.warn('[CSM-X] delLogisticsFee',e.message);}
+try{window.confirmLogisticsFee=confirmLogisticsFee;}catch(e){console.warn('[CSM-X] confirmLogisticsFee',e.message);}
+try{window.unconfirmLogisticsFee=unconfirmLogisticsFee;}catch(e){console.warn('[CSM-X] unconfirmLogisticsFee',e.message);}
+try{window.filterLogisticsTable=filterLogisticsTable;}catch(e){console.warn('[CSM-X] filterLogisticsTable',e.message);}
+try{window.clearLogisticsSearch=clearLogisticsSearch;}catch(e){console.warn('[CSM-X] clearLogisticsSearch',e.message);}
+try{window.renderLogisticsTable=renderLogisticsTable;}catch(e){console.warn('[CSM-X] renderLogisticsTable',e.message);}
+try{window.openLogisticsFromPurchase=openLogisticsFromPurchase;}catch(e){console.warn('[CSM-X] openLogisticsFromPurchase',e.message);}
+try{window.clLogisticsFromPurchaseModal=clLogisticsFromPurchaseModal;}catch(e){console.warn('[CSM-X] clLogisticsFromPurchaseModal',e.message);}
+try{window.selectLogisticsCn=selectLogisticsCn;}catch(e){console.warn('[CSM-X] selectLogisticsCn',e.message);}
+try{window.showAdminView=showAdminView;}catch(e){console.warn('[CSM-X] showAdminView',e.message);}
+try{window.showLogisticsView=showLogisticsView;}catch(e){console.warn('[CSM-X] showLogisticsView',e.message);}
+try{window.showSupplierView=showSupplierView;}catch(e){console.warn('[CSM-X] showSupplierView',e.message);}
+try{window.openSupplierForm=openSupplierForm;}catch(e){console.warn('[CSM-X] openSupplierForm',e.message);}
+try{window.clSupplierModal=clSupplierModal;}catch(e){console.warn('[CSM-X] clSupplierModal',e.message);}
+try{window.saveSupplierRec=saveSupplierRec;}catch(e){console.warn('[CSM-X] saveSupplierRec',e.message);}
+try{window.editSupplierRec=editSupplierRec;}catch(e){console.warn('[CSM-X] editSupplierRec',e.message);}
+try{window.delSupplierRec=delSupplierRec;}catch(e){console.warn('[CSM-X] delSupplierRec',e.message);}
+try{window.submitSupplierRec=submitSupplierRec;}catch(e){console.warn('[CSM-X] submitSupplierRec',e.message);}
+try{window.undoSubmitSupplierRec=undoSubmitSupplierRec;}catch(e){console.warn('[CSM-X] undoSubmitSupplierRec',e.message);}
+try{window.confirmSupplierRec=confirmSupplierRec;}catch(e){console.warn('[CSM-X] confirmSupplierRec',e.message);}
+try{window.filterSupplierTable=filterSupplierTable;}catch(e){console.warn('[CSM-X] filterSupplierTable',e.message);}
+try{window.clearSupplierSearch=clearSupplierSearch;}catch(e){console.warn('[CSM-X] clearSupplierSearch',e.message);}
+try{window.renderSupplierTable=renderSupplierTable;}catch(e){console.warn('[CSM-X] renderSupplierTable',e.message);}
+try{window.openSupplierCNDetail=openSupplierCNDetail;}catch(e){console.warn('[CSM-X] openSupplierCNDetail',e.message);}
+try{window.openSupplierCNDetailByCN=openSupplierCNDetailByCN;}catch(e){console.warn('[CSM-X] openSupplierCNDetailByCN',e.message);}
+try{window.editSupplierRecByCN=editSupplierRecByCN;}catch(e){console.warn('[CSM-X] editSupplierRecByCN',e.message);}
+try{window.onUserRoleChange=onUserRoleChange;}catch(e){console.warn('[CSM-X] onUserRoleChange',e.message);}
+try{window.updateSettingsButton=updateSettingsButton;}catch(e){console.warn('[CSM-X] updateSettingsButton',e.message);}
+try{window.generateSeq=generateSeq;}catch(e){console.warn('[CSM-X] generateSeq',e.message);}
+try{window.calcFee=calcFee;}catch(e){console.warn('[CSM-X] calcFee',e.message);}
+try{window.calcActualFee=calcActualFee;}catch(e){console.warn('[CSM-X] calcActualFee',e.message);}
+try{window.getRateByStore=getRateByStore;}catch(e){console.warn('[CSM-X] getRateByStore',e.message);}
+try{window.showSuggest=showSuggest;}catch(e){console.warn('[CSM-X] showSuggest',e.message);}
+try{window.showSuggestEdit=showSuggestEdit;}catch(e){console.warn('[CSM-X] showSuggestEdit',e.message);}
+try{window.showSuggestCn=showSuggestCn;}catch(e){console.warn('[CSM-X] showSuggestCn',e.message);}
+try{window.showSuggestPurchaseItem=showSuggestPurchaseItem;}catch(e){console.warn('[CSM-X] showSuggestPurchaseItem',e.message);}
+try{window.pickSuggest=pickSuggest;}catch(e){console.warn('[CSM-X] pickSuggest',e.message);}
+try{window.pickSuggestEdit=pickSuggestEdit;}catch(e){console.warn('[CSM-X] pickSuggestEdit',e.message);}
+try{window.pickCnSuggest=pickCnSuggest;}catch(e){console.warn('[CSM-X] pickCnSuggest',e.message);}
+try{window.pickSuggestPurchaseItem=pickSuggestPurchaseItem;}catch(e){console.warn('[CSM-X] pickSuggestPurchaseItem',e.message);}
+try{window.hideSuggest=hideSuggest;}catch(e){console.warn('[CSM-X] hideSuggest',e.message);}
+try{window.saveData=saveData;}catch(e){console.warn('[CSM-X] saveData',e.message);}
+try{window.saveRecord=saveRecord;}catch(e){console.warn('[CSM-X] saveRecord',e.message);}
+try{window.removeRecordFromFirebase=removeRecordFromFirebase;}catch(e){console.warn('[CSM-X] removeRecordFromFirebase',e.message);}
+try{window.deleteRecord=deleteRecord;}catch(e){console.warn('[CSM-X] deleteRecord',e.message);}
+try{window.backfillSeq=backfillSeq;}catch(e){console.warn('[CSM-X] backfillSeq',e.message);}
+try{window.backfillCheckoutSeq=backfillCheckoutSeq;}catch(e){console.warn('[CSM-X] backfillCheckoutSeq',e.message);}
+try{window.backfillPurchaseSeq=backfillPurchaseSeq;}catch(e){console.warn('[CSM-X] backfillPurchaseSeq',e.message);}
+try{window.loadSettings=loadSettings;}catch(e){console.warn('[CSM-X] loadSettings',e.message);}
+try{window.saveSettings=saveSettings;}catch(e){console.warn('[CSM-X] saveSettings',e.message);}
+try{window.loadRates=loadRates;}catch(e){console.warn('[CSM-X] loadRates',e.message);}
+try{window.saveRatesToStorage=saveRatesToStorage;}catch(e){console.warn('[CSM-X] saveRatesToStorage',e.message);}
+try{window.getLogisticsFees=getLogisticsFees;}catch(e){console.warn('[CSM-X] getLogisticsFees',e.message);}
+try{window.saveLogisticsFees=saveLogisticsFees;}catch(e){console.warn('[CSM-X] saveLogisticsFees',e.message);}
+try{window.getPurchaseContainers=getPurchaseContainers;}catch(e){console.warn('[CSM-X] getPurchaseContainers',e.message);}
+try{window.clearLoginVerifyTimer=clearLoginVerifyTimer;}catch(e){console.warn('[CSM-X] clearLoginVerifyTimer',e.message);}
+try{window.setLoginVerifyTimer=setLoginVerifyTimer;}catch(e){console.warn('[CSM-X] setLoginVerifyTimer',e.message);}
+try{window.dbRef=dbRef;}catch(e){}
+try{window.purchaseRef=purchaseRef;}catch(e){}
+try{window.supplierRef=supplierRef;}catch(e){}
+try{window.recs=recs;}catch(e){}
+console.log('[CSM] expose done. initApp=',typeof window.initApp,'swTab=',typeof window.swTab,'checkIn=',typeof window.checkIn,'gid=',typeof window.gid);
 window.__csmMainScriptRan=1;

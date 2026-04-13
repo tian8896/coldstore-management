@@ -1160,3 +1160,12 @@ var LOGISTICS_KEY = 'csm_customs_fees';function getLogisticsFees() {  try {    v
   }
 })();
 window.__csmMainScriptRan=1;
+try { window.initApp = initApp; } catch (e) {}
+try { window.initFirebase = initFirebase; } catch (e) {}
+try { window.renderAll = renderAll; } catch (e) {}
+try { window.renderPurchase = renderPurchase; } catch (e) {}
+try { window.renderSupplierTable = renderSupplierTable; } catch (e) {}
+try { window.renderLogisticsTable = renderLogisticsTable; } catch (e) {}
+try { window.showAdminView = showAdminView; } catch (e) {}
+try { window.showLogisticsView = showLogisticsView; } catch (e) {}
+try { window.showSupplierView = showSupplierView; } catch (e) {}

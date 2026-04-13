@@ -201,7 +201,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260413n" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260413o" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -323,10 +323,74 @@ tr:hover td{background:rgba(0,191,255,.03)}
     console.log('[CSM-POST] setting up fallback data listeners');
     try {
       var SK = 'csm_warehouse1';
+      var LEGACY_KEY = 'csm_records_v3';
       if (!window.dbRef) window.dbRef = firebase.database().ref(SK);
+      if (!window.legacyDbRef && SK !== LEGACY_KEY) window.legacyDbRef = firebase.database().ref(LEGACY_KEY);
       if (!window.purchaseRef) window.purchaseRef = firebase.database().ref('csm_purchase');
       if (!window.supplierRef) window.supplierRef = firebase.database().ref('csm_supplier_recs');
       if (!window.seqCounterRef) window.seqCounterRef = window.dbRef.parent.child('csm_seq_counter');
+      if (!window.__csmFallbackPrimaryListenerSet) {
+        window.__csmFallbackPrimaryListenerSet = true;
+        window.primaryRecsVal = window.primaryRecsVal || {};
+        window.legacyRecsVal = window.legacyRecsVal || {};
+        function rebuildMergedRecs() {
+          var data = {};
+          Object.keys(window.legacyRecsVal || {}).forEach(function(k) { data[k] = window.legacyRecsVal[k]; });
+          Object.keys(window.primaryRecsVal || {}).forEach(function(k) {
+            var prev = data[k];
+            data[k] = prev ? Object.assign({}, prev, window.primaryRecsVal[k]) : window.primaryRecsVal[k];
+          });
+          if (typeof window.recs !== 'undefined') {
+            window.recs = Object.keys(data).map(function(k) {
+              var row = Object.assign({}, data[k]);
+              row.id = k;
+              return row;
+            });
+          }
+          if (typeof window.renderAll === 'function') window.renderAll();
+        }
+        window.dbRef.on('value', function(snap) {
+          window.primaryRecsVal = snap.val() || {};
+          rebuildMergedRecs();
+        });
+        if (window.legacyDbRef) {
+          window.legacyDbRef.on('value', function(snap) {
+            window.legacyRecsVal = snap.val() || {};
+            rebuildMergedRecs();
+          });
+        }
+      }
+      if (!window.__csmFallbackPurchaseListenerSet) {
+        window.__csmFallbackPurchaseListenerSet = true;
+        window.purchaseRef.on('value', function(snap) {
+          var data = snap.val() || {};
+          if (typeof window.purchaseRecs !== 'undefined') {
+            window.purchaseRecs = Object.keys(data).map(function(k) {
+              var item = data[k] || {};
+              item.id = k;
+              return item;
+            });
+          }
+          if (typeof window.renderPurchase === 'function') window.renderPurchase();
+        });
+      }
+      if (!window.__csmFallbackSupplierListenerSet) {
+        window.__csmFallbackSupplierListenerSet = true;
+        window.supplierRef.on('value', function(snap) {
+          var data = snap.val() || {};
+          if (typeof window.supplierRecs !== 'undefined') {
+            window.supplierRecs = Object.keys(data).map(function(k) {
+              var item = data[k] || {};
+              item.id = k;
+              if (!item.status) item.status = 'draft';
+              return item;
+            });
+          }
+          if (typeof window.isSupplier !== 'undefined' && window.isSupplier && typeof window.renderSupplierTable === 'function') {
+            window.renderSupplierTable();
+          }
+        });
+      }
     } catch(e) { console.error('[CSM-POST] data refs setup error:', e); }
   }
   function verify() {

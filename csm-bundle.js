@@ -1010,6 +1010,7 @@ function renderUserList(users) {
   html += '<tr style="background:#f5f5f5">';
   html += '<th style="padding:8px;text-align:left;border:1px solid #ddd">邮箱</th>';
   html += '<th style="padding:8px;text-align:center;border:1px solid #ddd">角色</th>';
+  html += '<th style="padding:8px;text-align:left;border:1px solid #ddd">供应商名称</th>';
   html += '<th style="padding:8px;text-align:center;border:1px solid #ddd">操作</th>';
   html += '</tr>';
   users.forEach(function(user) {
@@ -1018,13 +1019,20 @@ function renderUserList(users) {
     html += '<tr style="' + bgStyle + '">';
     html += '<td style="padding:8px;border:1px solid #ddd">' + (user.email || 'N/A') + (isCurrentUser ? ' <span style="color:#00bfff;font-size:11px">(当前)</span>' : '') + '</td>';
     html += '<td style="padding:8px;text-align:center;border:1px solid #ddd">';
-    html += '<select id="role-' + user.uid + '" onchange="changeUserRole(\'' + user.uid + '\', this.value)" style="padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px">';
+    html += '<select id="role-' + user.uid + '" onchange="toggleUserSupplierNameInput(\'' + user.uid + '\', this.value)" style="padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px">';
     html += '<option value="admin"' + (user.role === 'admin' ? ' selected' : '') + '>管理员</option>';
     html += '<option value="logistics"' + (user.role === 'logistics' ? ' selected' : '') + '>物流公司</option>';
+    html += '<option value="supplier"' + (user.role === 'supplier' ? ' selected' : '') + '>供应商</option>';
     html += '</select>';
     html += '</td>';
+    if (user.role === 'supplier') {
+      html += '<td style="padding:8px;border:1px solid #ddd"><input id="supplier-name-' + user.uid + '" type="text" value="' + (user.supplierName || '') + '" placeholder="输入供应商名称" style="width:100%;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px"></td>';
+    } else {
+      html += '<td style="padding:8px;border:1px solid #ddd"><input id="supplier-name-' + user.uid + '" type="text" value="' + (user.supplierName || '') + '" placeholder="输入供应商名称" style="display:none;width:100%;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px"><span id="supplier-name-placeholder-' + user.uid + '" style="color:#999;font-size:12px">-</span></td>';
+    }
     html += '<td style="padding:8px;text-align:center;border:1px solid #ddd">';
     if (!isCurrentUser) {
+      html += '<button onclick="changeUserRole(\'' + user.uid + '\')" style="padding:4px 8px;background:#4CAF50;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;margin-right:6px">保存</button>';
       html += '<button onclick="deleteUser(\'' + user.uid + '\', \'' + (user.email || '') + '\')" style="padding:4px 8px;background:#cc0000;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px">删除</button>';
     } else {
       html += '<span style="color:#999;font-size:12px">-</span>';
@@ -1035,11 +1043,26 @@ function renderUserList(users) {
   html += '</table>';
   container.innerHTML = html;
 }
+function toggleUserSupplierNameInput(uid, role) {
+  var input = gid('supplier-name-' + uid);
+  var placeholder = gid('supplier-name-placeholder-' + uid);
+  if (input) input.style.display = role === 'supplier' ? 'block' : 'none';
+  if (placeholder) placeholder.style.display = role === 'supplier' ? 'none' : 'inline';
+}
 // 修改用户角色
-function changeUserRole(uid, newRole) {
-  firebase.database().ref('csm_users/' + uid).update({
+function changeUserRole(uid) {
+  var roleEl = gid('role-' + uid);
+  var supplierNameEl = gid('supplier-name-' + uid);
+  var newRole = roleEl ? roleEl.value : 'logistics';
+  var updates = {
     role: newRole
-  }).then(function() {
+  };
+  if (newRole === 'supplier') {
+    updates.supplierName = supplierNameEl ? (supplierNameEl.value || '').trim() : '';
+  } else {
+    updates.supplierName = '';
+  }
+  firebase.database().ref('csm_users/' + uid).update(updates).then(function() {
     toast('✅ 用户角色已更新', 'ok');
     loadUserList();
   }).catch(function(error) {

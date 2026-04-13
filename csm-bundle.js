@@ -1384,3 +1384,4 @@ try { window.renderLogisticsTable = renderLogisticsTable; } catch (e) {}
 try { window.showAdminView = showAdminView; } catch (e) {}
 try { window.showLogisticsView = showLogisticsView; } catch (e) {}
 try { window.showSupplierView = showSupplierView; } catch (e) {}
+try { window.migrateSupplierRecordOwners = migrateSupplierRecordOwners; } catch (e) {}

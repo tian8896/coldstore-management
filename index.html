@@ -201,7 +201,30 @@ tr:hover td{background:rgba(0,191,255,.03)}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260413i" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序 csm-bundle.js 加载失败（网络/CORS/拦截）。请换网络、关广告拦截或刷新。控制台应出现 Failed to load script。';el.style.display='block';}})()"></script>
+<script>
+(function(){
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', './csm-bundle.js?v=20260413j', false);
+  try { xhr.send(); } catch(e) {
+    console.error('[CSM-LOADER] fetch failed:', e);
+    var el = document.getElementById('login-error');
+    if (el) { el.textContent = '主程序加载失败，请刷新页面。'; el.style.display = 'block'; }
+    return;
+  }
+  if (xhr.status === 200) {
+    try {
+      (0, eval)(xhr.responseText);
+      console.log('[CSM-LOADER] eval OK. swTab=', typeof window.swTab, 'initApp=', typeof window.initApp, 'gid=', typeof window.gid);
+    } catch(e) {
+      console.error('[CSM-LOADER] eval error:', e);
+    }
+  } else {
+    console.error('[CSM-LOADER] HTTP', xhr.status);
+    var el2 = document.getElementById('login-error');
+    if (el2) { el2.textContent = '主程序 csm-bundle.js 加载失败 (HTTP ' + xhr.status + ')'; el2.style.display = 'block'; }
+  }
+})();
+</script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {

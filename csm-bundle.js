@@ -444,10 +444,20 @@ Object.keys(cnGroups).sort().forEach(function(cn) {    var group = cnGroups[cn];
 // 应用搜索筛选    
 if (!matchSearchFilters(inRec)) return;    var startDate = new Date(inRec.arr);    var endDate = outRecs.length > 0 ? new Date(outRecs[outRecs.length - 1].dep) : new Date();    var totalFee = 0;    var currentDate = new Date(startDate);    var weekNum = 1;    var palletsAtWeekStart = inRec.pallets;    var itemsOutSoFar = 0;    var palletsOutSoFar = 0;    var firstLoop = true;    while (firstLoop || (currentDate <= endDate && outRecs.length > 0)) {      firstLoop = false;      var weekStart = new Date(currentDate);      var weekEnd = new Date(weekStart);      weekEnd.setDate(weekEnd.getDate() + 6);      var prevPallets = palletsAtWeekStart;      var rate = getRateByStore(inRec.store);      var amount = prevPallets > 0 ? (prevPallets * rate) : 0;      var vat = amount * VAT_RATE;      var weeklyTotal = amount + vat;      if (weeklyTotal > 0) totalFee += weeklyTotal;      var startStr = (weekStart.getMonth() + 1) + '/' + weekStart.getDate();      var endStr = (weekEnd.getMonth() + 1) + '/' + weekEnd.getDate();      var weekLabel = '第' + weekNum + '周 (' + startStr + '-' + endStr + ')';      var weekOutPallets = 0;      var weekOutItems = 0;      outRecs.forEach(function(or) {        var od = new Date(or.dep);        if (od >= weekStart && od <= weekEnd) {          weekOutPallets += or.pallets_out;          weekOutItems += or.items_out;        }      });      palletsAtWeekStart = Math.max(0, palletsAtWeekStart - weekOutPallets);      var isLastWeek = palletsAtWeekStart === 0;      var displayPallets = prevPallets > 0 ? prevPallets : 0;      var displayOutPallets = weekOutPallets > 0 ? weekOutPallets : 0;      var displayOutItems = weekOutItems > 0 ? weekOutItems : 0;      var displayInItems = weekNum === 1 ? inRec.items : 0;      var remainingItemsAtWeekStart = isLastWeek ? 0 : (inRec.items - itemsOutSoFar);      data.push([        inRec.seq || '-',        inRec.cn,        inRec.supplier || '-',        inRec.product || '-',        weekLabel,        displayPallets,        displayOutPallets,        displayOutItems,        remainingItemsAtWeekStart,        displayInItems,        prevPallets > 0 ? rate.toFixed(2) : '-',        prevPallets > 0 ? amount.toFixed(2) : '-',        prevPallets > 0 ? vat.toFixed(2) : '-',        totalFee.toFixed(2)      ]);      currentDate = new Date(weekEnd);      currentDate.setDate(currentDate.getDate() + 1);      weekNum++;    }  });  
 // 导出为 CSV  
-var csvContent = '\uFEFF'; 
+var csvContent = '\uFEFF';
 // BOM for Excel
-data.forEach(
-function(row) {    csvContent += row.map(function(cell) {      return '"' + String(cell).replace(/"/g, '""') + '"';    }).join(',') + '\n';  });  var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });  var link = document.createElement('a');  link.href = URL.createObjectURL(blob);  link.download = '出库记录_' + new Date().toISOString().slice(0, 10) + '.csv';  link.click();  toast('✅ 导出成功', 'ok');}
+data.forEach(function(row) {
+  csvContent += row.map(function(cell) {
+    return '"' + String(cell).replace(/"/g, '""') + '"';
+  }).join(',') + '\n';
+});
+var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+var link = document.createElement('a');
+link.href = URL.createObjectURL(blob);
+link.download = '出库记录_' + new Date().toISOString().slice(0, 10) + '.csv';
+link.click();
+toast('✅ 导出成功', 'ok');
+}
 // ============================================================
 // DETAIL MODAL
 // ============================================================
@@ -487,11 +497,230 @@ var PURCHASE_KEY = 'csm_purchase_v1';var purchaseRecs = [];// 供应商采购记
 // ============================================================
 // SETTINGS - Supplier & Product Management
 // ============================================================
-var SETTINGS_KEY = 'csm_settings_v1';var settData = { suppliers: [], products: [] };function loadSettings() {  try {    var stored = localStorage.getItem(SETTINGS_KEY);    if (stored) {      settData = JSON.parse(stored);    } else {      // 添加默认示例数据      settData = {        suppliers: ['ABC Trading', 'XYZ Imports', 'Fresh Farm Co'],        products: ['Carrots', 'Potatoes', 'Onions', 'Tomatoes']      };      saveSettings();    }  } catch(e) { settData = { suppliers: [], products: [] }; }}function saveSettings() {  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settData));}function openSettings() {  loadSettings();  renderSettList('supplier');  renderSettList('product');  loadRatesToSettings();  loadUserList(); // 加载 Firebase 用户列表  gid('settingsModal').classList.add('sh');}function clSettings() {  gid('settingsModal').classList.remove('sh');}
+var SETTINGS_KEY = 'csm_settings_v1';
+var settData = { suppliers: [], products: [] };
+function loadSettings() {
+  try {
+    var stored = localStorage.getItem(SETTINGS_KEY);
+    if (stored) {
+      settData = JSON.parse(stored);
+    } else {
+      settData = {
+        suppliers: ['ABC Trading', 'XYZ Imports', 'Fresh Farm Co'],
+        products: ['Carrots', 'Potatoes', 'Onions', 'Tomatoes']
+      };
+      saveSettings();
+    }
+  } catch(e) {
+    settData = { suppliers: [], products: [] };
+  }
+}
+function saveSettings() {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settData));
+}
+function openSettings() {
+  loadSettings();
+  renderSettList('supplier');
+  renderSettList('product');
+  loadRatesToSettings();
+  loadUserList();
+  gid('settingsModal').classList.add('sh');
+}
+function clSettings() {
+  gid('settingsModal').classList.remove('sh');
+}
 // ============================================================
 // FIREBASE USER MANAGEMENT
 // ============================================================// 加载用户列表
-function loadUserList() {  var usersRef = firebase.database().ref('csm_users');  usersRef.once('value').then(function(snap) {    var users = [];    snap.forEach(function(childSnap) {      var user = childSnap.val();      user.uid = childSnap.key;      users.push(user);    });    renderUserList(users);  });}// 渲染用户列表function renderUserList(users) {  var container = gid('user-list');  if (!container) return;    if (users.length === 0) {    container.innerHTML = '<div style="color:#999;font-size:13px;text-align:center;padding:20px">暂无用户</div>';    return;  }    var html = '<table style="width:100%;border-collapse:collapse;font-size:12px">';  html += '<tr style="background:#f5f5f5">';  html += '<th style="padding:8px;text-align:left;border:1px solid #ddd">邮箱</th>';  html += '<th style="padding:8px;text-align:center;border:1px solid #ddd">角色</th>';  html += '<th style="padding:8px;text-align:center;border:1px solid #ddd">操作</th>';  html += '</tr>';    users.forEach(function(user) {    var roleText = user.role === 'admin' ? '管理员' : '物流公司';    var roleClass = user.role === 'admin' ? 'bdg-a' : 'bdg-d';    var isCurrentUser = user.uid === currentUser;    var bgStyle = isCurrentUser ? 'background:#fff8e1' : '';        html += '<tr style="' + bgStyle + '">';    html += '<td style="padding:8px;border:1px solid #ddd">' + (user.email || 'N/A') + (isCurrentUser ? ' <span style="color:#00bfff;font-size:11px">(当前)</span>' : '') + '</td>';    html += '<td style="padding:8px;text-align:center;border:1px solid #ddd">';    html += '<select id="role-' + user.uid + '" onchange="changeUserRole(\'' + user.uid + '\', this.value)" style="padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px">';    html += '<option value="admin"' + (user.role === 'admin' ? ' selected' : '') + '>管理员</option>';    html += '<option value="logistics"' + (user.role === 'logistics' ? ' selected' : '') + '>物流公司</option>';    html += '</select>';    html += '</td>';    html += '<td style="padding:8px;text-align:center;border:1px solid #ddd">';    if (!isCurrentUser) {      html += '<button onclick="deleteUser(\'' + user.uid + '\', \'' + (user.email || '') + '\')" style="padding:4px 8px;background:#cc0000;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px">删除</button>';    } else {      html += '<span style="color:#999;font-size:12px">-</span>';    }    html += '</td>';    html += '</tr>';  });    html += '</table>';  container.innerHTML = html;}// 修改用户角色function changeUserRole(uid, newRole) {  firebase.database().ref('csm_users/' + uid).update({    role: newRole  }).then(function() {    toast('✅ 用户角色已更新', 'ok');    loadUserList(); // 刷新列表  }).catch(function(error) {    console.error('Error updating role:', error);    toast('❌ 更新失败', 'err');  });}// 删除用户function deleteUser(uid, email) {  if (!confirm('确认删除用户 ' + (email || uid) + '？\n\n注意：此操作不会删除 Firebase Authentication 账号，只会移除用户角色信息。')) {    return;  }    firebase.database().ref('csm_users/' + uid).remove()    .then(function() {      toast('✅ 用户已删除', 'ok');      loadUserList(); // 刷新列表    })    .catch(function(error) {      console.error('Error deleting user:', error);      toast('❌ 删除失败', 'err');    });}// 创建新用户（仅管理员可用）function createUser() {  if (!isAdmin) {    toast('需要管理员权限', 'err');    return;  }  var email = (gid('new-user-email').value || '').trim();  var password = (gid('new-user-password').value || '').trim();  var role = gid('new-user-role').value || 'logistics';  var supplierName = (gid('new-user-supplier-name') || {value:''}).value.trim();  var errorEl = gid('create-user-error');  // 清空错误提示  if (errorEl) errorEl.style.display = 'none';  // 验证输入  if (!email) {    if (errorEl) { errorEl.textContent = '请输入邮箱'; errorEl.style.display = 'block'; }    return;  }  if (!password || password.length < 6) {    if (errorEl) { errorEl.textContent = '密码至少6位'; errorEl.style.display = 'block'; }    return;  }  if (role === 'supplier' && !supplierName) {    if (errorEl) { errorEl.textContent = '供应商名称不能为空'; errorEl.style.display = 'block'; }    return;  }  var roleLabel = role === 'admin' ? '管理员' : (role === 'logistics' ? '物流公司' : '供应商');  // 使用 Firebase Auth 创建账号  auth.createUserWithEmailAndPassword(email, password)    .then(function(userCredential) {      var uid = userCredential.user.uid;      // 创建用户角色记录      var userData = {        email: email,        role: role,        createdAt: firebase.database.ServerValue.TIMESTAMP      };      if (role === 'supplier') {        userData.supplierName = supplierName;      }      firebase.database().ref('csm_users/' + uid).set(userData).then(function() {        toast('✅ 用户创建成功: ' + email + ' (' + roleLabel + ')', 'ok');        gid('new-user-email').value = '';        gid('new-user-password').value = '';        loadUserList(); // 刷新列表      }).catch(function(error) {        console.error('Error saving user role:', error);        toast('❌ 用户已创建但角色设置失败，请手动设置', 'err');        loadUserList();      });    })    .catch(function(error) {      console.error('Firebase Auth: Create user failed', error);      var errorMsg = '创建失败';      if (error.code === 'auth/email-already-in-use') {        errorMsg = '该邮箱已被注册';      } else if (error.code === 'auth/invalid-email') {        errorMsg = '邮箱格式错误';      } else if (error.code === 'auth/weak-password') {        errorMsg = '密码强度不足（至少6位）';      }      if (errorEl) { errorEl.textContent = errorMsg; errorEl.style.display = 'block'; }    });}function addSettItem(type) {  var inputId = 'sett-' + type + '-input';  var val = (gid(inputId).value || '').trim();  if (!val) return;  // 首字母大写格式  val = val.toLowerCase().replace(/\b\w/g, function(c) { return c.toUpperCase(); });  var list = type === 'supplier' ? settData.suppliers : settData.products;  if (list.indexOf(val) !== -1) {    toast('已存在: ' + val, 'err');    return;  }  if (!confirm('确认添加 ' + (type === 'supplier' ? '供应商' : '品名') + ': ' + val + ' ？')) return;  list.push(val);  saveSettings();  gid(inputId).value = '';  renderSettList(type);  toast('✅ 已添加: ' + val, 'ok');}function delSettItem(type, val) {  if (!confirm('确认删除 ' + (type === 'supplier' ? '供应商' : '品名') + ': ' + val + ' ？')) return;  if (type === 'supplier') {    settData.suppliers = settData.suppliers.filter(function(s) { return s !== val; });  } else {    settData.products = settData.products.filter(function(s) { return s !== val; });  }  saveSettings();  renderSettList(type);  toast('✅ 已删除: ' + val, 'ok');}function renderSettList(type) {  var listId = 'sett-' + type + '-list';  var el = gid(listId);  if (!el) return;  var items = type === 'supplier' ? settData.suppliers : settData.products;  if (items.length === 0) {    el.innerHTML = '<div style="color:#999;font-size:12px;padding:4px">暂无数据 / No data</div>';    return;  }  el.innerHTML = items.map(function(item) {    return '<span class="sett-tag">' + item + ' <span class="del" onclick="delSettItem(\'' + type + '\',\'' + item.replace(/'/g, "\\'") + '\')">✕</span></span>';  }).join('');}
+function loadUserList() {
+  var usersRef = firebase.database().ref('csm_users');
+  usersRef.once('value').then(function(snap) {
+    var users = [];
+    snap.forEach(function(childSnap) {
+      var user = childSnap.val();
+      user.uid = childSnap.key;
+      users.push(user);
+    });
+    renderUserList(users);
+  });
+}
+// 渲染用户列表
+function renderUserList(users) {
+  var container = gid('user-list');
+  if (!container) return;
+  if (users.length === 0) {
+    container.innerHTML = '<div style="color:#999;font-size:13px;text-align:center;padding:20px">暂无用户</div>';
+    return;
+  }
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:12px">';
+  html += '<tr style="background:#f5f5f5">';
+  html += '<th style="padding:8px;text-align:left;border:1px solid #ddd">邮箱</th>';
+  html += '<th style="padding:8px;text-align:center;border:1px solid #ddd">角色</th>';
+  html += '<th style="padding:8px;text-align:center;border:1px solid #ddd">操作</th>';
+  html += '</tr>';
+  users.forEach(function(user) {
+    var isCurrentUser = user.uid === currentUser;
+    var bgStyle = isCurrentUser ? 'background:#fff8e1' : '';
+    html += '<tr style="' + bgStyle + '">';
+    html += '<td style="padding:8px;border:1px solid #ddd">' + (user.email || 'N/A') + (isCurrentUser ? ' <span style="color:#00bfff;font-size:11px">(当前)</span>' : '') + '</td>';
+    html += '<td style="padding:8px;text-align:center;border:1px solid #ddd">';
+    html += '<select id="role-' + user.uid + '" onchange="changeUserRole(\'' + user.uid + '\', this.value)" style="padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px">';
+    html += '<option value="admin"' + (user.role === 'admin' ? ' selected' : '') + '>管理员</option>';
+    html += '<option value="logistics"' + (user.role === 'logistics' ? ' selected' : '') + '>物流公司</option>';
+    html += '</select>';
+    html += '</td>';
+    html += '<td style="padding:8px;text-align:center;border:1px solid #ddd">';
+    if (!isCurrentUser) {
+      html += '<button onclick="deleteUser(\'' + user.uid + '\', \'' + (user.email || '') + '\')" style="padding:4px 8px;background:#cc0000;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px">删除</button>';
+    } else {
+      html += '<span style="color:#999;font-size:12px">-</span>';
+    }
+    html += '</td>';
+    html += '</tr>';
+  });
+  html += '</table>';
+  container.innerHTML = html;
+}
+// 修改用户角色
+function changeUserRole(uid, newRole) {
+  firebase.database().ref('csm_users/' + uid).update({
+    role: newRole
+  }).then(function() {
+    toast('✅ 用户角色已更新', 'ok');
+    loadUserList();
+  }).catch(function(error) {
+    console.error('Error updating role:', error);
+    toast('❌ 更新失败', 'err');
+  });
+}
+// 删除用户
+function deleteUser(uid, email) {
+  if (!confirm('确认删除用户 ' + (email || uid) + '？\n\n注意：此操作不会删除 Firebase Authentication 账号，只会移除用户角色信息。')) {
+    return;
+  }
+  firebase.database().ref('csm_users/' + uid).remove()
+    .then(function() {
+      toast('✅ 用户已删除', 'ok');
+      loadUserList();
+    })
+    .catch(function(error) {
+      console.error('Error deleting user:', error);
+      toast('❌ 删除失败', 'err');
+    });
+}
+// 创建新用户（仅管理员可用）
+function createUser() {
+  if (!isAdmin) {
+    toast('需要管理员权限', 'err');
+    return;
+  }
+  var email = (gid('new-user-email').value || '').trim();
+  var password = (gid('new-user-password').value || '').trim();
+  var role = gid('new-user-role').value || 'logistics';
+  var supplierName = (gid('new-user-supplier-name') || {value:''}).value.trim();
+  var errorEl = gid('create-user-error');
+  if (errorEl) errorEl.style.display = 'none';
+  if (!email) {
+    if (errorEl) {
+      errorEl.textContent = '请输入邮箱';
+      errorEl.style.display = 'block';
+    }
+    return;
+  }
+  if (!password || password.length < 6) {
+    if (errorEl) {
+      errorEl.textContent = '密码至少6位';
+      errorEl.style.display = 'block';
+    }
+    return;
+  }
+  if (role === 'supplier' && !supplierName) {
+    if (errorEl) {
+      errorEl.textContent = '供应商名称不能为空';
+      errorEl.style.display = 'block';
+    }
+    return;
+  }
+  var roleLabel = role === 'admin' ? '管理员' : (role === 'logistics' ? '物流公司' : '供应商');
+  auth.createUserWithEmailAndPassword(email, password)
+    .then(function(userCredential) {
+      var uid = userCredential.user.uid;
+      var userData = {
+        email: email,
+        role: role,
+        createdAt: firebase.database.ServerValue.TIMESTAMP
+      };
+      if (role === 'supplier') {
+        userData.supplierName = supplierName;
+      }
+      firebase.database().ref('csm_users/' + uid).set(userData).then(function() {
+        toast('✅ 用户创建成功: ' + email + ' (' + roleLabel + ')', 'ok');
+        gid('new-user-email').value = '';
+        gid('new-user-password').value = '';
+        loadUserList();
+      }).catch(function(error) {
+        console.error('Error saving user role:', error);
+        toast('❌ 用户已创建但角色设置失败，请手动设置', 'err');
+        loadUserList();
+      });
+    })
+    .catch(function(error) {
+      console.error('Firebase Auth: Create user failed', error);
+      var errorMsg = '创建失败';
+      if (error.code === 'auth/email-already-in-use') {
+        errorMsg = '该邮箱已被注册';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMsg = '邮箱格式错误';
+      } else if (error.code === 'auth/weak-password') {
+        errorMsg = '密码强度不足（至少6位）';
+      }
+      if (errorEl) {
+        errorEl.textContent = errorMsg;
+        errorEl.style.display = 'block';
+      }
+    });
+}
+function addSettItem(type) {
+  var inputId = 'sett-' + type + '-input';
+  var val = (gid(inputId).value || '').trim();
+  if (!val) return;
+  val = val.toLowerCase().replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+  var list = type === 'supplier' ? settData.suppliers : settData.products;
+  if (list.indexOf(val) !== -1) {
+    toast('已存在: ' + val, 'err');
+    return;
+  }
+  if (!confirm('确认添加 ' + (type === 'supplier' ? '供应商' : '品名') + ': ' + val + ' ？')) return;
+  list.push(val);
+  saveSettings();
+  gid(inputId).value = '';
+  renderSettList(type);
+  toast('✅ 已添加: ' + val, 'ok');
+}
+function delSettItem(type, val) {
+  if (!confirm('确认删除 ' + (type === 'supplier' ? '供应商' : '品名') + ': ' + val + ' ？')) return;
+  if (type === 'supplier') {
+    settData.suppliers = settData.suppliers.filter(function(s) { return s !== val; });
+  } else {
+    settData.products = settData.products.filter(function(s) { return s !== val; });
+  }
+  saveSettings();
+  renderSettList(type);
+  toast('✅ 已删除: ' + val, 'ok');
+}
+function renderSettList(type) {
+  var listId = 'sett-' + type + '-list';
+  var el = gid(listId);
+  if (!el) return;
+  var items = type === 'supplier' ? settData.suppliers : settData.products;
+  if (items.length === 0) {
+    el.innerHTML = '<div style="color:#999;font-size:12px;padding:4px">暂无数据 / No data</div>';
+    return;
+  }
+  el.innerHTML = items.map(function(item) {
+    return '<span class="sett-tag">' + item + ' <span class="del" onclick="delSettItem(\'' + type + '\',\'' + item.replace(/'/g, "\\'") + '\')">✕</span></span>';
+  }).join('');
+}
 // ============================================================
 // EDIT PURCHASE RECORD
 // ============================================================

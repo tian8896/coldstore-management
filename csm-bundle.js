@@ -136,4 +136,12 @@ function closeUserManagement() {
   }
 })();
 window.__csmRealDoLogin=doLogin;
+window.firebaseConfig=firebaseConfig;
+window.initApp=initApp;
+window.initFirebase=initFirebase;
+window.showLoginModal=showLoginModal;
+window.doRegister=doRegister;
+window.doLogout=doLogout;
+window.doGoogleLogin=doGoogleLogin;
 window.__csmMainScriptRan=1;
+console.log('[CSM] bundle ready. firebaseConfig=', !!firebaseConfig, 'initApp=', typeof initApp);

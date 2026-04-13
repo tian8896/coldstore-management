@@ -119,12 +119,7 @@ function closeUserManagement() {
   if (!b || b.dataset.csmWired) return;
   b.dataset.csmWired = '1';
   function tryLogin() {
-    var real = window.__csmRealDoLogin;
-    if (typeof real === 'function') {
-      real();
-      return;
-    }
-    if (typeof window.doLogin === 'function') window.doLogin();
+    doLogin();
   }
   b.addEventListener('click', function (e) {
     e.preventDefault();
@@ -140,4 +135,5 @@ function closeUserManagement() {
     });
   }
 })();
+window.__csmRealDoLogin=doLogin;
 window.__csmMainScriptRan=1;

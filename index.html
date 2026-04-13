@@ -121,6 +121,15 @@ tr:hover td{background:rgba(0,191,255,.03)}
 .sett-tag{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:#e8f4ff;border:1px solid #b8d8f8;border-radius:4px;margin:3px;font-size:12px;color:#0066cc}
 .sett-tag .del{cursor:pointer;color:#cc0000;font-weight:bold;margin-left:4px}
 .sett-tag .del:hover{color:#990000}
+.portal-shell{display:none;padding:12px 36px;background:var(--bg3);border-bottom:1px solid var(--bd)}
+.portal-shell .portal-btn-row{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch}
+.portal-app-btn{flex:0 0 auto;min-width:140px;padding:10px 16px;border:2px solid var(--bd);border-radius:6px;background:var(--bg2);color:var(--tx2);font-weight:bold;cursor:pointer;transition:all .2s;font-size:12px;font-family:'Courier New',Courier,monospace;text-align:center;line-height:1.35}
+.portal-app-btn:hover{border-color:var(--ice);color:var(--ice)}
+.portal-app-btn.ac{border-color:var(--ice);background:rgba(0,191,255,0.12);color:var(--ice)}
+.portal-suite{display:block}
+.portal-placeholder{min-height:calc(100vh - 200px);padding:40px 36px;max-width:920px}
+.portal-placeholder h2{font-size:20px;color:var(--ice);letter-spacing:2px;margin-bottom:12px;text-transform:uppercase}
+.portal-placeholder p{color:var(--tx2);line-height:1.75;font-size:14px;margin-bottom:10px}
 </style>
 </head>
 <body>
@@ -201,7 +210,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260414a" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260414b" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -504,8 +513,8 @@ tr:hover td{background:rgba(0,191,255,.03)}
 <header>
   <div style="display:flex;justify-content:space-between;align-items:center;position:relative;z-index:10">
     <div>
-      <h1>🧊 迪拜大丰收冷库管理系统</h1>
-      <p>Super Harvest Cold Store Management System - Warehouse 1</p>
+      <h1 id="headerTitle">🧊 迪拜大丰收冷库管理系统</h1>
+      <p id="headerSubtitle">Super Harvest Cold Store Management System - Warehouse 1</p>
     </div>
     <div style="display:flex;gap:12px;position:relative;z-index:1;align-items:center">
       <div class="user-info" id="userInfo" style="background:rgba(0,191,255,0.1);border:1px solid #00bfff;border-radius:5px;padding:8px 14px;font-size:13px;color:#00bfff;display:flex;align-items:center;gap:8px">
@@ -516,12 +525,22 @@ tr:hover td{background:rgba(0,191,255,.03)}
       <button class="btn btn-d" onclick="handleLogout()" title="退出登录">🚪 退出</button>
     </div>
   </div>
-  <div class="hstats" style="position:relative;z-index:1">
+</header>
+
+<div id="adminPortalShell" class="portal-shell" aria-hidden="true">
+  <div class="portal-btn-row">
+    <button type="button" class="portal-app-btn ac" id="portalBtnW1" onclick="switchMainSuite('w1')">Warehouse 1<br><span style="font-size:10px;font-weight:normal;opacity:.85">迪拜冷库主系统</span></button>
+    <button type="button" class="portal-app-btn" id="portalBtnW2" onclick="switchMainSuite('w2')">Warehouse 2<br><span style="font-size:10px;font-weight:normal;opacity:.85">另一冷库 · 独立逻辑</span></button>
+    <button type="button" class="portal-app-btn" id="portalBtnFin" onclick="switchMainSuite('fin')">公司财务<br><span style="font-size:10px;font-weight:normal;opacity:.85">Company Financial</span></button>
+  </div>
+</div>
+
+<div id="suiteWarehouse1" class="portal-suite">
+  <div class="hstats" style="position:relative;z-index:1;padding:14px 36px 0;background:linear-gradient(135deg,#ffffff,#f5f5f5);border-bottom:1px solid var(--ice)">
     <div class="hstat"><div class="v" id="s-total">0</div><div class="l">总入库 Total</div></div>
     <div class="hstat"><div class="v" id="s-pallets">0</div><div class="l">总托盘 Pallets</div></div>
     <div class="hstat"><div class="v" id="s-items">0</div><div class="l">总件数 Items</div></div>
   </div>
-</header>
 
 <div class="main">
 <div class="left">
@@ -836,6 +855,23 @@ tr:hover td{background:rgba(0,191,255,.03)}
     </div>
   </div>
 </div>
+</div>
+</div>
+
+<div id="suiteWarehouse2" class="portal-suite" style="display:none">
+  <div class="portal-placeholder">
+    <h2>Warehouse 2</h2>
+    <p>此处为 <strong>另一座冷库</strong> 的独立管理界面预留入口。后续可接入不同的业务流程、数据库路径或费率规则。</p>
+    <p>This area is reserved for the second cold-store product with its own management logic. Use the <strong>Warehouse 1</strong> button above to return to the current system.</p>
+  </div>
+</div>
+
+<div id="suiteCompanyFinancial" class="portal-suite" style="display:none">
+  <div class="portal-placeholder">
+    <h2>公司财务 · Company Financial</h2>
+    <p>此处预留 <strong>公司级财务管理</strong> 模块（报表、对账、收付款等）。功能开发完成后在同一导航栏一键切换即可。</p>
+    <p>Reserved for company-wide financial workflows. Switch back to <strong>Warehouse 1</strong> when you need cold-store operations.</p>
+  </div>
 </div>
 
 <div class="mov" id="modal">

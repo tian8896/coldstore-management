@@ -99,9 +99,10 @@ tr:hover td{background:rgba(0,191,255,.03)}
 .login-error{color:var(--rd);font-size:12px;margin-top:12px;text-align:center;display:none}
 .login-error.show{display:block}
 /* LOGIN SLIDER (slide to verify) */
-.login-pass-row{position:relative;display:flex;align-items:center;gap:8px}
-.login-pass-row input{flex:1}
-.login-show-pw{background:none;border:1px solid var(--bd);border-radius:4px;padding:6px 10px;font-size:11px;cursor:pointer;color:var(--ice);white-space:nowrap;font-weight:bold}
+/* 登录弹窗内密码行：必须覆盖 .fg input{width:100%}，否则「显示」按钮被挤出视区 */
+#loginModal .login-pass-row{display:flex;align-items:stretch;gap:8px;width:100%;box-sizing:border-box}
+#loginModal .login-pass-row input{flex:1 1 0;min-width:0;width:auto!important;max-width:none;margin:0}
+#loginModal .login-show-pw{flex:0 0 auto;align-self:center;background:#fff;border:1px solid var(--bd);border-radius:4px;padding:8px 12px;font-size:12px;cursor:pointer;color:var(--ice);white-space:nowrap;font-weight:bold;line-height:1.2}
 .login-show-pw:hover{border-color:var(--ice);background:rgba(0,191,255,0.08)}
 .login-slide-wrap{margin-top:14px;padding:10px 0;border-top:1px dashed var(--bd)}
 .login-slide-label{font-size:11px;color:var(--tx2);margin-bottom:8px;letter-spacing:1px}
@@ -113,6 +114,9 @@ tr:hover td{background:rgba(0,191,255,.03)}
 .login-forgot-row{margin-top:10px;text-align:right}
 .login-forgot-btn{background:none;border:none;color:var(--ac);cursor:pointer;font-size:12px;text-decoration:underline;padding:0}
 .login-forgot-btn:hover{color:var(--ice)}
+.supplier-modal-grid .fg label{font-weight:bold;color:#333}
+.supplier-modal-grid .fg input,.supplier-modal-grid .fg select{font-weight:bold;color:#111;background:#fff}
+.supplier-modal-grid .fg input::placeholder{color:#888;opacity:1}
 /* EDITABLE TABLE */
 .edt{width:70px;background:var(--bg4);border:1px solid var(--bd);border-radius:3px;padding:4px 6px;color:var(--tx);font-family:'Courier New',monospace;font-size:13px;text-align:right;outline:none}
 .edt:focus{border-color:var(--ac);background:#fff}
@@ -157,8 +161,8 @@ tr:hover td{background:rgba(0,191,255,.03)}
     </div>
     <div class="fg"><label>密码 Password</label>
       <div class="login-pass-row">
-        <input type="password" id="login-password" placeholder="输入密码" autocomplete="current-password" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px">
-        <button type="button" class="login-show-pw" id="btn-login-show-pw" onclick="togglePassword()" title="显示/隐藏密码">显示</button>
+        <input type="password" id="login-password" placeholder="输入密码" autocomplete="current-password" style="padding:10px;border:1px solid #ddd;border-radius:4px">
+        <button type="button" class="login-show-pw" id="btn-login-show-pw" onclick="csmToggleLoginPassword()" title="显示/隐藏密码">显示</button>
       </div>
     </div>
     <div class="login-slide-wrap">
@@ -184,6 +188,22 @@ tr:hover td{background:rgba(0,191,255,.03)}
 <script>window.__csmDirPath = '/coldstore-management/';</script>
 <script>
 (function () {
+  window.csmToggleLoginPassword = function () {
+    var p = document.getElementById('login-password');
+    var b = document.getElementById('btn-login-show-pw');
+    if (!p) return;
+    if (typeof window.togglePassword === 'function') {
+      window.togglePassword();
+      return;
+    }
+    if (p.type === 'password') {
+      p.type = 'text';
+      if (b) b.textContent = '隐藏';
+    } else {
+      p.type = 'password';
+      if (b) b.textContent = '显示';
+    }
+  };
   window.doLogin = function () {
     var gid = function(id) { return document.getElementById(id); };
     var email = (gid('login-username').value || '').trim().toLowerCase();
@@ -243,7 +263,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260414d" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260414e" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -687,6 +707,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <th style="font-family:Arial;font-size:12px">Qty<br><span style="font-size:11px;color:#888">数量</span></th>
     <th style="font-family:Arial;font-size:12px">ETD/ETA<br><span style="font-size:11px;color:#888">船期</span></th>
     <th style="font-family:Arial;font-size:12px">Ship Name<br><span style="font-size:11px;color:#888">船名</span></th>
+    <th style="font-family:Arial;font-size:12px">Ship Company<br><span style="font-size:11px;color:#888">船公司</span></th>
     <th style="font-family:Arial;font-size:12px">B/L No<br><span style="font-size:11px;color:#888">提单号</span></th>
     <th style="font-family:Arial;font-size:12px">Status<br><span style="font-size:11px;color:#888">状态</span></th>
     <th style="font-family:Arial;font-size:12px">Action<br><span style="font-size:11px;color:#888">操作</span></th>
@@ -698,7 +719,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
 <div class="mov" id="supplierModal">
   <div class="mdl" style="width:520px">
     <h3 id="supplier-modal-title">📦 添加采购记录 / Add Purchase Record</h3>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div class="supplier-modal-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div class="fg"><label>集装箱号 Container No. *</label>
         <input type="text" id="supplier-cn" placeholder="输入集装箱号码" maxlength="11" style="text-transform:uppercase" autocomplete="off">
       </div>
@@ -709,14 +730,20 @@ tr:hover td{background:rgba(0,191,255,.03)}
       <div class="fg"><label>供应商 Supplier *</label>
         <input type="text" id="supplier-supplier" placeholder="输入供应商名称" autocomplete="off">
       </div>
-      <div class="fg"><label>品名 Product *</label>
-        <input type="text" id="supplier-product" placeholder="输入品名" autocomplete="off">
+      <div class="fg" style="position:relative"><label>品名 Product *</label>
+        <input type="text" id="supplier-product" placeholder="输入品名" autocomplete="off" oninput="showSuggest(this,'product')" onfocus="showSuggest(this,'product')" onblur="setTimeout(function(){hideSuggest('product')},200)">
+        <div class="suggest-list" id="suggest-product"></div>
       </div>
-      <div class="fg"><label>数量 Quantity</label>
+      <div class="fg"><label>数量 Quantity *</label>
         <input type="number" id="supplier-qty" placeholder="输入货物数量" min="0" value="">
       </div>
-      <div class="fg"><label>船名 Ship Name</label>
+      <div class="fg"><label>船名 Ship Name *</label>
         <input type="text" id="supplier-shipname" placeholder="输入船名" autocomplete="off">
+      </div>
+      <div class="fg"><label>船公司 Shipping Company *</label>
+        <select id="supplier-shipcompany">
+          <option value="">请选择船公司</option>
+        </select>
       </div>
       <div class="fg"><label>提单号 B/L No.</label>
         <input type="text" id="supplier-bl" placeholder="输入提单号" autocomplete="off">
@@ -1058,6 +1085,14 @@ tr:hover td{background:rgba(0,191,255,.03)}
         <button class="sett-add-btn" onclick="addSettItem('product')">+ 添加</button>
       </div>
       <div id="sett-product-list"></div>
+    </div>
+    <div class="sett-section">
+      <h4>🚢 船公司管理 / Shipping Company Management</h4>
+      <div class="sett-row">
+        <input type="text" id="sett-shipcompany-input" placeholder="输入船公司名称" onkeydown="if(event.key==='Enter')addSettItem('shipcompany')">
+        <button class="sett-add-btn" onclick="addSettItem('shipcompany')">+ 添加</button>
+      </div>
+      <div id="sett-shipcompany-list"></div>
     </div>
     <div class="sett-section">
       <h4>💰 冷库费率设置 / Warehouse Rate Settings</h4>

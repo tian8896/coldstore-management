@@ -1,0 +1,19 @@
+---
+description: Push code to GitHub main and sync gh-pages when publishing (Pages site)
+alwaysApply: true
+---
+
+# GitHub 发布：main + gh-pages
+
+本仓库使用 **GitHub Pages**，发布源为 **`gh-pages` 分支**。仅推送 **`main`** 时，线上页面**不会**更新。
+
+当用户要求 **发布 / 推送到 GitHub / deploy / 提交并推送** 等涉及对外部署的操作时，在提交与推送 **`origin/main`** 之后，**必须**继续：
+
+1. `git checkout gh-pages`
+2. `git merge main --ff-only`（若不能快进则 `git merge main -m "merge main for Pages deploy"`）
+3. `git push origin gh-pages`
+4. `git checkout main`
+
+若本地还有未推送的提交，先完成 **`main` 的 push**，再执行上述步骤。
+
+可选：若只改了 `csm-bundle.js` 而未改 `index.html` 里的 `?v=` 版本号，应递增 `index.html` 中脚本查询参数，减轻浏览器缓存导致「页面没变」的问题。

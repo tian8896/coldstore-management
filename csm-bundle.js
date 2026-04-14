@@ -209,16 +209,222 @@ console.log('Firebase Auth: User not logged in');        currentUser = null;    
 toast('✅ Firebase 连接成功', 'ok');  } catch(e) {    console.error('Firebase init error:', e);    window.__csmInitDone = false;    toast('❌ Firebase 连接失败: ' + e.message, 'err');    showLoginModal();  }}
 // 初始化默认账号
 function initDefaultUsers() {  var users = getUsers();  if (Object.keys(users).length === 0) {    users = {      'admin': { password: 'admin123', role: 'admin', name: '管理员' }    };    saveUsers(users);  }}function clearLoginVerifyTimer() {  if (window.__csmLoginVerifyTimer) {    clearTimeout(window.__csmLoginVerifyTimer);    window.__csmLoginVerifyTimer = null;  }}function setLoginVerifyTimer() {  clearLoginVerifyTimer();  window.__csmLoginVerifyTimer = setTimeout(function() {    window.__csmLoginVerifyTimer = null;    if (!auth || typeof firebase === 'undefined' || !firebase.auth().currentUser) return;    var le = gid('login-error');    if (le && /正在验证|验证账号/.test(le.textContent || '')) {      pendingLoginError = '登录验证超时（45秒）。请检查：① Realtime Database 规则是否允许已登录用户读取 csm_users、csm_meta；② Firebase「身份验证 → 设置 → 已授权网域」是否包含当前主机名「' + location.hostname + '」（只填域名，不要带页面路径）；③ Network 里 database 请求是否失败。';      toast('登录验证超时', 'err');      clearLoginVerifyTimer();      auth.signOut();    }  }, 45000);}
+var CSM_SECONDARY_APP_NAME = 'csm_AccountCreateOnly';
+function getSecondaryAuthForUserCreation() {
+  if (typeof firebase === 'undefined' || !firebase.initializeApp) return null;
+  var app;
+  try {
+    app = firebase.app(CSM_SECONDARY_APP_NAME);
+  } catch (e1) {
+    try {
+      app = firebase.initializeApp(firebaseConfig, CSM_SECONDARY_APP_NAME);
+    } catch (e2) {
+      console.error('[CSM] secondary app init failed', e2);
+      return null;
+    }
+  }
+  return app.auth();
+}
+function runChunkedRootUpdate(updates) {
+  var keys = Object.keys(updates);
+  if (keys.length === 0) return Promise.resolve(0);
+  var i = 0;
+  var chunkSize = 180;
+  function nextChunk() {
+    if (i >= keys.length) return Promise.resolve(keys.length);
+    var chunk = {};
+    var end = Math.min(i + chunkSize, keys.length);
+    for (; i < end; i++) chunk[keys[i]] = updates[keys[i]];
+    return firebase.database().ref().update(chunk).then(nextChunk);
+  }
+  return nextChunk();
+}
+function propagateSupplierDisplayName(oldName, newName, ownerUid) {
+  oldName = String(oldName || '').trim();
+  newName = String(newName || '').trim();
+  ownerUid = ownerUid || '';
+  if (!oldName || !newName || oldName === newName) return Promise.resolve();
+  var updates = {};
+  var p1 = supplierRef.once('value').then(function(snap) {
+    snap.forEach(function(ch) {
+      var rec = ch.val() || {};
+      var s = String(rec.supplier || '').trim();
+      var owned = ownerUid && rec.ownerUid === ownerUid;
+      if (owned || s === oldName) {
+        updates['csm_supplier_recs/' + ch.key + '/supplier'] = newName;
+      }
+    });
+  });
+  var p2 = purchaseRef.once('value').then(function(snap) {
+    snap.forEach(function(ch) {
+      var rec = ch.val() || {};
+      if (String(rec.supplier || '').trim() === oldName) {
+        updates['csm_purchase/' + ch.key + '/supplier'] = newName;
+      }
+    });
+  });
+  var p3 = dbRef.once('value').then(function(snap) {
+    snap.forEach(function(ch) {
+      var rec = ch.val() || {};
+      if (String(rec.supplier || '').trim() === oldName) {
+        updates[SK + '/' + ch.key + '/supplier'] = newName;
+      }
+    });
+  });
+  var p4 = legacyDbRef ? legacyDbRef.once('value').then(function(snap) {
+    snap.forEach(function(ch) {
+      var rec = ch.val() || {};
+      if (String(rec.supplier || '').trim() === oldName) {
+        updates[LOCAL_STORAGE_KEY + '/' + ch.key + '/supplier'] = newName;
+      }
+    });
+  }) : Promise.resolve();
+  return Promise.all([p1, p2, p3, p4]).then(function() {
+    return runChunkedRootUpdate(updates).then(function() {
+      try {
+        loadSettings();
+        var ix = settData.suppliers.indexOf(oldName);
+        if (ix !== -1) {
+          settData.suppliers[ix] = newName;
+          saveSettings();
+        }
+      } catch (eLs) {}
+      var nKeys = Object.keys(updates).length;
+      if (nKeys) toast('已同步更新 ' + nKeys + ' 处供应商名称', 'ok');
+      if (typeof renderPurchase === 'function' && (isAdmin || isLogistics)) renderPurchase();
+      if (typeof renderSupplierTable === 'function' && isSupplier) renderSupplierTable();
+      if (typeof renderAll === 'function') renderAll();
+    });
+  }).catch(function(err) {
+    console.error('propagateSupplierDisplayName', err);
+    toast('供应商名称已保存，但同步业务表失败: ' + (err.message || err), 'err');
+  });
+}
+function resetLoginSliderState() {
+  window.__csmLoginSlideVerified = false;
+  var thumb = gid('login-slide-thumb');
+  var fill = gid('login-slide-fill');
+  var track = gid('login-slide-track');
+  var hint = gid('login-slide-hint');
+  if (thumb) {
+    thumb.style.left = '2px';
+    thumb.classList.remove('ok');
+    thumb.textContent = '⟩⟩⟩';
+  }
+  if (fill) fill.style.width = '0';
+  if (hint) hint.textContent = '完成滑动后方可点击登录';
+}
+function initLoginSliderOnce() {
+  if (window.__csmLoginSliderInited) return;
+  window.__csmLoginSliderInited = true;
+  var track = gid('login-slide-track');
+  var thumb = gid('login-slide-thumb');
+  var fill = gid('login-slide-fill');
+  var hint = gid('login-slide-hint');
+  if (!track || !thumb) return;
+  var dragging = false;
+  var startX = 0;
+  var startLeft = 0;
+  function maxLeft() {
+    return Math.max(0, track.offsetWidth - thumb.offsetWidth - 4);
+  }
+  function setPos(leftPx) {
+    var maxL = maxLeft();
+    var x = Math.max(2, Math.min(maxL + 2, leftPx));
+    thumb.style.left = x + 'px';
+    if (fill) fill.style.width = Math.max(0, x - 2 + thumb.offsetWidth * 0.25) + 'px';
+    if (maxL <= 0) return;
+    if (x - 2 >= maxL * 0.92) {
+      window.__csmLoginSlideVerified = true;
+      thumb.classList.add('ok');
+      thumb.textContent = '✓';
+      if (hint) hint.textContent = '验证通过，可点击登录';
+    } else {
+      window.__csmLoginSlideVerified = false;
+      thumb.classList.remove('ok');
+      thumb.textContent = '⟩⟩⟩';
+      if (hint) hint.textContent = '完成滑动后方可点击登录';
+    }
+  }
+  function onDown(clientX) {
+    if (window.__csmLoginSlideVerified) return;
+    dragging = true;
+    startX = clientX;
+    startLeft = parseFloat(thumb.style.left) || 2;
+  }
+  function onMove(clientX) {
+    if (!dragging) return;
+    var dx = clientX - startX;
+    setPos(startLeft + dx);
+  }
+  function onUp() {
+    dragging = false;
+    if (!window.__csmLoginSlideVerified) {
+      thumb.style.transition = 'left .2s ease';
+      if (fill) fill.style.transition = 'width .2s ease';
+      setPos(2);
+      setTimeout(function() {
+        thumb.style.transition = '';
+        if (fill) fill.style.transition = '';
+      }, 220);
+    }
+  }
+  thumb.addEventListener('mousedown', function(e) { e.preventDefault(); onDown(e.clientX); });
+  document.addEventListener('mousemove', function(e) { onMove(e.clientX); });
+  document.addEventListener('mouseup', onUp);
+  thumb.addEventListener('touchstart', function(e) { if (e.touches[0]) onDown(e.touches[0].clientX); }, { passive: true });
+  document.addEventListener('touchmove', function(e) { if (e.touches[0]) onMove(e.touches[0].clientX); }, { passive: true });
+  document.addEventListener('touchend', onUp);
+  window.addEventListener('resize', function() { if (!window.__csmLoginSlideVerified) setPos(2); });
+}
+function sendLoginPasswordReset() {
+  var email = (gid('login-username').value || '').trim().toLowerCase();
+  var le = gid('login-error');
+  if (!email) {
+    if (le) { le.textContent = '请先填写邮箱，再点「忘记密码」'; le.style.color = '#cc0000'; le.style.display = 'block'; }
+    return;
+  }
+  if (!auth) {
+    if (le) { le.textContent = 'Firebase 未就绪，请稍候再试'; le.style.display = 'block'; }
+    return;
+  }
+  auth.sendPasswordResetEmail(email).then(function() {
+    toast('重置邮件已发送（若邮箱未注册则无邮件）', 'ok');
+    if (le) { le.style.color = '#0066cc'; le.textContent = '若该邮箱已注册，请查收重置密码邮件。'; le.style.display = 'block'; }
+  }).catch(function(err) {
+    var m = err.message || String(err);
+    if (le) { le.textContent = '发送失败: ' + m; le.style.color = '#cc0000'; le.style.display = 'block'; }
+    toast('发送失败', 'err');
+  });
+}
+function sendUserPasswordResetEmail(email) {
+  var em = String(email || '').trim().toLowerCase();
+  if (!em) { toast('无邮箱', 'err'); return; }
+  if (!auth) { toast('Firebase 未就绪', 'err'); return; }
+  auth.sendPasswordResetEmail(em).then(function() {
+    toast('已向 ' + em + ' 发送重置密码邮件', 'ok');
+  }).catch(function(err) {
+    toast('发送失败: ' + (err.message || err), 'err');
+  });
+}
+function toggleNewUserPassword(isSecond) {
+  var id = isSecond ? 'new-user-password2' : 'new-user-password';
+  var el = gid(id);
+  if (!el) return;
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
 // 显示登录弹窗
-function showLoginModal() {  var modal = gid('loginModal');  if (modal) {    modal.style.display = 'flex';    modal.classList.add('sh');    gid('login-username').value = '';    gid('login-password').value = '';    var le = gid('login-error');    if (pendingLoginError) {      le.textContent = pendingLoginError;      le.style.display = 'block';      le.style.fontWeight = 'bold';      le.style.color = '#cc0000';      pendingLoginError = null;    } else {      le.textContent = '';      le.style.display = 'none';      le.style.fontWeight = '';      le.style.color = '';    }  }}
+function showLoginModal() {  var modal = gid('loginModal');  if (modal) {    modal.style.display = 'flex';    modal.classList.add('sh');    gid('login-username').value = '';    gid('login-password').value = '';    var le = gid('login-error');    if (pendingLoginError) {      le.textContent = pendingLoginError;      le.style.display = 'block';      le.style.fontWeight = 'bold';      le.style.color = '#cc0000';      pendingLoginError = null;    } else {      le.textContent = '';      le.style.display = 'none';      le.style.fontWeight = '';      le.style.color = '';    }    resetLoginSliderState();    initLoginSliderOnce();  }}
 // Firebase Auth 登录处理
-function doLogin() {  var email = (gid('login-username').value || '').trim().toLowerCase();  var password = (gid('login-password').value || '').trim();  if (!email || !password) {    var le1 = gid('login-error');    le1.textContent = '请输入邮箱和密码';    le1.style.color = '#cc0000';    le1.style.display = 'block';    return;  }  gid('login-error').style.display = 'none';  gid('login-error').style.color = '#cc0000';  
+function doLogin() {  var email = (gid('login-username').value || '').trim().toLowerCase();  var password = (gid('login-password').value || '').trim();  if (!email || !password) {    var le1 = gid('login-error');    le1.textContent = '请输入邮箱和密码';    le1.style.color = '#cc0000';    le1.style.display = 'block';    return;  }  if (!window.__csmLoginSlideVerified) {    var le0 = gid('login-error');    le0.textContent = '请先向右滑动完成验证';    le0.style.color = '#cc0000';    le0.style.display = 'block';    return;  }  gid('login-error').style.display = 'none';  gid('login-error').style.color = '#cc0000';  
 // 使用 Firebase Auth 登录  
-if (!auth) {    gid('login-error').textContent = '系统仍在加载 Firebase，请等 1～2 秒后再点登录，或刷新页面';    gid('login-error').style.display = 'block';    toast('请稍候：Firebase 尚未就绪', 'err');    console.warn('auth is null — 页面 load 完成前点击了登录，或脚本未加载');    return;  }  auth.signInWithEmailAndPassword(email, password)    .then(function(userCredential) {      console.log('Firebase Auth: Login success', userCredential.user.email);      var le = gid('login-error');      if (le) {        le.style.color = '#0066cc';        le.textContent = '正在验证账号与权限…';        le.style.display = 'block';      }    })    .catch(function(error) {      console.error('Firebase Auth: Login failed', error);      var errorMsg = '登录失败';      if (error.code === 'auth/user-not-found') {        errorMsg = '用户不存在';      } else if (error.code === 'auth/wrong-password') {        errorMsg = '密码错误';      } else if (error.code === 'auth/invalid-email') {        errorMsg = '邮箱格式错误';      } else if (error.code === 'auth/too-many-requests') {        errorMsg = '尝试次数过多，请稍后再试';      } else if (error.code === 'auth/invalid-credential') {        errorMsg = '邮箱或密码错误';      } else if (error.code === 'auth/network-request-failed') {        errorMsg = '网络错误，请检查网络连接';      } else if (error.code === 'auth/invalid-api-key') {        errorMsg = 'Firebase 配置错误，请联系管理员';      } else if (error.code === 'auth/unauthorized-domain') {        errorMsg = '当前域名未授权：请在 Firebase 控制台 → 身份验证 → 设置 → 已授权网域 中添加本站点域名';      } else if (error.code === 'auth/operation-not-allowed') {        errorMsg = '未启用邮箱/密码登录：请在 Firebase 控制台 → 身份验证 → 登录方法 中启用「电子邮件/密码」';      }      var lec = gid('login-error');      lec.textContent = errorMsg + ' (' + (error.code || 'unknown') + ')';      lec.style.color = '#cc0000';      lec.style.fontWeight = 'bold';      lec.style.display = 'block';      toast(errorMsg, 'err');    });}window.__csmRealDoLogin=doLogin;
+if (!auth) {    gid('login-error').textContent = '系统仍在加载 Firebase，请等 1～2 秒后再点登录，或刷新页面';    gid('login-error').style.display = 'block';    toast('请稍候：Firebase 尚未就绪', 'err');    console.warn('auth is null — 页面 load 完成前点击了登录，或脚本未加载');    return;  }  auth.signInWithEmailAndPassword(email, password)    .then(function(userCredential) {      console.log('Firebase Auth: Login success', userCredential.user.email);      var le = gid('login-error');      if (le) {        le.style.color = '#0066cc';        le.textContent = '正在验证账号与权限…';        le.style.display = 'block';      }    })    .catch(function(error) {      console.error('Firebase Auth: Login failed', error);      var errorMsg = '登录失败';      if (error.code === 'auth/user-not-found') {        errorMsg = '用户不存在';      } else if (error.code === 'auth/wrong-password') {        errorMsg = '密码错误';      } else if (error.code === 'auth/invalid-email') {        errorMsg = '邮箱格式错误';      } else if (error.code === 'auth/too-many-requests') {        errorMsg = '尝试次数过多，请稍后再试';      } else if (error.code === 'auth/invalid-credential') {        errorMsg = '邮箱或密码错误';      } else if (error.code === 'auth/network-request-failed') {        errorMsg = '网络错误，请检查网络连接';      } else if (error.code === 'auth/invalid-api-key') {        errorMsg = 'Firebase 配置错误，请联系管理员';      } else if (error.code === 'auth/unauthorized-domain') {        errorMsg = '当前域名未授权：请在 Firebase 控制台 → 身份验证 → 设置 → 已授权网域 中添加本站点域名';      } else if (error.code === 'auth/operation-not-allowed') {        errorMsg = '未启用邮箱/密码登录：请在 Firebase 控制台 → 身份验证 → 登录方法 中启用「电子邮件/密码」';      }      var lec = gid('login-error');      lec.textContent = errorMsg + ' (' + (error.code || 'unknown') + ')';      lec.style.color = '#cc0000';      lec.style.fontWeight = 'bold';      lec.style.display = 'block';      toast(errorMsg, 'err');      resetLoginSliderState();    });}window.__csmRealDoLogin=doLogin;
 // 注册新用户
 function doRegister() {  var email = (gid('login-username').value || '').trim();  var password = (gid('login-password').value || '').trim();  if (!email || !password) {    gid('login-error').textContent = '请输入邮箱和密码';    gid('login-error').style.display = 'block';    return;  }  if (password.length < 6) {    gid('login-error').textContent = '密码至少6位';    gid('login-error').style.display = 'block';    return;  }  gid('login-error').style.display = 'none';  
-// 使用 Firebase Auth 注册  
-auth.createUserWithEmailAndPassword(email, password)    .then(function(userCredential) {      console.log('Firebase Auth: Register success', userCredential.user.email);      
+// 使用 Firebase Auth 注册（独立 App，避免切换当前会话）
+var secReg = getSecondaryAuthForUserCreation();
+if (!secReg) {    gid('login-error').textContent = '无法初始化注册通道，请刷新页面';    gid('login-error').style.display = 'block';    return;  }
+secReg.createUserWithEmailAndPassword(email, password)    .then(function(userCredential) {      console.log('Firebase Auth: Register success', userCredential.user.email);      secReg.signOut().catch(function() {});      
 // 创建用户角色记录 - 新用户默认是物流公司      
 var userId = userCredential.user.uid;      firebase.database().ref('csm_users/' + userId).set({        email: email,        role: 'logistics', 
 // 默认物流公司角色        
@@ -398,7 +604,11 @@ function renderUserMgmtList() {
     html += '<td style="padding:10px">' + (user.email || '-') + '</td>';
     html += '<td style="padding:10px;text-align:center">' + selectOptions + '</td>';
     html += '<td style="padding:10px">' + supplierNameInput + '</td>';
-    html += '<td style="padding:10px;text-align:center"><button onclick="saveUserRole(\'' + user.uid + '\')" style="padding:5px 15px;background:#4CAF50;color:#fff;border:none;border-radius:4px;cursor:pointer">保存</button></td>';
+    html += '<td style="padding:10px;text-align:center;white-space:normal;max-width:200px">';
+    if (user.email) {
+      html += '<button type="button" onclick="sendUserPasswordResetEmail(' + JSON.stringify(String(user.email).trim()) + ')" style="padding:4px 8px;background:#0066cc;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;margin:2px">重置邮件</button>';
+    }
+    html += '<button type="button" onclick="saveUserRole(\'' + user.uid + '\')" style="padding:5px 12px;background:#4CAF50;color:#fff;border:none;border-radius:4px;cursor:pointer;margin:2px">保存</button></td>';
     html += '</tr>';
   });
   
@@ -406,28 +616,31 @@ function renderUserMgmtList() {
   container.innerHTML = html;
 }
 
-// 保存用户角色
+// 保存用户角色（独立弹窗 userMgmtModal）
 function saveUserRole(uid) {
   var role = document.getElementById('role_' + uid).value;
   var supplierNameInput = document.getElementById('supplierName_' + uid);
-  var supplierName = supplierNameInput ? supplierNameInput.value : '';
-  
-  var updates = {
-    role: role
-  };
-  
-  if (role === 'supplier' && supplierName) {
-    updates.supplierName = supplierName;
-  }
-  
-  firebase.database().ref('csm_users/' + uid).update(updates)
-    .then(function() {
-      toast('✅ 用户角色已更新', 'ok');
-      loadAllUsers(); // 刷新列表
-    })
-    .catch(function(e) {
-      toast('❌ 更新失败: ' + e.message, 'err');
+  var supplierName = supplierNameInput ? String(supplierNameInput.value || '').trim() : '';
+  firebase.database().ref('csm_users/' + uid).once('value').then(function(snap) {
+    var prev = snap.val() || {};
+    var oldSn = String(prev.supplierName || '').trim();
+    var updates = { role: role };
+    if (role === 'supplier' && supplierName) {
+      updates.supplierName = supplierName;
+    } else if (role !== 'supplier') {
+      updates.supplierName = '';
+    }
+    return firebase.database().ref('csm_users/' + uid).update(updates).then(function() {
+      if (role === 'supplier' && oldSn && supplierName && oldSn !== supplierName) {
+        return propagateSupplierDisplayName(oldSn, supplierName, uid);
+      }
     });
+  }).then(function() {
+    toast('✅ 用户角色已更新', 'ok');
+    loadAllUsers();
+  }).catch(function(e) {
+    toast('❌ 更新失败: ' + e.message, 'err');
+  });
 }
 
 // 打开用户管理面板
@@ -468,7 +681,7 @@ if (dbRef) {      dbRef.child(id).set(rec)        .then(function() {          co
 // 改变按钮状态为已入库          
 var btn = gid('checkInBtn');          console.log('Changing button status, btn:', btn);          if (btn) {            btn.classList.remove('btn-s');            btn.classList.add('btn-g');            btn.innerHTML = '✓ 已入库 Checked In';            btn.disabled = true;            console.log('Button changed to green');          } else {            console.log('Button not found!');          }          toast('✅ 入库成功: ' + cn, 'ok');          
 // 清空表单          
-gid('f-cn').value = '';          gid('f-supplier').value = '';          gid('f-product').value = '';          gid('f-pallets').value = '1';          gid('f-items').value = '1';        })        .catch(function(e) {          console.error('Check-in error:', e);          toast('入库失败: ' + e.message, 'err');          isCheckingIn = false;        });    } else {      console.error('dbRef is null');      toast('数据库未连接', 'err');      isCheckingIn = false;    }  });}function togglePassword() {  var p = gid('login-password');  if (!p) return;  if (p.type === 'password') {    p.type = 'text';  } else {    p.type = 'password';  }}
+gid('f-cn').value = '';          gid('f-supplier').value = '';          gid('f-product').value = '';          gid('f-pallets').value = '1';          gid('f-items').value = '1';        })        .catch(function(e) {          console.error('Check-in error:', e);          toast('入库失败: ' + e.message, 'err');          isCheckingIn = false;        });    } else {      console.error('dbRef is null');      toast('数据库未连接', 'err');      isCheckingIn = false;    }  });}function togglePassword() {  var p = gid('login-password');  if (!p) return;  var btn = gid('btn-login-show-pw');  if (p.type === 'password') {    p.type = 'text';    if (btn) btn.textContent = '隐藏';  } else {    p.type = 'password';    if (btn) btn.textContent = '显示';  }}
 // ============================================================
 // CHECK OUT
 // ============================================================
@@ -1115,12 +1328,15 @@ function renderUserList(users) {
     } else {
       html += '<td style="padding:8px;border:1px solid #ddd"><input id="supplier-name-' + user.uid + '" type="text" value="' + (user.supplierName || '') + '" placeholder="输入供应商名称" style="display:none;width:100%;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px"><span id="supplier-name-placeholder-' + user.uid + '" style="color:#999;font-size:12px">-</span></td>';
     }
-    html += '<td style="padding:8px;text-align:center;border:1px solid #ddd">';
+    html += '<td style="padding:8px;text-align:center;border:1px solid #ddd;white-space:normal">';
+    if (user.email) {
+      html += '<button type="button" onclick="sendUserPasswordResetEmail(' + JSON.stringify(String(user.email).trim()) + ')" style="padding:4px 8px;background:#0066cc;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;margin:2px">重置邮件</button>';
+    }
     if (!isCurrentUser) {
-      html += '<button onclick="changeUserRole(\'' + user.uid + '\')" style="padding:4px 8px;background:#4CAF50;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;margin-right:6px">保存</button>';
-      html += '<button onclick="deleteUser(\'' + user.uid + '\', \'' + (user.email || '') + '\')" style="padding:4px 8px;background:#cc0000;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px">删除</button>';
+      html += '<button type="button" onclick="changeUserRole(\'' + user.uid + '\')" style="padding:4px 8px;background:#4CAF50;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;margin:2px">保存</button>';
+      html += '<button type="button" onclick="deleteUser(\'' + user.uid + '\', \'' + String((user.email || '')).replace(/'/g, "\\'") + '\')" style="padding:4px 8px;background:#cc0000;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;margin:2px">删除</button>';
     } else {
-      html += '<span style="color:#999;font-size:12px">-</span>';
+      html += '<button type="button" onclick="changeUserRole(\'' + user.uid + '\')" style="padding:4px 8px;background:#4CAF50;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;margin:2px">保存</button>';
     }
     html += '</td>';
     html += '</tr>';
@@ -1134,20 +1350,27 @@ function toggleUserSupplierNameInput(uid, role) {
   if (input) input.style.display = role === 'supplier' ? 'block' : 'none';
   if (placeholder) placeholder.style.display = role === 'supplier' ? 'none' : 'inline';
 }
-// 修改用户角色
+// 修改用户角色（设置面板内嵌列表）
 function changeUserRole(uid) {
   var roleEl = gid('role-' + uid);
   var supplierNameEl = gid('supplier-name-' + uid);
   var newRole = roleEl ? roleEl.value : 'logistics';
-  var updates = {
-    role: newRole
-  };
-  if (newRole === 'supplier') {
-    updates.supplierName = supplierNameEl ? (supplierNameEl.value || '').trim() : '';
-  } else {
-    updates.supplierName = '';
-  }
-  firebase.database().ref('csm_users/' + uid).update(updates).then(function() {
+  var newSn = supplierNameEl ? String(supplierNameEl.value || '').trim() : '';
+  firebase.database().ref('csm_users/' + uid).once('value').then(function(snap) {
+    var prev = snap.val() || {};
+    var oldSn = String(prev.supplierName || '').trim();
+    var updates = { role: newRole };
+    if (newRole === 'supplier') {
+      updates.supplierName = newSn;
+    } else {
+      updates.supplierName = '';
+    }
+    return firebase.database().ref('csm_users/' + uid).update(updates).then(function() {
+      if (newRole === 'supplier' && oldSn && newSn && oldSn !== newSn) {
+        return propagateSupplierDisplayName(oldSn, newSn, uid);
+      }
+    });
+  }).then(function() {
     toast('✅ 用户角色已更新', 'ok');
     loadUserList();
   }).catch(function(error) {
@@ -1170,7 +1393,7 @@ function deleteUser(uid, email) {
       toast('❌ 删除失败', 'err');
     });
 }
-// 创建新用户（仅管理员可用）
+// 创建新用户（仅管理员可用；使用独立 Firebase App 创建，避免管理员会话被切换成新用户）
 function createUser() {
   if (!isAdmin) {
     toast('需要管理员权限', 'err');
@@ -1178,6 +1401,7 @@ function createUser() {
   }
   var email = (gid('new-user-email').value || '').trim();
   var password = (gid('new-user-password').value || '').trim();
+  var password2 = (gid('new-user-password2') ? gid('new-user-password2').value : '').trim();
   var role = gid('new-user-role').value || 'logistics';
   var supplierName = (gid('new-user-supplier-name') || {value:''}).value.trim();
   var errorEl = gid('create-user-error');
@@ -1196,6 +1420,13 @@ function createUser() {
     }
     return;
   }
+  if (password !== password2) {
+    if (errorEl) {
+      errorEl.textContent = '两次输入的密码不一致';
+      errorEl.style.display = 'block';
+    }
+    return;
+  }
   if (role === 'supplier' && !supplierName) {
     if (errorEl) {
       errorEl.textContent = '供应商名称不能为空';
@@ -1203,10 +1434,20 @@ function createUser() {
     }
     return;
   }
+  var sec = getSecondaryAuthForUserCreation();
+  if (!sec) {
+    if (errorEl) {
+      errorEl.textContent = '无法初始化创建账号通道，请刷新页面重试';
+      errorEl.style.display = 'block';
+    }
+    toast('创建通道不可用', 'err');
+    return;
+  }
   var roleLabel = role === 'admin' ? '管理员' : (role === 'logistics' ? '物流公司' : '供应商');
-  auth.createUserWithEmailAndPassword(email, password)
+  sec.createUserWithEmailAndPassword(email, password)
     .then(function(userCredential) {
       var uid = userCredential.user.uid;
+      sec.signOut().catch(function() {});
       var userData = {
         email: email,
         role: role,
@@ -1219,10 +1460,11 @@ function createUser() {
         toast('✅ 用户创建成功: ' + email + ' (' + roleLabel + ')', 'ok');
         gid('new-user-email').value = '';
         gid('new-user-password').value = '';
+        if (gid('new-user-password2')) gid('new-user-password2').value = '';
         loadUserList();
       }).catch(function(error) {
         console.error('Error saving user role:', error);
-        toast('❌ 用户已创建但角色设置失败，请手动设置', 'err');
+        toast('❌ Auth 账号已创建但角色写入失败，请在 Firebase 控制台检查 csm_users/' + uid, 'err');
         loadUserList();
       });
     })
@@ -1470,3 +1712,6 @@ try { window.showAdminView = showAdminView; } catch (e) {}
 try { window.showLogisticsView = showLogisticsView; } catch (e) {}
 try { window.showSupplierView = showSupplierView; } catch (e) {}
 try { window.migrateSupplierRecordOwners = migrateSupplierRecordOwners; } catch (e) {}
+try { window.sendLoginPasswordReset = sendLoginPasswordReset; } catch (e) {}
+try { window.sendUserPasswordResetEmail = sendUserPasswordResetEmail; } catch (e) {}
+try { window.toggleNewUserPassword = toggleNewUserPassword; } catch (e) {}

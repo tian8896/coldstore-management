@@ -98,6 +98,21 @@ tr:hover td{background:rgba(0,191,255,.03)}
 .login-btn:active{transform:scale(0.98)}
 .login-error{color:var(--rd);font-size:12px;margin-top:12px;text-align:center;display:none}
 .login-error.show{display:block}
+/* LOGIN SLIDER (slide to verify) */
+.login-pass-row{position:relative;display:flex;align-items:center;gap:8px}
+.login-pass-row input{flex:1}
+.login-show-pw{background:none;border:1px solid var(--bd);border-radius:4px;padding:6px 10px;font-size:11px;cursor:pointer;color:var(--ice);white-space:nowrap;font-weight:bold}
+.login-show-pw:hover{border-color:var(--ice);background:rgba(0,191,255,0.08)}
+.login-slide-wrap{margin-top:14px;padding:10px 0;border-top:1px dashed var(--bd)}
+.login-slide-label{font-size:11px;color:var(--tx2);margin-bottom:8px;letter-spacing:1px}
+.login-slide-track{position:relative;height:44px;background:linear-gradient(90deg,var(--bg4),#e8f4ff);border:1px solid var(--bd);border-radius:22px;overflow:hidden;touch-action:none;user-select:none}
+.login-slide-fill{position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(0,191,255,0.25);border-radius:22px 0 0 22px;pointer-events:none;transition:width .05s linear}
+.login-slide-thumb{position:absolute;left:2px;top:2px;width:72px;height:38px;background:linear-gradient(135deg,var(--ice),#0099cc);border-radius:19px;cursor:grab;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:bold;box-shadow:0 2px 8px rgba(0,153,204,0.35);z-index:2;touch-action:none}
+.login-slide-thumb.ok{cursor:default;background:linear-gradient(135deg,var(--gr),#2ea043)}
+.login-slide-hint{font-size:11px;color:var(--tx2);margin-top:8px;text-align:center}
+.login-forgot-row{margin-top:10px;text-align:right}
+.login-forgot-btn{background:none;border:none;color:var(--ac);cursor:pointer;font-size:12px;text-decoration:underline;padding:0}
+.login-forgot-btn:hover{color:var(--ice)}
 /* EDITABLE TABLE */
 .edt{width:70px;background:var(--bg4);border:1px solid var(--bd);border-radius:3px;padding:4px 6px;color:var(--tx);font-family:'Courier New',monospace;font-size:13px;text-align:right;outline:none}
 .edt:focus{border-color:var(--ac);background:#fff}
@@ -135,13 +150,27 @@ tr:hover td{background:rgba(0,191,255,.03)}
 <body>
 <!-- 登录弹窗：默认显示，避免 Firebase 脚本未加载时无法出现；登录成功后由脚本隐藏 -->
 <div class="mov sh" id="loginModal" style="display:flex;z-index:10050">
-  <div class="mdl" style="width:360px;text-align:center">
+  <div class="mdl" style="width:400px;max-width:94vw;text-align:center">
     <h3 style="margin-bottom:20px">🏭 冷库管理系统登录</h3>
     <div class="fg"><label>邮箱 Email</label>
-      <input type="email" id="login-username" placeholder="输入邮箱" autocomplete="off" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px">
+      <input type="email" id="login-username" placeholder="输入邮箱" autocomplete="username" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px">
     </div>
     <div class="fg"><label>密码 Password</label>
-      <input type="password" id="login-password" placeholder="输入密码" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px">
+      <div class="login-pass-row">
+        <input type="password" id="login-password" placeholder="输入密码" autocomplete="current-password" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px">
+        <button type="button" class="login-show-pw" id="btn-login-show-pw" onclick="togglePassword()" title="显示/隐藏密码">显示</button>
+      </div>
+    </div>
+    <div class="login-slide-wrap">
+      <div class="login-slide-label">向右滑动滑块完成验证 / Slide to verify</div>
+      <div class="login-slide-track" id="login-slide-track" aria-label="滑动验证">
+        <div class="login-slide-fill" id="login-slide-fill"></div>
+        <div class="login-slide-thumb" id="login-slide-thumb">⟩⟩⟩</div>
+      </div>
+      <div class="login-slide-hint" id="login-slide-hint">完成滑动后方可点击登录</div>
+    </div>
+    <div class="login-forgot-row">
+      <button type="button" class="login-forgot-btn" id="btn-login-forgot" onclick="if(typeof sendLoginPasswordReset==='function')sendLoginPasswordReset();">忘记密码？发送重置邮件</button>
     </div>
     <div id="login-error" style="color:#cc0000;font-size:13px;margin:8px 0;display:none;min-height:1.2em;word-break:break-word"></div>
     <p id="login-hint" style="font-size:11px;color:#666;margin-top:6px;line-height:1.5">① 用户资料在 <strong>Realtime Database</strong>，路径 <code style="font-size:10px">csm_users/&lt;UID&gt;</code>，<code style="font-size:10px">role</code>：admin / logistics / supplier。② Firebase 控制台 → 身份验证 → 设置 → <strong>已授权网域</strong> 须添加 <code style="font-size:10px">tian8896.github.io</code>（仅域名，勿带 <code style="font-size:10px">/coldstore-management</code> 路径）。③ 数据库规则须允许已登录用户读取 <code style="font-size:10px">csm_users</code>、<code style="font-size:10px">csm_meta</code>。④ 仍失败时 F12 控制台执行 <code style="font-size:10px">csmDiagnoseLogin()</code> 查看读写结果。</p>
@@ -162,6 +191,10 @@ tr:hover td{background:rgba(0,191,255,.03)}
     var le = gid('login-error');
     if (!email || !password) {
       if (le) { le.textContent = '请输入邮箱和密码'; le.style.color = '#cc0000'; le.style.display = 'block'; }
+      return;
+    }
+    if (window.__csmLoginSliderInited && !window.__csmLoginSlideVerified) {
+      if (le) { le.textContent = '请先向右滑动完成验证'; le.style.color = '#cc0000'; le.style.display = 'block'; }
       return;
     }
     if (le) { le.style.display = 'none'; le.style.color = '#cc0000'; }
@@ -210,7 +243,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260414c" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260414d" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -1061,8 +1094,13 @@ tr:hover td{background:rgba(0,191,255,.03)}
         <div class="sett-row">
           <input type="email" id="new-user-email" placeholder="邮箱 Email" style="flex:1">
         </div>
-        <div class="sett-row">
-          <input type="password" id="new-user-password" placeholder="密码 (至少6位)" style="flex:1">
+        <div class="sett-row" style="position:relative">
+          <input type="password" id="new-user-password" placeholder="密码 (至少6位)" style="flex:1;padding-right:72px" autocomplete="new-password">
+          <button type="button" class="login-show-pw" onclick="toggleNewUserPassword(false)" style="position:absolute;right:0;top:0">显示</button>
+        </div>
+        <div class="sett-row" style="position:relative">
+          <input type="password" id="new-user-password2" placeholder="确认密码 Confirm" style="flex:1;padding-right:72px" autocomplete="new-password">
+          <button type="button" class="login-show-pw" onclick="toggleNewUserPassword(true)" style="position:absolute;right:0;top:0">显示</button>
         </div>
         <div class="sett-row">
           <select id="new-user-role" onchange="onUserRoleChange()" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:13px">
@@ -1079,6 +1117,9 @@ tr:hover td{background:rgba(0,191,255,.03)}
           <button class="sett-add-btn" onclick="createUser()" style="background:#0066cc">✅ 创建用户</button>
         </div>
         <div id="create-user-error" style="color:#cc0000;font-size:12px;margin-top:4px;display:none"></div>
+        <div style="font-size:11px;color:#555;line-height:1.65;margin-top:10px;padding:8px;background:#e3f2fd;border-radius:4px;border:1px solid #90caf9">
+          <strong>供应商账号维护说明</strong>：① 创建后若无法登录，常见原因是「邮箱/密码错误」「Firebase 已授权网域未包含当前域名」或「csm_users 中无该用户资料」。② 本系统已使用<strong>独立创建通道</strong>，创建供应商后<strong>不会把管理员踢下线</strong>。③ 忘记密码可在登录页点「忘记密码」，或在下方用户列表对该邮箱「发重置邮件」。④ 改名后若历史单据仍显示旧名，保存角色时请使用同步（已自动按旧名称批量更新业务表中的供应商字段）。
+        </div>
       </div>
       <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:6px;padding:12px;margin-bottom:10px">
         <div style="font-size:13px;font-weight:bold;color:#8d6e00;margin-bottom:8px">🧩 旧供应商记录迁移 / Supplier ownerUid migration</div>

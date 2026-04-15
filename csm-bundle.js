@@ -5,8 +5,8 @@ const SK = 'csm_warehouse1';const LOCAL_STORAGE_KEY = 'csm_records_v3';
 // Firebase 配置
 var firebaseConfig = {  apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',  authDomain: 'superharves-cold-store.firebaseapp.com',  databaseURL: 'https://superharves-cold-store-default-rtdb.firebaseio.com',  projectId: 'superharves-cold-store',  storageBucket: 'superharves-cold-store.firebasestorage.app',  messagingSenderId: '379038228954',  appId: '1:379038228954:web:e64fa3be3f2f49b3aae0e3'};var dbRef = null;var legacyDbRef = null;var purchaseRef = null;var auth = null;var primaryRecsVal = {};var legacyRecsVal = {};
 // 冷库费率（可配置，默认值）
-// 冷库1: 38 AED/托盘/周 + 5% VAT
-// 冷库2/3/4: 60 AED/托盘/周 + 5% VAT
+// HK Store (store 1): 38 AED/托盘/周 + 5% VAT
+// Primer / Super / Cold Store 4 (store 2–4): 60 AED/托盘/周 + 5% VAT
 const VAT_RATE = 0.05;
 const DAYS_PER_WEEK = 7;const RATES_KEY = 'csm_warehouse_rates';
 // 默认费率
@@ -18,6 +18,13 @@ function saveRatesToStorage() {
 try {    localStorage.setItem(RATES_KEY, JSON.stringify(warehouseRates));  } catch(e) {    console.error('Failed to save rates');  }}
 // 根据冷库获取费率
 function getRateByStore(store) {  return warehouseRates[store] || 38;}
+var CSM_STORE_NAMES = { 1: 'HK Store', 2: 'Primer Store', 3: 'Super Store', 4: 'Cold Store 4' };
+function getStoreDisplayName(store) {
+  var n = parseInt(String(store), 10);
+  if (CSM_STORE_NAMES[n]) return CSM_STORE_NAMES[n];
+  if (store === null || store === undefined || store === '') return '-';
+  return 'Store ' + String(store);
+}
 // 保存费率设置
 function saveRates() {  warehouseRates[1] = parseFloat(gid('rate-store1').value) || 38;  warehouseRates[2] = parseFloat(gid('rate-store2').value) || 60;  warehouseRates[3] = parseFloat(gid('rate-store3').value) || 60;  warehouseRates[4] = parseFloat(gid('rate-store4').value) || 60;  saveRatesToStorage();  clSettings();  renderAll();  toast('✅ 费率已保存', 'ok');}
 // 在设置面板中显示当前费率
@@ -140,15 +147,19 @@ function attachDataListenersForRole() {
     }
   }
 }
-function createPurchaseRecordFromSupplierRec(rec, id) {
+function createPurchaseRecordFromSupplierRec(rec, id, item) {
+  var sourceItem = item || (typeof normalizeSupplierRecItems === 'function' ? normalizeSupplierRecItems(rec)[0] : null) || {
+    product: rec.product || '',
+    qty: rec.qty || 0
+  };
   return {
     id: id,
     seq: rec.seq || '',
     cn: rec.cn || '',
     supplier: rec.supplier || '',
-    product: rec.product || '',
+    product: sourceItem.product || rec.product || '',
     purchaseDate: rec.purchaseDate || '',
-    qty: rec.qty || 0,
+    qty: sourceItem.qty || rec.qty || 0,
     demurrage: 0,
     customs: 0,
     coldFee: 0,
@@ -535,29 +546,545 @@ function onUserRoleChange() {  var role = gid('new-user-role') ? gid('new-user-r
 // ============================================================
 // SUPPLIER PURCHASE RECORDS
 // ============================================================
-var supplierFormRowCounter = 0;function openSupplierForm() {  var now = new Date();  var y = now.getFullYear();  var mm = String(now.getMonth() + 1).padStart(2, '0');  var dd = String(now.getDate()).padStart(2, '0');  var hh = String(now.getHours()).padStart(2, '0');  var mi = String(now.getMinutes()).padStart(2, '0');  gid('supplier-id').value = '';  gid('supplier-cn').value = '';  gid('supplier-date').value = y + '-' + mm + '-' + dd;  gid('supplier-time').value = hh + ':' + mi;  gid('supplier-supplier').value = currentSupplierName || '';  gid('supplier-product').value = '';  gid('supplier-qty').value = '';  gid('supplier-shipname').value = '';  refreshSupplierShipCompanyOptions('');  gid('supplier-bl').value = '';  gid('supplier-etd').value = '';  gid('supplier-eta').value = '';  gid('supplier-modal-title').textContent = '📦 添加采购记录 / Add Purchase Record';  gid('supplierModal').classList.add('sh');}function clSupplierModal() {  gid('supplierModal').classList.remove('sh');}function saveSupplierRec() {  var id = gid('supplier-id').value;  var cn = (gid('supplier-cn').value || '').trim().toUpperCase();  var purchaseDate = (gid('supplier-date').value || '').trim();  var purchaseTime = (gid('supplier-time').value || '').trim();  var supplier = (gid('supplier-supplier').value || '').trim();  var product = (gid('supplier-product').value || '').trim();  var qty = parseInt(gid('supplier-qty').value) || 0;  var shipname = (gid('supplier-shipname').value || '').trim();  var shipCompany = (gid('supplier-shipcompany') ? gid('supplier-shipcompany').value : '').trim();  var bl = (gid('supplier-bl').value || '').trim();  var etd = (gid('supplier-etd').value || '').trim();  var eta = (gid('supplier-eta').value || '').trim();  if (isSupplier) {    if (!currentUser) { toast('未登录', 'err'); return; }    if (!currentSupplierName) { toast('账号未配置供应商名称：请让管理员在「设置 → 用户管理」中填写 supplierName', 'err'); return; }    supplier = String(currentSupplierName).trim();    if (gid('supplier-supplier')) gid('supplier-supplier').value = supplier;  }  if (!cn) { toast('请输入集装箱号 / Enter container no.', 'err'); return; }  if (!purchaseDate) { toast('请选择采购日期 / Select purchase date', 'err'); return; }  if (!supplier) { toast('请输入供应商名称 / Enter supplier name', 'err'); return; }  if (!product) { toast('请输入品名 / Enter product name', 'err'); return; }  if (!(qty > 0)) { toast('请输入数量，且必须大于 0 / Quantity is required', 'err'); return; }  if (!shipname) { toast('请输入船名 / Ship name is required', 'err'); return; }  if (!shipCompany) { toast('请选择船公司 / Shipping company is required', 'err'); return; }  if ((settData.shipCompanies || []).indexOf(shipCompany) === -1) { toast('船公司必须从设置列表中选择', 'err'); return; }  var existing = id ? supplierRecs.find(function(r) { return r.id === id; }) : null;  if (isSupplier && existing && !supplierRecOwnedByCurrentUser(existing)) { toast('无权编辑该记录', 'err'); clSupplierModal(); return; }  
-// 只有初始状态允许编辑  
-if (existing && existing.status === 'submitted') {    toast('⚠️ 记录已提交，请先撤销提交 / Already submitted, undo submit first', 'err');    clSupplierModal();    return;  }  if (existing && existing.status === 'confirmed') {    toast('⚠️ 记录已确认，无法编辑 / Already confirmed, cannot edit', 'err');    clSupplierModal();    return;  }  var rec = {    cn: cn,    purchaseDate: purchaseDate,    purchaseTime: purchaseTime,    supplier: supplier,    product: product,    qty: qty,    shipname: shipname,    shipCompany: shipCompany,    bl: bl,    etd: etd,    eta: eta,    addedBy: currentUserEmail,    ownerUid: currentUser,    addTime: new Date().toISOString(),    status: 'draft'  };  if (id) {    
-// 编辑（保留原状态与序列号；无序列号时按采购日期补生成，与 Warehouse1 规则一致）    
-rec.id = id;    rec.status = existing ? existing.status : 'draft';    rec.ownerUid = (existing && existing.ownerUid) ? existing.ownerUid : currentUser;    rec.updatedBy = currentUserEmail;    rec.updateTime = new Date().toISOString();    function writeSupplierEdit(r) {      supplierRef.child(id).set(r).then(function() {        toast('✅ 记录已更新 / Updated', 'ok');        clSupplierModal();      });    }    if (existing && existing.seq) {      rec.seq = existing.seq;      writeSupplierEdit(rec);    } else {      generateSeq(function(seq) {        rec.seq = seq;        writeSupplierEdit(rec);      }, new Date(purchaseDate + 'T00:00:00'));    }  } else {    
-// 新增，先生成序列号    
-generateSeq(function(seq) {      rec.seq = seq;      rec.id = 'sp_' + Date.now().toString(36);      supplierRef.child(rec.id).set(rec).then(function() {        toast('✅ 记录已添加，序列号：' + seq, 'ok');        clSupplierModal();      });    }, new Date(purchaseDate + 'T00:00:00'));  }}function delSupplierRec(id) {  var rec = supplierRecs.find(function(r) { return r.id === id; });  if (!rec) return;  if (isSupplier && !supplierRecOwnedByCurrentUser(rec)) { toast('无权删除该记录', 'err'); return; }  if (rec.status === 'confirmed') { toast('⚠️ 已确认状态，无法删除', 'err'); return; }  if (!confirm('确认删除这条采购记录？')) return;  supplierRef.child(id).remove().then(function() {    toast('✅ 已删除 / Deleted', 'ok');  });}
-// 提交记录（初始 → 已提交）
-function submitSupplierRec(id) {  var rec = supplierRecs.find(function(r) { return r.id === id; });  if (!rec) return;  if (isSupplier && !supplierRecOwnedByCurrentUser(rec)) { toast('无权提交该记录', 'err'); return; }  if (rec.status !== 'draft') { toast('⚠️ 只有初始状态才能提交', 'err'); return; }  if (!confirm('确认提交这条记录？提交后将进入"已提交"状态，等待管理员确认。')) return;  supplierRef.child(id).update({    status: 'submitted',    submittedBy: currentUserEmail,    submittedAt: new Date().toISOString()  }).then(function() {    toast('✅ 已提交，等待管理员确认 / Submitted, awaiting admin confirmation', 'ok');  });}
-// 撤销提交（已提交 → 初始）
-function undoSubmitSupplierRec(id) {  var rec = supplierRecs.find(function(r) { return r.id === id; });  if (!rec) return;  if (isSupplier && !supplierRecOwnedByCurrentUser(rec)) { toast('无权撤销该记录', 'err'); return; }  if (rec.status !== 'submitted') { toast('⚠️ 只有已提交状态才能撤销', 'err'); return; }  if (!confirm('确认撤销提交？记录将回到初始状态，可继续编辑。')) return;  supplierRef.child(id).update({    status: 'draft',    submittedBy: null,    submittedAt: null  }).then(function() {    toast('✅ 已撤销，可以继续编辑 / Undo submitted, can continue editing', 'ok');  }).catch(function(err) {    console.error('Undo submit failed', err);    toast('❌ 撤销失败: ' + (err.message || err), 'err');  });}
-// 管理员确认（已提交 → 已确认，不可逆）
-function confirmSupplierRec(id) {  var rec = supplierRecs.find(function(r) { return r.id === id; });  if (!rec) return;  var status = rec.status || 'draft';  if (status !== 'submitted' && status !== 'confirmed') { toast('⚠️ 只有已提交或已确认状态才能采用', 'err'); return; }  var existingPurchase = purchaseRecs.find(function(p) { return p.sourceSupplierRecId === id; });  var confirmText = status === 'submitted' ? '⚠️ 确认后将把此条供应商记录正式采用到 Warehouse1 采购列表，之后才能作为管理员采购数据使用。\n确认这条采购记录？' : '这条记录已经是已确认状态，但尚未采用到 Warehouse1 采购列表。\n现在采用这条记录吗？';  if (!existingPurchase && !confirm(confirmText)) return;  var purchaseId = existingPurchase ? existingPurchase.id : makePurchaseRecordId();  var pd = (rec.purchaseDate || '').trim();  var dateForSeq = pd ? new Date(pd + 'T00:00:00') : new Date();  function finishConfirm(seq) {    var nowIso = new Date().toISOString();    var supplierUpdates = {      status: 'confirmed',      confirmedBy: currentUserEmail,      confirmedAt: rec.confirmedAt || nowIso,      adoptedPurchaseId: purchaseId,      adoptedAt: nowIso,      seq: seq    };    var writePurchase;    if (existingPurchase) {      writePurchase = purchaseRef.child(purchaseId).update({ seq: seq });    } else {      var purchaseRec = createPurchaseRecordFromSupplierRec(rec, purchaseId);      purchaseRec.seq = seq;      writePurchase = purchaseRef.child(purchaseId).set(purchaseRec);    }    writePurchase.then(function() {      return supplierRef.child(id).update(supplierUpdates);    }).then(function() {      toast('✅ 已确认并采用到 Warehouse1 采购列表', 'ok');    }).catch(function(err) {      console.error('Confirm supplier record failed', err);      toast('❌ 确认失败: ' + (err.message || err), 'err');    });  }  if (rec.seq) {    finishConfirm(rec.seq);  } else {    generateSeq(finishConfirm, dateForSeq);  }}function editSupplierRec(id) {  var rec = supplierRecs.find(function(r) { return r.id === id; });  if (!rec) return;  if (isSupplier && !supplierRecOwnedByCurrentUser(rec)) { toast('无权编辑该记录', 'err'); return; }  if (rec.status === 'submitted') { toast('⚠️ 已提交状态，请先撤销提交', 'err'); return; }  if (rec.status === 'confirmed') { toast('⚠️ 已确认状态，无法编辑', 'err'); return; }  gid('supplier-id').value = id;  gid('supplier-cn').value = rec.cn || '';  gid('supplier-date').value = rec.purchaseDate || '';  gid('supplier-time').value = rec.purchaseTime || '';  gid('supplier-supplier').value = rec.supplier || '';  gid('supplier-product').value = rec.product || '';  gid('supplier-qty').value = rec.qty || '';  gid('supplier-shipname').value = rec.shipname || '';  refreshSupplierShipCompanyOptions(rec.shipCompany || '');  gid('supplier-bl').value = rec.bl || '';  gid('supplier-etd').value = rec.etd || '';  gid('supplier-eta').value = rec.eta || '';  gid('supplier-modal-title').textContent = '✏️ 编辑采购记录 / Edit Purchase Record';  gid('supplierModal').classList.add('sh');}function filterSupplierTable() {  renderSupplierTable();}function renderSupplierTable() {  var container = gid('supplierView');  if (!container) return;  var searchDateStart = (gid('supplier-search-date-start') || {value:''}).value;  var searchDateEnd = (gid('supplier-search-date-end') || {value:''}).value;  var searchCn = (gid('supplier-search-cn') || {value:''}).value.trim().toUpperCase();  var filtered = supplierRecs.filter(function(r) {    if (searchDateStart && r.purchaseDate < searchDateStart) return false;    if (searchDateEnd && r.purchaseDate > searchDateEnd) return false;    if (searchCn && (r.cn || '').indexOf(searchCn) === -1) return false;    return true;  });  
-// 按日期倒序  
-filtered.sort(function(a, b) { return new Date(b.purchaseDate) - new Date(a.purchaseDate); });  var tb = gid('tb-supplier');  var emptyMsg = gid('es-supplier');  if (filtered.length === 0) {    tb.innerHTML = '';    emptyMsg.style.display = 'flex';    return;  }  emptyMsg.style.display = 'none';  var html = filtered.map(function(r) {    var cnClickFn = "openSupplierCNDetail('" + r.id + "')";    var status = r.status || 'draft';    var etdHtml = r.etd ? '<span style="color:#888;font-size:12px">ETD:' + r.etd + '</span>' : '';    var etaHtml = r.eta ? '<br><span style="color:#888;font-size:12px">ETA:' + r.eta + '</span>' : '';    
-// 状态标签    
-var statusLabel = {      'draft': '<span style="background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold">✏️ 初始</span>',      'submitted': '<span style="background:#fff8e1;color:#f57f17;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold">📤 已提交</span>',      'confirmed': '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold">✅ 已确认</span>'    }[status];    
-// 操作按钮（根据状态和角色）    
-var actionBtns = '';    if (isSupplier) {      if (status === 'draft') {        actionBtns =          '<button class="abtn" onclick="editSupplierRec(\'' + r.id + '\')">✏️</button> ' +          '<button class="abtn" style="background:#1565c0;color:#fff" onclick="submitSupplierRec(\'' + r.id + '\')">📤 提交</button> ' +          '<button class="abtn x" onclick="delSupplierRec(\'' + r.id + '\')">🗑</button>';      } else if (status === 'submitted') {        actionBtns =          '<button class="abtn" style="background:#ffb300;color:#fff" onclick="undoSubmitSupplierRec(\'' + r.id + '\')">↩ 撤销</button>';      } else {        actionBtns = '<span style="color:#aaa;font-size:12px">—</span>';      }    } else if (isAdmin) {      if (status === 'submitted') {        actionBtns =          '<button class="abtn" onclick="editSupplierRec(\'' + r.id + '\')">✏️</button> ' +          '<button class="abtn" style="background:#2e7d32;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">✅ 确认</button> ' +          '<button class="abtn x" onclick="delSupplierRec(\'' + r.id + '\')">🗑</button>';      } else if (status === 'confirmed') {        actionBtns = '<span style="color:#aaa;font-size:12px">已确认</span>';      } else {        actionBtns =          '<button class="abtn" onclick="editSupplierRec(\'' + r.id + '\')">✏️</button> ' +          '<button class="abtn x" onclick="delSupplierRec(\'' + r.id + '\')">🗑</button>';      }    } else {      actionBtns = '<span style="color:#aaa;font-size:12px">—</span>';    }    return '<tr>' +      '<td style="white-space:nowrap">' + (r.seq || '-') + '</td>' +      '<td><a href="javascript:void(0)" onclick="' + cnClickFn + '" style="color:#00bfff;font-weight:bold;text-decoration:underline">' + (r.cn || '-') + '</a></td>' +      '<td style="font-family:Arial">' + fmtSupplierName(r.supplier) + '</td>' +      '<td style="font-family:Arial;text-transform:capitalize">' + fmtTitleCase(r.product) + '</td>' +      '<td style="white-space:nowrap">' + (r.purchaseDate || '-') + (r.purchaseTime ? '<br><span style="font-size:11px;color:#888">' + r.purchaseTime + '</span>' : '') + '</td>' +      '<td style="text-align:center">' + (r.qty || 0) + '</td>' +      '<td>' + etdHtml + etaHtml + '</td>' +      '<td style="font-family:Arial;text-transform:capitalize">' + fmtTitleCase(r.shipname) + '</td>' +      '<td style="font-family:Arial;text-transform:capitalize">' + fmtTitleCase(r.shipCompany) + '</td>' +      '<td>' + (r.bl || '-') + '</td>' +      '<td>' + statusLabel + '</td>' +      '<td>' + actionBtns + '</td>' +    '</tr>';  }).join('');  tb.innerHTML = html;}
-// 点击集装箱号：检查是否在 warehouse1 采购列表中，是则显示 warehouse1 详情，否则显示供应商自己的信息
-function openSupplierCNDetail(id) {  var rec = supplierRecs.find(function(r) { return r.id === id; });  if (!rec) return;  var linked = null;  
-// 检查是否已存在于 warehouse1 采购记录中（按集装箱号匹配）  
-if (purchaseRecs && purchaseRecs.length) {    linked = purchaseRecs.find(function(p) { return p.sourceSupplierRecId === rec.id; }) || purchaseRecs.find(function(p) { return p.cn === rec.cn; });  }  var status = rec.status || 'draft';  var statusBadge = {    'draft': '<span style="background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold">✏️ 初始</span>',    'submitted': '<span style="background:#fff8e1;color:#f57f17;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold">📤 已提交</span>',    'confirmed': '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold">✅ 已确认</span>'  }[status];  var html = '<div style="text-align:left;min-width:280px">';  html += '<table style="width:100%;border-collapse:collapse;font-size:14px">';  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888;width:35%">集装箱号</td><td style="padding:6px;font-weight:bold;color:#00bfff">' + (rec.cn || '-') + '</td></tr>';  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">状态</td><td style="padding:6px">' + statusBadge + '</td></tr>';  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">供应商</td><td style="padding:6px">' + (rec.supplier || '-') + '</td></tr>';  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">品名</td><td style="padding:6px">' + (rec.product || '-') + '</td></tr>';  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">采购日期</td><td style="padding:6px">' + (rec.purchaseDate || '-') + (rec.purchaseTime ? ' ' + rec.purchaseTime : '') + '</td></tr>';  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">数量</td><td style="padding:6px">' + (rec.qty || 0) + '</td></tr>';  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">船名</td><td style="padding:6px">' + (rec.shipname || '-') + '</td></tr>';  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">船公司</td><td style="padding:6px">' + (rec.shipCompany || '-') + '</td></tr>';  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">提单号</td><td style="padding:6px">' + (rec.bl || '-') + '</td></tr>';  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">预计开船日 ETD</td><td style="padding:6px">' + (rec.etd || '-') + '</td></tr>';  html += '<tr><td style="padding:6px;color:#888">预计到港日 ETA</td><td style="padding:6px">' + (rec.eta || '-') + '</td></tr>';  html += '</table>';  if (linked) {    html += '<div style="margin-top:12px;padding:10px;background:#e8f5e9;border-radius:6px;border:1px solid #4CAF50">';    html += '<div style="color:#00aa00;font-weight:bold;margin-bottom:6px">✅ Warehouse1 已采用 / Adopted in Warehouse1</div>';    html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';    html += '<tr style="border-bottom:1px solid #c8e6c9"><td style="padding:4px;color:#666">采购日期</td><td style="padding:4px">' + (linked.purchaseDate || '-') + '</td></tr>';    html += '<tr style="border-bottom:1px solid #c8e6c9"><td style="padding:4px;color:#666">停柜费</td><td style="padding:4px">' + ((linked.demurrage || 0) + ' AED') + '</td></tr>';    html += '<tr style="border-bottom:1px solid #c8e6c9"><td style="padding:4px;color:#666">清关费</td><td style="padding:4px">' + ((linked.customs || 0) + ' AED') + '</td></tr>';    html += '<tr style="border-bottom:1px solid #c8e6c9"><td style="padding:4px;color:#666">冷库费</td><td style="padding:4px">' + ((linked.coldFee || linked.coldfee || 0) + ' AED') + '</td></tr>';    html += '<tr style="border-bottom:1px solid #c8e6c9"><td style="padding:4px;color:#666">认证费</td><td style="padding:4px">' + ((linked.attestation || 0) + ' AED') + '</td></tr>';    html += '<tr><td style="padding:4px;color:#666">翻包费</td><td style="padding:4px">' + ((linked.repack || 0) + ' AED') + '</td></tr>';    html += '</table></div>';  } else {    html += '<div style="margin-top:12px;padding:10px;background:#fff8e1;border-radius:6px;border:1px solid #ffb300">';    html += '<div style="color:#ff8f00;font-weight:bold">⚠️ 尚未在 Warehouse1 采购主表采用 / Not yet adopted into Warehouse1</div>';    html += '<div style="margin-top:4px;font-size:13px;color:#666">管理员确认后，才会在 Warehouse1 采购记录中正式采用此条数据。</div></div>';  }  html += '</div>';  gid('mcon').innerHTML = html;  gid('modal').classList.add('sh');}
+var supplierFormRowCounter = 0;
+function normalizeSupplierRecItems(rec) {
+  var raw = Array.isArray(rec && rec.items) ? rec.items : [];
+  var items = raw.map(function(item) {
+    var product = String(item && item.product || '').trim();
+    var qty = parseFloat(item && item.qty);
+    if (!product) return null;
+    return { product: product, qty: qty > 0 ? qty : 0 };
+  }).filter(function(item) {
+    return !!item;
+  });
+  if (!items.length && rec) {
+    var legacyProduct = String(rec.product || '').trim();
+    if (legacyProduct) {
+      items.push({
+        product: legacyProduct,
+        qty: parseFloat(rec.qty) || 0
+      });
+    }
+  }
+  return items;
+}
+function getSupplierQtyTotal(rec) {
+  return normalizeSupplierRecItems(rec).reduce(function(sum, item) {
+    return sum + (parseFloat(item.qty) || 0);
+  }, 0);
+}
+function createSupplierItemSummaryText(rec) {
+  return normalizeSupplierRecItems(rec).map(function(item) {
+    return item.product;
+  }).join(' / ');
+}
+function createSupplierItemSummaryHtml(rec) {
+  var items = normalizeSupplierRecItems(rec);
+  if (!items.length) return '-';
+  return '<div style="line-height:1.5">' + items.map(function(item) {
+    var qtyText = items.length > 1 ? '<span style="color:#888;font-size:12px"> x ' + (item.qty || 0) + '</span>' : '';
+    return '<div style="font-family:Arial;text-transform:capitalize">' + fmtTitleCase(item.product) + qtyText + '</div>';
+  }).join('') + '</div>';
+}
+function createSupplierItemRow(rowId, item) {
+  var row = document.createElement('tr');
+  row.className = 'supplier-item-row';
+  row.innerHTML =
+    '<td style="padding:4px;border:1px solid #ddd;position:relative">' +
+      '<input type="text" class="supplier-item-product" placeholder="输入品名" data-rowid="' + rowId + '" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px" oninput="showSuggestSupplierItem(this)" onfocus="showSuggestSupplierItem(this)" onblur="setTimeout(function(){hideSuggest(\'supplier-item-' + rowId + '\')},200)">' +
+      '<div class="suggest-list" id="suggest-supplier-item-' + rowId + '"></div>' +
+    '</td>' +
+    '<td style="padding:4px;border:1px solid #ddd">' +
+      '<input type="number" class="supplier-item-qty" placeholder="数量" min="0" value="" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center">' +
+    '</td>' +
+    '<td style="padding:4px;border:1px solid #ddd;text-align:center">' +
+      '<button type="button" class="abtn x" onclick="removeSupplierItem(this)" style="color:#ff4444;font-size:16px">×</button>' +
+    '</td>';
+  if (item) {
+    var productInput = row.querySelector('.supplier-item-product');
+    var qtyInput = row.querySelector('.supplier-item-qty');
+    if (productInput) productInput.value = item.product || '';
+    if (qtyInput && item.qty !== undefined && item.qty !== null && item.qty !== '') qtyInput.value = item.qty;
+  }
+  return row;
+}
+function resetSupplierItemRows(items) {
+  var body = gid('supplierItemsBody');
+  if (!body) return;
+  var list = items && items.length ? items : [{ product: '', qty: '' }];
+  body.innerHTML = '';
+  supplierFormRowCounter = -1;
+  list.forEach(function(item, index) {
+    supplierFormRowCounter = index;
+    body.appendChild(createSupplierItemRow(index, item));
+  });
+  if (supplierFormRowCounter < 0) {
+    supplierFormRowCounter = 0;
+    body.appendChild(createSupplierItemRow(0, { product: '', qty: '' }));
+  }
+}
+function addSupplierItem(productValue, qtyValue) {
+  var body = gid('supplierItemsBody');
+  if (!body) return;
+  supplierFormRowCounter += 1;
+  body.appendChild(createSupplierItemRow(supplierFormRowCounter, {
+    product: productValue || '',
+    qty: qtyValue || ''
+  }));
+}
+function removeSupplierItem(btn) {
+  var rows = document.querySelectorAll('#supplierItemsBody .supplier-item-row');
+  if (rows.length > 1) {
+    btn.closest('tr').remove();
+  } else {
+    toast('至少保留一行品名', 'err');
+  }
+}
+function collectSupplierFormItems() {
+  var rows = document.querySelectorAll('#supplierItemsBody .supplier-item-row');
+  var items = [];
+  var error = '';
+  rows.forEach(function(row) {
+    if (error) return;
+    var product = String((row.querySelector('.supplier-item-product') || {}).value || '').trim();
+    var qtyRaw = String((row.querySelector('.supplier-item-qty') || {}).value || '').trim();
+    if (!product && !qtyRaw) return;
+    var qty = parseFloat(qtyRaw);
+    if (!product) {
+      error = '请填写品名 / Enter product name';
+      return;
+    }
+    if (!(qty > 0)) {
+      error = '请输入数量，且必须大于 0 / Quantity is required';
+      return;
+    }
+    items.push({ product: product, qty: qty });
+  });
+  return { items: items, error: error };
+}
+function openSupplierForm() {
+  var now = new Date();
+  var y = now.getFullYear();
+  var mm = String(now.getMonth() + 1).padStart(2, '0');
+  var dd = String(now.getDate()).padStart(2, '0');
+  var hh = String(now.getHours()).padStart(2, '0');
+  var mi = String(now.getMinutes()).padStart(2, '0');
+  gid('supplier-id').value = '';
+  gid('supplier-cn').value = '';
+  gid('supplier-date').value = y + '-' + mm + '-' + dd;
+  gid('supplier-time').value = hh + ':' + mi;
+  gid('supplier-supplier').value = currentSupplierName || '';
+  resetSupplierItemRows();
+  gid('supplier-shipname').value = '';
+  refreshSupplierShipCompanyOptions('');
+  gid('supplier-bl').value = '';
+  gid('supplier-etd').value = '';
+  gid('supplier-eta').value = '';
+  gid('supplier-modal-title').textContent = '📦 添加采购记录 / Add Purchase Record';
+  gid('supplierModal').classList.add('sh');
+}
+function clSupplierModal() {
+  gid('supplierModal').classList.remove('sh');
+}
+function saveSupplierRec() {
+  var id = gid('supplier-id').value;
+  var cn = (gid('supplier-cn').value || '').trim().toUpperCase();
+  var purchaseDate = (gid('supplier-date').value || '').trim();
+  var purchaseTime = (gid('supplier-time').value || '').trim();
+  var supplier = (gid('supplier-supplier').value || '').trim();
+  var shipname = (gid('supplier-shipname').value || '').trim();
+  var shipCompany = (gid('supplier-shipcompany') ? gid('supplier-shipcompany').value : '').trim();
+  var bl = (gid('supplier-bl').value || '').trim();
+  var etd = (gid('supplier-etd').value || '').trim();
+  var eta = (gid('supplier-eta').value || '').trim();
+  var itemResult = collectSupplierFormItems();
+  var supplierItems = itemResult.items;
+  var product = supplierItems.map(function(item) { return item.product; }).join(' / ');
+  var qty = supplierItems.reduce(function(sum, item) { return sum + (parseFloat(item.qty) || 0); }, 0);
+  if (isSupplier) {
+    if (!currentUser) { toast('未登录', 'err'); return; }
+    if (!currentSupplierName) {
+      toast('账号未配置供应商名称：请让管理员在「设置 → 用户管理」中填写 supplierName', 'err');
+      return;
+    }
+    supplier = String(currentSupplierName).trim();
+    if (gid('supplier-supplier')) gid('supplier-supplier').value = supplier;
+  }
+  if (!cn) { toast('请输入集装箱号 / Enter container no.', 'err'); return; }
+  if (!purchaseDate) { toast('请选择采购日期 / Select purchase date', 'err'); return; }
+  if (!supplier) { toast('请输入供应商名称 / Enter supplier name', 'err'); return; }
+  if (itemResult.error) { toast(itemResult.error, 'err'); return; }
+  if (!supplierItems.length) { toast('请至少添加一个品名 / Add at least one product item', 'err'); return; }
+  if (!shipname) { toast('请输入船名 / Ship name is required', 'err'); return; }
+  if (!shipCompany) { toast('请选择船公司 / Shipping company is required', 'err'); return; }
+  if ((settData.shipCompanies || []).indexOf(shipCompany) === -1) {
+    toast('船公司必须从设置列表中选择', 'err');
+    return;
+  }
+  var existing = id ? supplierRecs.find(function(r) { return r.id === id; }) : null;
+  if (isSupplier && existing && !supplierRecOwnedByCurrentUser(existing)) {
+    toast('无权编辑该记录', 'err');
+    clSupplierModal();
+    return;
+  }
+  if (existing && existing.status === 'submitted') {
+    toast('⚠️ 记录已提交，请先撤销提交 / Already submitted, undo submit first', 'err');
+    clSupplierModal();
+    return;
+  }
+  if (existing && existing.status === 'confirmed') {
+    toast('⚠️ 记录已确认，无法编辑 / Already confirmed, cannot edit', 'err');
+    clSupplierModal();
+    return;
+  }
+  var rec = {
+    cn: cn,
+    purchaseDate: purchaseDate,
+    purchaseTime: purchaseTime,
+    supplier: supplier,
+    product: product,
+    qty: qty,
+    items: supplierItems,
+    shipname: shipname,
+    shipCompany: shipCompany,
+    bl: bl,
+    etd: etd,
+    eta: eta,
+    addedBy: currentUserEmail,
+    ownerUid: currentUser,
+    addTime: new Date().toISOString(),
+    status: 'draft'
+  };
+  if (id) {
+    rec.id = id;
+    rec.status = existing ? existing.status : 'draft';
+    rec.ownerUid = (existing && existing.ownerUid) ? existing.ownerUid : currentUser;
+    rec.updatedBy = currentUserEmail;
+    rec.updateTime = new Date().toISOString();
+    function writeSupplierEdit(record) {
+      supplierRef.child(id).set(record).then(function() {
+        toast('✅ 记录已更新 / Updated', 'ok');
+        clSupplierModal();
+      });
+    }
+    if (existing && existing.seq) {
+      rec.seq = existing.seq;
+      writeSupplierEdit(rec);
+    } else {
+      generateSeq(function(seq) {
+        rec.seq = seq;
+        writeSupplierEdit(rec);
+      }, new Date(purchaseDate + 'T00:00:00'));
+    }
+  } else {
+    generateSeq(function(seq) {
+      rec.seq = seq;
+      rec.id = 'sp_' + Date.now().toString(36);
+      supplierRef.child(rec.id).set(rec).then(function() {
+        toast('✅ 记录已添加，序列号：' + seq, 'ok');
+        clSupplierModal();
+      });
+    }, new Date(purchaseDate + 'T00:00:00'));
+  }
+}
+function delSupplierRec(id) {
+  var rec = supplierRecs.find(function(r) { return r.id === id; });
+  if (!rec) return;
+  if (isSupplier && !supplierRecOwnedByCurrentUser(rec)) { toast('无权删除该记录', 'err'); return; }
+  if (rec.status === 'confirmed') { toast('⚠️ 已确认状态，无法删除', 'err'); return; }
+  if (!confirm('确认删除这条采购记录？')) return;
+  supplierRef.child(id).remove().then(function() {
+    toast('✅ 已删除 / Deleted', 'ok');
+  });
+}
+function submitSupplierRec(id) {
+  var rec = supplierRecs.find(function(r) { return r.id === id; });
+  if (!rec) return;
+  if (isSupplier && !supplierRecOwnedByCurrentUser(rec)) { toast('无权提交该记录', 'err'); return; }
+  if (rec.status !== 'draft') { toast('⚠️ 只有初始状态才能提交', 'err'); return; }
+  if (!confirm('确认提交这条记录？提交后将进入"已提交"状态，等待管理员确认。')) return;
+  supplierRef.child(id).update({
+    status: 'submitted',
+    submittedBy: currentUserEmail,
+    submittedAt: new Date().toISOString()
+  }).then(function() {
+    toast('✅ 已提交，等待管理员确认 / Submitted, awaiting admin confirmation', 'ok');
+  });
+}
+function undoSubmitSupplierRec(id) {
+  var rec = supplierRecs.find(function(r) { return r.id === id; });
+  if (!rec) return;
+  if (isSupplier && !supplierRecOwnedByCurrentUser(rec)) { toast('无权撤销该记录', 'err'); return; }
+  if (rec.status !== 'submitted') { toast('⚠️ 只有已提交状态才能撤销', 'err'); return; }
+  if (!confirm('确认撤销提交？记录将回到初始状态，可继续编辑。')) return;
+  supplierRef.child(id).update({
+    status: 'draft',
+    submittedBy: null,
+    submittedAt: null
+  }).then(function() {
+    toast('✅ 已撤销，可以继续编辑 / Undo submitted, can continue editing', 'ok');
+  }).catch(function(err) {
+    console.error('Undo submit failed', err);
+    toast('❌ 撤销失败: ' + (err.message || err), 'err');
+  });
+}
+function confirmSupplierRec(id) {
+  var rec = supplierRecs.find(function(r) { return r.id === id; });
+  if (!rec) return;
+  var status = rec.status || 'draft';
+  if (status !== 'submitted' && status !== 'confirmed') {
+    toast('⚠️ 只有已提交或已确认状态才能采用', 'err');
+    return;
+  }
+  var supplierItems = normalizeSupplierRecItems(rec);
+  if (!supplierItems.length) {
+    toast('❌ 该供应商记录没有有效的品名明细', 'err');
+    return;
+  }
+  var existingPurchases = purchaseRecs.filter(function(p) {
+    return p.sourceSupplierRecId === id;
+  });
+  var confirmText = status === 'submitted'
+    ? '⚠️ 确认后将把此条供应商记录正式采用到 Warehouse1 采购列表，之后才能作为管理员采购数据使用。\n确认这条采购记录？'
+    : '这条记录已经是已确认状态，但尚未采用到 Warehouse1 采购列表。\n现在采用这条记录吗？';
+  if (!existingPurchases.length && !confirm(confirmText)) return;
+  var purchaseIds = existingPurchases.map(function(item) { return item.id; });
+  var pd = (rec.purchaseDate || '').trim();
+  var dateForSeq = pd ? new Date(pd + 'T00:00:00') : new Date();
+  function finishConfirm(seq) {
+    var nowIso = new Date().toISOString();
+    var writes = [];
+    if (existingPurchases.length) {
+      existingPurchases.forEach(function(item) {
+        writes.push(purchaseRef.child(item.id).update({ seq: seq }));
+      });
+    } else {
+      supplierItems.forEach(function(item) {
+        var purchaseId = makePurchaseRecordId();
+        var purchaseRec = createPurchaseRecordFromSupplierRec(rec, purchaseId, item);
+        purchaseRec.seq = seq;
+        purchaseIds.push(purchaseId);
+        writes.push(purchaseRef.child(purchaseId).set(purchaseRec));
+      });
+    }
+    var supplierUpdates = {
+      status: 'confirmed',
+      confirmedBy: currentUserEmail,
+      confirmedAt: rec.confirmedAt || nowIso,
+      adoptedPurchaseId: purchaseIds[0] || '',
+      adoptedPurchaseIds: purchaseIds,
+      adoptedAt: nowIso,
+      seq: seq
+    };
+    Promise.all(writes).then(function() {
+      return supplierRef.child(id).update(supplierUpdates);
+    }).then(function() {
+      toast('✅ 已确认并采用到 Warehouse1 采购列表', 'ok');
+    }).catch(function(err) {
+      console.error('Confirm supplier record failed', err);
+      toast('❌ 确认失败: ' + (err.message || err), 'err');
+    });
+  }
+  if (rec.seq) {
+    finishConfirm(rec.seq);
+  } else {
+    generateSeq(finishConfirm, dateForSeq);
+  }
+}
+function editSupplierRec(id) {
+  var rec = supplierRecs.find(function(r) { return r.id === id; });
+  if (!rec) return;
+  if (isSupplier && !supplierRecOwnedByCurrentUser(rec)) { toast('无权编辑该记录', 'err'); return; }
+  if (rec.status === 'submitted') { toast('⚠️ 已提交状态，请先撤销提交', 'err'); return; }
+  if (rec.status === 'confirmed') { toast('⚠️ 已确认状态，无法编辑', 'err'); return; }
+  gid('supplier-id').value = id;
+  gid('supplier-cn').value = rec.cn || '';
+  gid('supplier-date').value = rec.purchaseDate || '';
+  gid('supplier-time').value = rec.purchaseTime || '';
+  gid('supplier-supplier').value = rec.supplier || '';
+  resetSupplierItemRows(normalizeSupplierRecItems(rec));
+  gid('supplier-shipname').value = rec.shipname || '';
+  refreshSupplierShipCompanyOptions(rec.shipCompany || '');
+  gid('supplier-bl').value = rec.bl || '';
+  gid('supplier-etd').value = rec.etd || '';
+  gid('supplier-eta').value = rec.eta || '';
+  gid('supplier-modal-title').textContent = '✏️ 编辑采购记录 / Edit Purchase Record';
+  gid('supplierModal').classList.add('sh');
+}
+function filterSupplierTable() {
+  renderSupplierTable();
+}
+function renderSupplierTable() {
+  var container = gid('supplierView');
+  if (!container) return;
+  var searchDateStart = (gid('supplier-search-date-start') || { value: '' }).value;
+  var searchDateEnd = (gid('supplier-search-date-end') || { value: '' }).value;
+  var searchCn = (gid('supplier-search-cn') || { value: '' }).value.trim().toUpperCase();
+  var filtered = supplierRecs.filter(function(r) {
+    if (searchDateStart && r.purchaseDate < searchDateStart) return false;
+    if (searchDateEnd && r.purchaseDate > searchDateEnd) return false;
+    if (searchCn && (r.cn || '').indexOf(searchCn) === -1) return false;
+    return true;
+  });
+  filtered.sort(function(a, b) {
+    return new Date(b.purchaseDate) - new Date(a.purchaseDate);
+  });
+  var tb = gid('tb-supplier');
+  var emptyMsg = gid('es-supplier');
+  if (filtered.length === 0) {
+    tb.innerHTML = '';
+    emptyMsg.style.display = 'flex';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+  var html = filtered.map(function(r) {
+    var cnClickFn = "openSupplierCNDetail('" + r.id + "')";
+    var status = r.status || 'draft';
+    var supplierItems = normalizeSupplierRecItems(r);
+    var firstItem = supplierItems[0] || { product: r.product || '-', qty: r.qty || 0 };
+    var etdHtml = r.etd ? '<span style="color:#888;font-size:12px">ETD:' + r.etd + '</span>' : '';
+    var etaHtml = r.eta ? '<br><span style="color:#888;font-size:12px">ETA:' + r.eta + '</span>' : '';
+    var itemCount = supplierItems.length;
+    var rowGroupId = 'supplier-items-' + String(r.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+    var statusLabel = {
+      'draft': '<span style="background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold">✏️ 初始</span>',
+      'submitted': '<span style="background:#fff8e1;color:#f57f17;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold">📤 已提交</span>',
+      'confirmed': '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold">✅ 已确认</span>'
+    }[status];
+    var actionBtns = '';
+    if (isSupplier) {
+      if (status === 'draft') {
+        actionBtns =
+          '<button class="abtn" onclick="editSupplierRec(\'' + r.id + '\')">✏️</button> ' +
+          '<button class="abtn" style="background:#1565c0;color:#fff" onclick="submitSupplierRec(\'' + r.id + '\')">📤 提交</button> ' +
+          '<button class="abtn x" onclick="delSupplierRec(\'' + r.id + '\')">🗑</button>';
+      } else if (status === 'submitted') {
+        actionBtns = '<button class="abtn" style="background:#ffb300;color:#fff" onclick="undoSubmitSupplierRec(\'' + r.id + '\')">↩ 撤销</button>';
+      } else {
+        actionBtns = '<span style="color:#aaa;font-size:12px">—</span>';
+      }
+    } else if (isAdmin) {
+      if (status === 'submitted') {
+        actionBtns =
+          '<button class="abtn" onclick="editSupplierRec(\'' + r.id + '\')">✏️</button> ' +
+          '<button class="abtn" style="background:#2e7d32;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">✅ 确认</button> ' +
+          '<button class="abtn x" onclick="delSupplierRec(\'' + r.id + '\')">🗑</button>';
+      } else if (status === 'confirmed') {
+        actionBtns = '<span style="color:#aaa;font-size:12px">已确认</span>';
+      } else {
+        actionBtns =
+          '<button class="abtn" onclick="editSupplierRec(\'' + r.id + '\')">✏️</button> ' +
+          '<button class="abtn x" onclick="delSupplierRec(\'' + r.id + '\')">🗑</button>';
+      }
+    } else {
+      actionBtns = '<span style="color:#aaa;font-size:12px">—</span>';
+    }
+    var toggleBtn = itemCount > 1
+      ? '<button type="button" class="abtn" style="background:#f0f0f0;border:1px solid #ddd;padding:2px 6px;font-size:14px;margin-right:6px" onclick="toggleSupplierItems(\'' + rowGroupId + '\',this)">+</button>'
+      : '';
+    var mainRow = '<tr style="background:' + (itemCount > 1 ? '#fffcf7' : '#fff') + '">' +
+      '<td style="white-space:nowrap">' + (r.seq || '-') + '</td>' +
+      '<td>' + toggleBtn + '<a href="javascript:void(0)" onclick="' + cnClickFn + '" style="color:#00bfff;font-weight:bold;text-decoration:underline">' + (r.cn || '-') + '</a>' + (itemCount > 1 ? '<div style="font-size:11px;color:#888;margin-top:3px">' + itemCount + ' 个品名</div>' : '') + '</td>' +
+      '<td style="font-family:Arial">' + fmtSupplierName(r.supplier) + '</td>' +
+      '<td><div style="font-family:Arial;text-transform:capitalize">' + fmtTitleCase(firstItem.product || '-') + '</div>' + (itemCount > 1 ? '<div style="font-size:11px;color:#888;margin-top:2px">其余 ' + (itemCount - 1) + ' 个品名点展开查看</div>' : '') + '</td>' +
+      '<td style="white-space:nowrap">' + (r.purchaseDate || '-') + (r.purchaseTime ? '<br><span style="font-size:11px;color:#888">' + r.purchaseTime + '</span>' : '') + '</td>' +
+      '<td style="text-align:center">' + getSupplierQtyTotal(r) + '</td>' +
+      '<td>' + etdHtml + etaHtml + '</td>' +
+      '<td style="font-family:Arial;text-transform:capitalize">' + fmtTitleCase(r.shipname) + '</td>' +
+      '<td style="font-family:Arial;text-transform:capitalize">' + fmtTitleCase(r.shipCompany) + '</td>' +
+      '<td>' + (r.bl || '-') + '</td>' +
+      '<td>' + statusLabel + '</td>' +
+      '<td>' + actionBtns + '</td>' +
+    '</tr>';
+    if (itemCount <= 1) return mainRow;
+    var subRows = supplierItems.map(function(item, index) {
+      return '<tr class="' + rowGroupId + '" style="display:none;background:#fffaf0">' +
+        '<td style="color:#999">' + (index === 0 ? '└' : '') + '</td>' +
+        '<td style="padding-left:38px;color:#666">明细 ' + (index + 1) + '</td>' +
+        '<td style="font-family:Arial;color:#666">' + fmtSupplierName(r.supplier) + '</td>' +
+        '<td style="font-family:Arial;text-transform:capitalize">' + fmtTitleCase(item.product || '-') + '</td>' +
+        '<td style="color:#999">-</td>' +
+        '<td style="text-align:center">' + (item.qty || 0) + '</td>' +
+        '<td style="color:#999">-</td>' +
+        '<td style="color:#999">-</td>' +
+        '<td style="color:#999">-</td>' +
+        '<td style="color:#999">-</td>' +
+        '<td style="color:#999">-</td>' +
+      '</tr>';
+    }).join('');
+    return mainRow + subRows;
+  }).join('');
+  tb.innerHTML = html;
+}
+function toggleSupplierItems(groupId, btn) {
+  var rows = document.querySelectorAll('.' + groupId);
+  var isExpanded = btn.textContent === '-';
+  rows.forEach(function(row) {
+    row.style.display = isExpanded ? 'none' : '';
+  });
+  btn.textContent = isExpanded ? '+' : '-';
+}
+function openSupplierCNDetail(id) {
+  var rec = supplierRecs.find(function(r) { return r.id === id; });
+  if (!rec) return;
+  var linked = [];
+  if (purchaseRecs && purchaseRecs.length) {
+    linked = purchaseRecs.filter(function(p) { return p.sourceSupplierRecId === rec.id; });
+    if (!linked.length) {
+      linked = purchaseRecs.filter(function(p) { return p.cn === rec.cn; });
+    }
+  }
+  var supplierItems = normalizeSupplierRecItems(rec);
+  var status = rec.status || 'draft';
+  var statusBadge = {
+    'draft': '<span style="background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold">✏️ 初始</span>',
+    'submitted': '<span style="background:#fff8e1;color:#f57f17;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold">📤 已提交</span>',
+    'confirmed': '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold">✅ 已确认</span>'
+  }[status];
+  var html = '<div style="text-align:left;min-width:320px">';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:14px">';
+  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888;width:35%">集装箱号</td><td style="padding:6px;font-weight:bold;color:#00bfff">' + (rec.cn || '-') + '</td></tr>';
+  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">状态</td><td style="padding:6px">' + statusBadge + '</td></tr>';
+  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">供应商</td><td style="padding:6px">' + (rec.supplier || '-') + '</td></tr>';
+  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">采购日期</td><td style="padding:6px">' + (rec.purchaseDate || '-') + (rec.purchaseTime ? ' ' + rec.purchaseTime : '') + '</td></tr>';
+  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">总数量</td><td style="padding:6px">' + getSupplierQtyTotal(rec) + '</td></tr>';
+  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">船名</td><td style="padding:6px">' + (rec.shipname || '-') + '</td></tr>';
+  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">船公司</td><td style="padding:6px">' + (rec.shipCompany || '-') + '</td></tr>';
+  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">提单号</td><td style="padding:6px">' + (rec.bl || '-') + '</td></tr>';
+  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">预计开船日 ETD</td><td style="padding:6px">' + (rec.etd || '-') + '</td></tr>';
+  html += '<tr><td style="padding:6px;color:#888">预计到港日 ETA</td><td style="padding:6px">' + (rec.eta || '-') + '</td></tr>';
+  html += '</table>';
+  html += '<div style="margin-top:12px">';
+  html += '<div style="font-weight:bold;margin-bottom:6px">品名明细 / Product Items</div>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+  html += '<tr style="background:#f5f5f5"><th style="padding:6px;text-align:left;border:1px solid #ddd">品名</th><th style="padding:6px;text-align:center;border:1px solid #ddd;width:90px">数量</th></tr>';
+  html += supplierItems.map(function(item) {
+    return '<tr><td style="padding:6px;border:1px solid #ddd;font-family:Arial;text-transform:capitalize">' + fmtTitleCase(item.product) + '</td><td style="padding:6px;border:1px solid #ddd;text-align:center">' + (item.qty || 0) + '</td></tr>';
+  }).join('');
+  html += '</table></div>';
+  if (linked.length) {
+    html += '<div style="margin-top:12px;padding:10px;background:#e8f5e9;border-radius:6px;border:1px solid #4CAF50">';
+    html += '<div style="color:#00aa00;font-weight:bold;margin-bottom:6px">✅ Warehouse1 已采用 / Adopted in Warehouse1</div>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+    html += '<tr style="background:#f1fbf1"><th style="padding:4px;text-align:left;border:1px solid #c8e6c9">品名</th><th style="padding:4px;text-align:center;border:1px solid #c8e6c9;width:70px">数量</th><th style="padding:4px;text-align:center;border:1px solid #c8e6c9;width:90px">费用合计</th></tr>';
+    html += linked.map(function(item) {
+      var total = (item.demurrage || 0) + (item.customs || 0) + (item.coldFee || item.coldfee || 0) + (item.attestation || 0) + (item.repack || 0) + (item.waste || 0) + (item.other || 0);
+      return '<tr>' +
+        '<td style="padding:4px;border:1px solid #c8e6c9;font-family:Arial;text-transform:capitalize">' + fmtTitleCase(item.product || '-') + '</td>' +
+        '<td style="padding:4px;border:1px solid #c8e6c9;text-align:center">' + (item.qty || 0) + '</td>' +
+        '<td style="padding:4px;border:1px solid #c8e6c9;text-align:center">' + total.toFixed(2) + ' AED</td>' +
+      '</tr>';
+    }).join('');
+    html += '</table></div>';
+  } else {
+    html += '<div style="margin-top:12px;padding:10px;background:#fff8e1;border-radius:6px;border:1px solid #ffb300">';
+    html += '<div style="color:#ff8f00;font-weight:bold">⚠️ 尚未在 Warehouse1 采购主表采用 / Not yet adopted into Warehouse1</div>';
+    html += '<div style="margin-top:4px;font-size:13px;color:#666">管理员确认后，才会在 Warehouse1 采购记录中正式采用此条数据。</div></div>';
+  }
+  html += '</div>';
+  gid('mcon').innerHTML = html;
+  gid('modal').classList.add('sh');
+}
 // ============================================================
 // USER MANAGEMENT
 // ============================================================
@@ -691,7 +1218,7 @@ function gid(id) { return document.getElementById(id); }function pad2(n) { retur
 // ============================================================
 function checkIn() {  console.log('checkIn called, isCheckingIn:', isCheckingIn);  if (isCheckingIn) {    console.log('Already checking in, ignoring');    return;  }  isCheckingIn = true;  var cn = (gid('f-cn').value || '').trim().toUpperCase();  var supplier = (gid('f-supplier').value || '').trim();  var product = (gid('f-product').value || '').trim();  var pallets = parseInt(gid('f-pallets').value) || 1;  var items = parseInt(gid('f-items').value) || 1;  var at = gid('f-at').value;  console.log('checkIn values:', {cn: cn, supplier: supplier, product: product, pallets: pallets, items: items, at: at});  if (!cn || cn.length < 2) { isCheckingIn = false; toast('请输入有效的集装箱号码 (至少2个字符)', 'err'); console.log('validation failed: cn, length:', cn ? cn.length : 0); return; }  if (!product) { isCheckingIn = false; toast('请输入品名', 'err'); console.log('validation failed: product'); return; }  if (!at) { isCheckingIn = false; toast('请输入入库日期', 'err'); console.log('validation failed: at'); return; }  console.log('validation passed, checking exists...');  
 // 检查是否已存在  
-var exists = recs.some(function(r) {    return r.cn === cn && !r.dep && r.store === currentColdStore && !r.type;  });  if (exists) {    isCheckingIn = false; toast('集装箱 ' + cn + ' 已在冷库 ' + currentColdStore, 'err');    return;  }  
+var exists = recs.some(function(r) {    return r.cn === cn && !r.dep && r.store === currentColdStore && !r.type;  });  if (exists) {    isCheckingIn = false; toast('集装箱 ' + cn + ' 已在 ' + getStoreDisplayName(currentColdStore), 'err');    return;  }  
 // 生成序列号  
 generateSeq(function(seq) {    var id = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);    var rec = {      id: id,      seq: seq,      cn: cn,      supplier: supplier,      product: product,      pallets: pallets,      items: items,      store: currentColdStore,      arr: new Date(at).toISOString(),      dep: null,      pallets_out: 0,      items_out: 0    };    
 // 保存到 Firebase    
@@ -705,7 +1232,7 @@ gid('f-cn').value = '';          gid('f-supplier').value = '';          gid('f-p
 // ============================================================
 function checkOut() {  console.log('checkOut called');  var cn = (gid('f-cno').value || '').trim().toUpperCase();  var pallets_out = parseInt(gid('f-pallets-out').value) || 1;  var items_out = parseInt(gid('f-items-out').value) || 1;  var dt = gid('f-dt').value;  console.log('checkOut values:', {cn: cn, pallets_out: pallets_out, items_out: items_out, dt: dt});  if (!cn || cn.length < 2) { toast('请输入集装箱号码', 'err'); console.log('validation failed: cn'); return; }  if (!dt) { toast('请输入出库日期', 'err'); console.log('validation failed: dt'); return; }  
 // 找到入库记录  
-console.log('Searching for:', cn, 'in store:', currentColdStore);  console.log('Available records:', recs.map(function(r){return {cn:r.cn, store:r.store, dep:r.dep, type:r.type}}));  var rec = recs.find(function(r) {    return r.cn === cn && !r.dep && !r.type && r.store === currentColdStore;  });  console.log('Found record:', rec);  if (!rec) {    toast('未找到在库记录: ' + cn + ' (冷库' + currentColdStore + ')', 'err');    console.log('rec not found, recs:', recs.filter(function(r){return r.cn === cn}));    return;  }  var remaining_pallets = rec.pallets - (rec.pallets_out || 0);  var remaining_items = rec.items - (rec.items_out || 0);  if (pallets_out > remaining_pallets) {    toast('出库托盘数超过剩余数量', 'err');    return;  }  if (items_out > remaining_items) {    toast('出库件数超过剩余数量', 'err');    return;  }  
+console.log('Searching for:', cn, 'in store:', currentColdStore);  console.log('Available records:', recs.map(function(r){return {cn:r.cn, store:r.store, dep:r.dep, type:r.type}}));  var rec = recs.find(function(r) {    return r.cn === cn && !r.dep && !r.type && r.store === currentColdStore;  });  console.log('Found record:', rec);  if (!rec) {    toast('未找到在库记录: ' + cn + '（' + getStoreDisplayName(currentColdStore) + '）', 'err');    console.log('rec not found, recs:', recs.filter(function(r){return r.cn === cn}));    return;  }  var remaining_pallets = rec.pallets - (rec.pallets_out || 0);  var remaining_items = rec.items - (rec.items_out || 0);  if (pallets_out > remaining_pallets) {    toast('出库托盘数超过剩余数量', 'err');    return;  }  if (items_out > remaining_items) {    toast('出库件数超过剩余数量', 'err');    return;  }  
 // 创建新的出库记录  
 var outId = 'out_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);  
 // 生成序列号（使用出库日期）  
@@ -745,19 +1272,182 @@ feeDisplay = '<strong style="color:#ff9900;background:#fff8e1;padding:2px 6px;bo
 else {      
 // 刚入库未出库，显示 "-"
 feeDisplay = '<span style="color:#999">-</span>';    }    
-return '<tr style="background:#fff">' +      '<td><strong>' + (r.seq || '-') + '</strong></td>' +      '<td><strong>' + r.cn + '</strong></td>' +      '<td style="font-family:Arial">' + fmtSupplierName(r.supplier) + '</td><td style="font-family:Arial;text-transform:capitalize">' + r.product + '</td>' +      '<td>冷库 ' + r.store + '</td>' +      '<td>' + r.pallets + ' / <span style="color:#ff9900">' + remaining_pallets + '</span></td>' +      '<td>' + r.items + ' / <span style="color:#ff9900">' + remaining_items + '</span></td>' +      '<td>' + fdt(r.arr) + '</td><td>' + fdt(r.dep) + '</td>' +      '<td>' + feeDisplay + '</td>' +      '<td>' + status + '</td>' +      '<td><button class="abtn" onclick="showDet(\'' + r.id + '\')">详情</button>' + editBtn + '</td></tr>';  });  tb.innerHTML = html.join('');}
+return '<tr style="background:#fff">' +      '<td><strong>' + (r.seq || '-') + '</strong></td>' +      '<td><strong>' + r.cn + '</strong></td>' +      '<td style="font-family:Arial">' + fmtSupplierName(r.supplier) + '</td><td style="font-family:Arial;text-transform:capitalize">' + r.product + '</td>' +      '<td>' + getStoreDisplayName(r.store) + '</td>' +      '<td>' + r.pallets + ' / <span style="color:#ff9900">' + remaining_pallets + '</span></td>' +      '<td>' + r.items + ' / <span style="color:#ff9900">' + remaining_items + '</span></td>' +      '<td>' + fdt(r.arr) + '</td><td>' + fdt(r.dep) + '</td>' +      '<td>' + feeDisplay + '</td>' +      '<td>' + status + '</td>' +      '<td><button class="abtn" onclick="showDet(\'' + r.id + '\')">详情</button>' + editBtn + '</td></tr>';  });  tb.innerHTML = html.join('');}
 // 计算已产生的实际费用（基于出库记录表的逻辑）
-function calcActualFee(inRec) {  
-// 获取该集装箱的所有出库记录  
-var outRecs = recs.filter(function(r) {    return r.type === 'checkout' && r.cn === inRec.cn;  }).sort(function(a, b) { return new Date(a.dep) - new Date(b.dep); });  if (outRecs.length === 0) return 0;  var startDate = new Date(inRec.arr);  var endDate = new Date(outRecs[outRecs.length - 1].dep);  var totalFee = 0;  var currentDate = new Date(startDate);  var palletsAtWeekStart = inRec.pallets;  while (currentDate < endDate) {    var weekStart = new Date(currentDate);    var weekEnd = new Date(weekStart);    weekEnd.setDate(weekEnd.getDate() + 6);    var actualEnd = weekEnd < endDate ? weekEnd : endDate;    
-// 该周费用 = 托盘数 × 费率 × 1.05    
-var rate = getRateByStore(inRec.store);    var amount = palletsAtWeekStart > 0 ? (palletsAtWeekStart * rate) : 0;    var vat = amount * VAT_RATE;    var weeklyTotal = amount + vat;    if (weeklyTotal > 0) {      totalFee += weeklyTotal;    }    
-// 该周出库托盘数    
-var weekOutPallets = 0;    outRecs.forEach(function(or) {      var od = new Date(or.dep);      if (od >= weekStart && od <= weekEnd) {        weekOutPallets += or.pallets_out;      }    });    
-// 下周起始托盘数
-palletsAtWeekStart = Math.max(0, palletsAtWeekStart - weekOutPallets);
-// 如果托盘已全部出库，结束计算    
-if (palletsAtWeekStart === 0) break;    currentDate = new Date(weekEnd);    currentDate.setDate(currentDate.getDate() + 1);  }  return totalFee;}function calcFee(r) {  if (!r.arr) return 0;  var start = new Date(r.arr);  var end = r.dep ? new Date(r.dep) : new Date();  var days = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;  if (days <= 0) return 0;  var weeks = Math.ceil(days / 7);  var totalPallets = r.pallets - (r.pallets_out || 0);  var rate = getRateByStore(r.store);  return weeks * totalPallets * rate * (1 + VAT_RATE);}function updStats() {  if (!gid('s-total') || !gid('s-pallets') || !gid('s-items')) return;  
+function calcActualFee(inRec) {
+  if (!inRec || !inRec.arr) return 0;
+  var outRecs = recs.filter(function(r) {
+    if (r.type !== 'checkout') return false;
+    if (inRec.id && r.refId) return r.refId === inRec.id;
+    return r.cn === inRec.cn && r.store === inRec.store;
+  }).sort(function(a, b) {
+    return new Date(a.dep) - new Date(b.dep);
+  });
+  if (outRecs.length === 0) return 0;
+  var startDate = new Date(inRec.arr);
+  var endDate = new Date(outRecs[outRecs.length - 1].dep);
+  var totalFee = 0;
+  var currentDate = new Date(startDate);
+  var palletsAtWeekStart = inRec.pallets;
+  while (currentDate < endDate) {
+    var weekStart = new Date(currentDate);
+    var weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    var rate = getRateByStore(inRec.store);
+    var amount = palletsAtWeekStart > 0 ? (palletsAtWeekStart * rate) : 0;
+    var vat = amount * VAT_RATE;
+    var weeklyTotal = amount + vat;
+    if (weeklyTotal > 0) totalFee += weeklyTotal;
+    var weekOutPallets = 0;
+    outRecs.forEach(function(or) {
+      var od = new Date(or.dep);
+      if (od >= weekStart && od <= weekEnd) weekOutPallets += or.pallets_out;
+    });
+    palletsAtWeekStart = Math.max(0, palletsAtWeekStart - weekOutPallets);
+    if (palletsAtWeekStart === 0) break;
+    currentDate = new Date(weekEnd);
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  return totalFee;
+}
+function getContainerColdFeeSummary(cn) {
+  var inRecs = recs.filter(function(r) {
+    return !r.type && r.cn === cn;
+  });
+  if (!inRecs.length) {
+    return { hasInRec: false, totalFee: 0, allCheckedOut: false };
+  }
+  var totalFee = inRecs.reduce(function(sum, inRec) {
+    return sum + calcActualFee(inRec);
+  }, 0);
+  var allCheckedOut = inRecs.every(function(inRec) {
+    var remainingPallets = (inRec.pallets || 0) - (inRec.pallets_out || 0);
+    return remainingPallets <= 0 && !!inRec.dep;
+  });
+  return {
+    hasInRec: true,
+    totalFee: totalFee,
+    allCheckedOut: allCheckedOut
+  };
+}
+function getContainerColdFeeBreakdown(cn) {
+  var inRecs = recs.filter(function(r) {
+    return !r.type && r.cn === cn;
+  }).sort(function(a, b) {
+    if ((a.store || 0) !== (b.store || 0)) return (a.store || 0) - (b.store || 0);
+    return new Date(a.arr || 0) - new Date(b.arr || 0);
+  });
+  var rows = inRecs.map(function(inRec) {
+    var remainingPallets = (inRec.pallets || 0) - (inRec.pallets_out || 0);
+    var remainingItems = (inRec.items || 0) - (inRec.items_out || 0);
+    var actualFee = calcActualFee(inRec);
+    var checkedOut = remainingPallets <= 0 && !!inRec.dep;
+    return {
+      id: inRec.id,
+      store: inRec.store || '',
+      product: inRec.product || '',
+      supplier: inRec.supplier || '',
+      arr: inRec.arr || '',
+      dep: inRec.dep || '',
+      pallets: inRec.pallets || 0,
+      palletsOut: inRec.pallets_out || 0,
+      remainingPallets: remainingPallets,
+      items: inRec.items || 0,
+      itemsOut: inRec.items_out || 0,
+      remainingItems: remainingItems,
+      checkedOut: checkedOut,
+      actualFee: actualFee
+    };
+  });
+  var totalFee = rows.reduce(function(sum, row) {
+    return sum + (row.actualFee || 0);
+  }, 0);
+  var allCheckedOut = rows.length > 0 && rows.every(function(row) {
+    return row.checkedOut;
+  });
+  return {
+    rows: rows,
+    totalFee: totalFee,
+    allCheckedOut: allCheckedOut
+  };
+}
+function showPurchaseCnDetail(cn) {
+  var purchaseItems = purchaseRecs.filter(function(r) {
+    return r.cn === cn;
+  }).sort(function(a, b) {
+    return String(a.product || '').localeCompare(String(b.product || ''));
+  });
+  var breakdown = getContainerColdFeeBreakdown(cn);
+  var mcon = gid('mcon');
+  if (!mcon) return;
+  if (!purchaseItems.length && !breakdown.rows.length) {
+    mcon.innerHTML = '<div style="text-align:center;padding:20px;color:#888">未找到该集装箱的采购或冷库数据</div>';
+    gid('modal').classList.add('sh');
+    return;
+  }
+  var base = purchaseItems[0] || breakdown.rows[0] || {};
+  var totalQty = purchaseItems.reduce(function(sum, item) {
+    return sum + (parseFloat(item.qty) || 0);
+  }, 0);
+  var html = '<div style="text-align:left;min-width:320px">';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">';
+  html += '<div class="mr"><span class="ml">集装箱号</span><span class="mv"><strong>' + (cn || '-') + '</strong></span></div>';
+  html += '<div class="mr"><span class="ml">供应商</span><span class="mv" style="font-family:Arial">' + fmtSupplierName(base.supplier || '-') + '</span></div>';
+  html += '<div class="mr"><span class="ml">采购品名数</span><span class="mv">' + purchaseItems.length + '</span></div>';
+  html += '<div class="mr"><span class="ml">采购总数量</span><span class="mv">' + totalQty + '</span></div>';
+  html += '<div class="mr"><span class="ml">冷库记录数</span><span class="mv">' + breakdown.rows.length + '</span></div>';
+  html += '<div class="mr"><span class="ml">冷库费状态</span><span class="mv">' + (breakdown.allCheckedOut ? '<span style="color:#2e7d32;font-weight:bold">已全部出库</span>' : '<span style="color:#ff9900;font-weight:bold">未全部出库</span>') + '</span></div>';
+  html += '<div class="mr" style="grid-column:1 / -1"><span class="ml">冷库费总和</span><span class="mv" style="color:#0066cc;font-weight:bold;font-size:18px">' + (breakdown.allCheckedOut ? breakdown.totalFee.toFixed(2) + ' AED' : '-') + '</span></div>';
+  html += '</div>';
+  if (purchaseItems.length) {
+    html += '<div style="margin-top:14px;border-top:1px solid #ddd;padding-top:12px">';
+    html += '<div style="font-size:11px;color:#666;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">采购品名明细</div>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #ddd">';
+    html += '<tr style="background:#f5f5f5"><th style="padding:6px;border:1px solid #ddd">品名</th><th style="padding:6px;border:1px solid #ddd">数量</th><th style="padding:6px;border:1px solid #ddd">采购日期</th></tr>';
+    purchaseItems.forEach(function(item) {
+      html += '<tr>' +
+        '<td style="padding:6px;border:1px solid #ddd;font-family:Arial;text-transform:capitalize">' + fmtTitleCase(item.product || '-') + '</td>' +
+        '<td style="padding:6px;border:1px solid #ddd;text-align:center">' + (item.qty || 0) + '</td>' +
+        '<td style="padding:6px;border:1px solid #ddd">' + (item.purchaseDate ? fdt(item.purchaseDate + 'T00:00:00') : '-') + '</td>' +
+      '</tr>';
+    });
+    html += '</table></div>';
+  }
+  if (breakdown.rows.length) {
+    html += '<div style="margin-top:14px;border-top:1px solid #ddd;padding-top:12px">';
+    html += '<div style="font-size:11px;color:#666;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">各门店冷库费明细 / Cold fee by store</div>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #ddd">';
+    html += '<tr style="background:#f5f5f5">' +
+      '<th style="padding:6px;border:1px solid #ddd">门店 / Store</th>' +
+      '<th style="padding:6px;border:1px solid #ddd">品名</th>' +
+      '<th style="padding:6px;border:1px solid #ddd">托盘 入/剩</th>' +
+      '<th style="padding:6px;border:1px solid #ddd">件数 入/剩</th>' +
+      '<th style="padding:6px;border:1px solid #ddd">入库</th>' +
+      '<th style="padding:6px;border:1px solid #ddd">出库</th>' +
+      '<th style="padding:6px;border:1px solid #ddd">状态</th>' +
+      '<th style="padding:6px;border:1px solid #ddd">冷库费</th>' +
+    '</tr>';
+    breakdown.rows.forEach(function(row) {
+      html += '<tr>' +
+        '<td style="padding:6px;border:1px solid #ddd;text-align:center">' + getStoreDisplayName(row.store) + '</td>' +
+        '<td style="padding:6px;border:1px solid #ddd;font-family:Arial;text-transform:capitalize">' + fmtTitleCase(row.product || '-') + '</td>' +
+        '<td style="padding:6px;border:1px solid #ddd;text-align:center">' + row.pallets + ' / ' + Math.max(0, row.remainingPallets) + '</td>' +
+        '<td style="padding:6px;border:1px solid #ddd;text-align:center">' + row.items + ' / ' + Math.max(0, row.remainingItems) + '</td>' +
+        '<td style="padding:6px;border:1px solid #ddd">' + fdt(row.arr) + '</td>' +
+        '<td style="padding:6px;border:1px solid #ddd">' + fdt(row.dep) + '</td>' +
+        '<td style="padding:6px;border:1px solid #ddd;text-align:center">' + (row.checkedOut ? '<span style="color:#2e7d32;font-weight:bold">已出库</span>' : '<span style="color:#ff9900;font-weight:bold">在库</span>') + '</td>' +
+        '<td style="padding:6px;border:1px solid #ddd;text-align:right;color:' + (row.checkedOut ? '#0066cc' : '#ff9900') + ';font-weight:bold">' + (row.actualFee > 0 ? row.actualFee.toFixed(2) + ' AED' : '-') + '</td>' +
+      '</tr>';
+    });
+    html += '</table>';
+    html += '<div style="margin-top:8px;font-size:11px;color:#666">采购记录页仅在该集装箱所有冷库记录都全部出库后，才显示冷库费总和。</div>';
+    html += '</div>';
+  }
+  html += '</div>';
+  mcon.innerHTML = html;
+  gid('modal').classList.add('sh');
+}
+function calcFee(r) {  if (!r.arr) return 0;  var start = new Date(r.arr);  var end = r.dep ? new Date(r.dep) : new Date();  var days = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;  if (days <= 0) return 0;  var weeks = Math.ceil(days / 7);  var totalPallets = r.pallets - (r.pallets_out || 0);  var rate = getRateByStore(r.store);  return weeks * totalPallets * rate * (1 + VAT_RATE);}function updStats() {  if (!gid('s-total') || !gid('s-pallets') || !gid('s-items')) return;  
 // 只统计入库记录（排除出库记录类型）  
 var inRecsAll = recs.filter(function(r) { return !r.type; });  var inRecs = inRecsAll.filter(function(r) { return r.store === currentColdStore && !r.dep; });  
 // 顶部统计显示当前冷库的在库数据  
@@ -891,7 +1581,7 @@ function showDet(id) {
     html += '<div class="mr"><span class="ml">集装箱号</span><span class="mv"><strong>' + r.cn + '</strong></span></div>';
     html += '<div class="mr"><span class="ml">供应商</span><span class="mv" style="font-family:Arial">' + fmtSupplierName(r.supplier) + '</span></div>';
     html += '<div class="mr"><span class="ml">品名</span><span class="mv">' + r.product + '</span></div>';
-    html += '<div class="mr"><span class="ml">冷库</span><span class="mv">冷库 ' + r.store + '</span></div>';
+    html += '<div class="mr"><span class="ml">门店 Store</span><span class="mv">' + getStoreDisplayName(r.store) + '</span></div>';
     html += '<div class="mr"><span class="ml">入库时间</span><span class="mv">' + fdt(r.arr) + '</span></div>';
     html += '<div class="mr"><span class="ml">出库时间</span><span class="mv">' + fdt(r.dep) + '</span></div>';
     html += '<div class="mr"><span class="ml">入库托盘</span><span class="mv">' + r.pallets + '</span></div>';
@@ -1245,11 +1935,11 @@ var adoptedSupplierIds = {};  purchaseRecs.forEach(function(r) { if (r.sourceSup
 // 已在 warehouse1 中，不再重复显示    
 var matchDate = !searchDate || (r.purchaseDate || '').indexOf(searchDate) !== -1;    var matchCn = !searchCn || (r.cn || '').indexOf(searchCn) !== -1;    var matchSupplier = !searchSupplier || (r.supplier || '').toUpperCase().indexOf(searchSupplier) !== -1;    return matchDate && matchCn && matchSupplier;  });  if (filteredRecs.length === 0 && supplierOnlyRecs.length === 0) { tb.innerHTML = ''; es.style.display = 'block'; return; }  es.style.display = 'none';  
 // 按集装箱号分组  
-var cnGroups = {};  filteredRecs.forEach(function(r) {    var key = r.cn || '_empty_';    if (!cnGroups[key]) cnGroups[key] = [];    cnGroups[key].push(r);  });  var html = '';  Object.keys(cnGroups).sort().forEach(function(cn) {    var items = cnGroups[cn];    var groupId = 'group-' + cn.replace(/[^a-zA-Z0-9]/g, '');    var firstItem = items[0];    var totalItems = items.length;    var totalAmount = items.reduce(function(s, r) { return s + ((r.demurrage||0)+(r.customs||0)+(r.coldFee||0)+(r.attestation||0)+(r.repack||0)+(r.waste||0)+(r.other||0)); }, 0);    var purchaseDate = firstItem.purchaseDate ? fdt(firstItem.purchaseDate+'T00:00:00') : '-';    
-// 检查是否有入库记录    
-var hasInRec = false;    var coldFeeDisplay = '-';    for (var i = 0; i < recs.length; i++) {      if (recs[i].cn === cn && !recs[i].type && recs[i].store === currentColdStore) {        hasInRec = true;        var actualFee = calcActualFee(recs[i]);        if (actualFee > 0) {          coldFeeDisplay = '<strong style="color:#ff9900;background:#fff8e1;padding:2px 6px;border-radius:3px;font-size:14px">' + actualFee.toFixed(2) + '</strong>';        } else {          coldFeeDisplay = '<span style="color:#666;background:#fff8e1;padding:2px 6px;border-radius:3px;font-size:14px">0.00</span>';        }        break;      }    }    if (cn === '_empty_') cn = '-';    
+var cnGroups = {};  filteredRecs.forEach(function(r) {    var key = r.cn || '_empty_';    if (!cnGroups[key]) cnGroups[key] = [];    cnGroups[key].push(r);  });  var html = '';  Object.keys(cnGroups).sort().forEach(function(cn) {    var rawCn = cn;    var items = cnGroups[cn];    var groupId = 'group-' + cn.replace(/[^a-zA-Z0-9]/g, '');    var firstItem = items[0];    var totalItems = items.length;    var totalAmount = items.reduce(function(s, r) { return s + ((r.demurrage||0)+(r.customs||0)+(r.coldFee||0)+(r.attestation||0)+(r.repack||0)+(r.waste||0)+(r.other||0)); }, 0);    var purchaseDate = firstItem.purchaseDate ? fdt(firstItem.purchaseDate+'T00:00:00') : '-';    
+// 按集装箱汇总所有冷库的冷库费；只有全部出库完成后才在采购页显示总和    
+var coldFeeSummary = getContainerColdFeeSummary(rawCn);    var coldFeeDisplay = '-';    if (coldFeeSummary.hasInRec && coldFeeSummary.allCheckedOut) {      coldFeeDisplay = '<strong style="color:#0066cc;background:#e8f4ff;padding:2px 6px;border-radius:3px;font-size:14px">' + coldFeeSummary.totalFee.toFixed(2) + '</strong>';    }    if (cn === '_empty_') cn = '-';    
 // 主行：集装箱号 + 展开按钮    
-var expandBtn = totalItems > 1 ?      '<button type="button" class="abtn" style="background:#f0f0f0;border:1px solid #ddd;padding:2px 6px;font-size:14px" onclick="togglePurchaseGroup(\'' + groupId + '\',this)">+</button>' : '';    var firstProduct = firstItem.product || '-';    var firstQty = firstItem.qty || '-';    var firstSeq = firstItem.seq || '-';    html += '<tr style="background:#f9f9f9;font-weight:bold" id="pur-main-' + groupId + '">' +      '<td style="font-size:13px;color:#0066cc">' + firstSeq + '</td>' +      '<td>' + expandBtn + ' <button type="button" class="abtn" style="background:#e8f4ff;border-color:#00bfff;color:#00bfff;padding:2px 6px;font-size:11px" onclick="quickCheckIn(\'' + firstItem.id + '\')">📥</button> ' + cn + ' <span style="color:#999;font-size:11px">(' + totalItems + '品名)</span></td>' +      '<td style="font-family:Arial">'+fmtSupplierName(firstItem.supplier)+'</td><td style="font-family:Arial;text-transform:capitalize">'+fmtTitleCase(firstProduct)+'</td><td>'+purchaseDate+'</td><td style="font-family:Arial">'+firstQty+'</td><td style="font-family:Arial">'+(firstItem.demurrage||0)+'</td><td style="font-family:Arial">'+(firstItem.customs||0)+'</td><td style="font-family:Arial">'+(coldFeeDisplay||'-')+'</td><td style="font-family:Arial">'+(firstItem.attestation||0)+'</td><td style="font-family:Arial">'+(firstItem.repack||0)+'</td><td style="font-family:Arial">'+(firstItem.waste||0)+'</td><td style="font-family:Arial">'+(firstItem.other||0)+'</td>' +      '<td><strong style="color:#0066cc">'+totalAmount.toFixed(2)+'</strong></td>' +      '<td><button type="button" class="abtn" onclick="openEditPurchase(\''+firstItem.id+'\')">✏️</button><button type="button" class="abtn x" onclick="delPurchaseGroup(\'' + cn + '\')">🗑</button></td></tr>';    
+var expandBtn = totalItems > 1 ?      '<button type="button" class="abtn" style="background:#f0f0f0;border:1px solid #ddd;padding:2px 6px;font-size:14px" onclick="togglePurchaseGroup(\'' + groupId + '\',this)">+</button>' : '';    var firstProduct = firstItem.product || '-';    var firstQty = firstItem.qty || '-';    var firstSeq = firstItem.seq || '-';    html += '<tr style="background:#f9f9f9;font-weight:bold" id="pur-main-' + groupId + '">' +      '<td style="font-size:13px;color:#0066cc">' + firstSeq + '</td>' +      '<td>' + expandBtn + ' <button type="button" class="abtn" style="background:#fff3e0;border-color:#ff9800;color:#e65100;padding:2px 6px;font-size:11px" onclick="showPurchaseCnDetail(\'' + rawCn + '\')">详情</button> <button type="button" class="abtn" style="background:#e8f4ff;border-color:#00bfff;color:#00bfff;padding:2px 6px;font-size:11px" onclick="quickCheckIn(\'' + firstItem.id + '\')">📥</button> ' + cn + ' <span style="color:#999;font-size:11px">(' + totalItems + '品名)</span></td>' +      '<td style="font-family:Arial">'+fmtSupplierName(firstItem.supplier)+'</td><td style="font-family:Arial;text-transform:capitalize">'+fmtTitleCase(firstProduct)+'</td><td>'+purchaseDate+'</td><td style="font-family:Arial">'+firstQty+'</td><td style="font-family:Arial">'+(firstItem.demurrage||0)+'</td><td style="font-family:Arial">'+(firstItem.customs||0)+'</td><td style="font-family:Arial">'+(coldFeeDisplay||'-')+'</td><td style="font-family:Arial">'+(firstItem.attestation||0)+'</td><td style="font-family:Arial">'+(firstItem.repack||0)+'</td><td style="font-family:Arial">'+(firstItem.waste||0)+'</td><td style="font-family:Arial">'+(firstItem.other||0)+'</td>' +      '<td><strong style="color:#0066cc">'+totalAmount.toFixed(2)+'</strong></td>' +      '<td><button type="button" class="abtn" onclick="openEditPurchase(\''+firstItem.id+'\')">✏️</button><button type="button" class="abtn x" onclick="delPurchaseGroup(\'' + cn + '\')">🗑</button></td></tr>';    
 // 子行：每个品名    
 items.forEach(function(r) {      var total = (r.demurrage||0)+(r.customs||0)+(r.coldFee||0)+(r.attestation||0)+(r.repack||0)+(r.waste||0)+(r.other||0);      html += '<tr class="purchase-sub-row ' + groupId + '" style="display:none;background:#fff">' +        '<td style="font-size:13px;color:#0066cc">' + (r.seq || '-') + '</td>' +        '<td style="padding-left:40px;color:#666;font-family:Arial;text-transform:capitalize">└ '+fmtTitleCase(r.product)+'</td>' +        '<td style="font-family:Arial;color:#666">'+fmtSupplierName(r.supplier)+'</td><td style="font-family:Arial;text-transform:capitalize">'+fmtTitleCase(r.product)+'</td><td>-</td><td>'+(r.qty||0)+'</td>' +        '<td>'+(r.demurrage||0)+'</td><td>'+(r.customs||0)+'</td><td>-</td>' +        '<td>'+(r.attestation||0)+'</td><td>'+(r.repack||0)+'</td><td>'+(r.waste||0)+'</td><td>'+(r.other||0)+'</td>' +        '<td><strong style="color:#0066cc">'+total.toFixed(2)+'</strong></td>' +        '<td><button type="button" class="abtn" onclick="openEditPurchase(\''+r.id+'\')">✏️</button><button type="button" class="abtn x" onclick="delPurchase(\''+r.id+'\')">🗑</button></td></tr>';    });  });  
 // 显示供应商专属记录（在 warehouse1 采购列表中没有的）  
@@ -1691,7 +2381,97 @@ document.querySelector('.left').scrollTop = 0;}
 // ============================================================
 function showSuggest(inputEl, type) {  var val = (inputEl.value || '').trim().toLowerCase();  var list = type === 'supplier' ? settData.suppliers : (type === 'product' ? settData.products : settData.shipCompanies);  var suggestEl = gid('suggest-' + type);  console.log('showSuggest:', type, 'val:', val, 'list:', list, 'suggestEl:', !!suggestEl);  if (!suggestEl || list.length === 0) { return; }  var filtered = val ? list.filter(function(item) {    return item.toLowerCase().indexOf(val) !== -1;  }) : list;  if (filtered.length === 0) {    suggestEl.classList.remove('show');    suggestEl.innerHTML = '';    return;  }  suggestEl.innerHTML = filtered.map(function(item) {    return '<div class="suggest-item" onmousedown="pickSuggest(this,\'' + type + '\')">' + item + '</div>';  }).join('');  suggestEl.classList.add('show');}
 // 品名表格行的模糊搜索
-var purchaseItemRowCounter = 1;function showSuggestPurchaseItem(inputEl) {  var val = (inputEl.value || '').trim().toLowerCase();  var rowId = inputEl.getAttribute('data-rowid');  var suggestEl = gid('suggest-purchase-item-' + rowId);  if (!suggestEl || settData.products.length === 0) return;  var filtered = val ? settData.products.filter(function(item) {    return item.toLowerCase().indexOf(val) !== -1;  }) : settData.products;  if (filtered.length === 0) {    suggestEl.classList.remove('show');    suggestEl.innerHTML = '';    return;  }  suggestEl.innerHTML = filtered.map(function(item) {    return '<div class="suggest-item" onmousedown="pickSuggestPurchaseItem(this,\'' + rowId + '\')">' + item + '</div>';  }).join('');  suggestEl.classList.add('show');}function pickSuggestPurchaseItem(el, rowId) {  var val = el.textContent;  var inputEl = document.querySelector('.item-product[data-rowid="' + rowId + '"]');  if (inputEl) inputEl.value = val;  hideSuggest('purchase-item-' + rowId);}function hideSuggest(type) {  var suggestEl = gid('suggest-' + type);  if (suggestEl) suggestEl.classList.remove('show');}function pickSuggest(el, type) {  var val = el.textContent;  if (type === 'supplier') {    gid('fp-supplier').value = val;  } else if (type === 'product') {    gid('fp-product').value = val;  } else if (type === 'shipcompany' && gid('supplier-shipcompany')) {    gid('supplier-shipcompany').value = val;  }  hideSuggest(type);}function showSuggestEdit(inputEl, type) {  var val = (inputEl.value || '').trim().toLowerCase();  var list = type === 'supplier' ? settData.suppliers : settData.products;  var suggestEl = gid('suggest-edit-' + type);  if (!suggestEl || list.length === 0) return;  var filtered = val ? list.filter(function(item) {    return item.toLowerCase().indexOf(val) !== -1;  }) : list;  if (filtered.length === 0) {    suggestEl.classList.remove('show');    suggestEl.innerHTML = '';    return;  }  suggestEl.innerHTML = filtered.map(function(item) {    return '<div class="suggest-item" onmousedown="pickSuggestEdit(this,\'' + type + '\')">' + item + '</div>';  }).join('');  suggestEl.classList.add('show');}function pickSuggestEdit(el, type) {  var val = el.textContent;  if (type === 'supplier') {    gid('fe-supplier').value = val;  } else {    gid('fe-product').value = val;  }  hideSuggest('edit-' + type);}
+function showSuggestSupplierItem(inputEl) {
+  var val = (inputEl.value || '').trim().toLowerCase();
+  var rowId = inputEl.getAttribute('data-rowid');
+  var suggestEl = gid('suggest-supplier-item-' + rowId);
+  if (!suggestEl || settData.products.length === 0) return;
+  var filtered = val ? settData.products.filter(function(item) {
+    return item.toLowerCase().indexOf(val) !== -1;
+  }) : settData.products;
+  if (filtered.length === 0) {
+    suggestEl.classList.remove('show');
+    suggestEl.innerHTML = '';
+    return;
+  }
+  suggestEl.innerHTML = filtered.map(function(item) {
+    return '<div class="suggest-item" onmousedown="pickSuggestSupplierItem(this,\'' + rowId + '\')">' + item + '</div>';
+  }).join('');
+  suggestEl.classList.add('show');
+}
+function pickSuggestSupplierItem(el, rowId) {
+  var val = el.textContent;
+  var inputEl = document.querySelector('.supplier-item-product[data-rowid="' + rowId + '"]');
+  if (inputEl) inputEl.value = val;
+  hideSuggest('supplier-item-' + rowId);
+}
+var purchaseItemRowCounter = 1;
+function showSuggestPurchaseItem(inputEl) {
+  var val = (inputEl.value || '').trim().toLowerCase();
+  var rowId = inputEl.getAttribute('data-rowid');
+  var suggestEl = gid('suggest-purchase-item-' + rowId);
+  if (!suggestEl || settData.products.length === 0) return;
+  var filtered = val ? settData.products.filter(function(item) {
+    return item.toLowerCase().indexOf(val) !== -1;
+  }) : settData.products;
+  if (filtered.length === 0) {
+    suggestEl.classList.remove('show');
+    suggestEl.innerHTML = '';
+    return;
+  }
+  suggestEl.innerHTML = filtered.map(function(item) {
+    return '<div class="suggest-item" onmousedown="pickSuggestPurchaseItem(this,\'' + rowId + '\')">' + item + '</div>';
+  }).join('');
+  suggestEl.classList.add('show');
+}
+function pickSuggestPurchaseItem(el, rowId) {
+  var val = el.textContent;
+  var inputEl = document.querySelector('.item-product[data-rowid="' + rowId + '"]');
+  if (inputEl) inputEl.value = val;
+  hideSuggest('purchase-item-' + rowId);
+}
+function hideSuggest(type) {
+  var suggestEl = gid('suggest-' + type);
+  if (suggestEl) suggestEl.classList.remove('show');
+}
+function pickSuggest(el, type) {
+  var val = el.textContent;
+  if (type === 'supplier') {
+    gid('fp-supplier').value = val;
+  } else if (type === 'product' && gid('fp-product')) {
+    gid('fp-product').value = val;
+  } else if (type === 'shipcompany' && gid('supplier-shipcompany')) {
+    gid('supplier-shipcompany').value = val;
+  }
+  hideSuggest(type);
+}
+function showSuggestEdit(inputEl, type) {
+  var val = (inputEl.value || '').trim().toLowerCase();
+  var list = type === 'supplier' ? settData.suppliers : settData.products;
+  var suggestEl = gid('suggest-edit-' + type);
+  if (!suggestEl || list.length === 0) return;
+  var filtered = val ? list.filter(function(item) {
+    return item.toLowerCase().indexOf(val) !== -1;
+  }) : list;
+  if (filtered.length === 0) {
+    suggestEl.classList.remove('show');
+    suggestEl.innerHTML = '';
+    return;
+  }
+  suggestEl.innerHTML = filtered.map(function(item) {
+    return '<div class="suggest-item" onmousedown="pickSuggestEdit(this,\'' + type + '\')">' + item + '</div>';
+  }).join('');
+  suggestEl.classList.add('show');
+}
+function pickSuggestEdit(el, type) {
+  var val = el.textContent;
+  if (type === 'supplier') {
+    gid('fe-supplier').value = val;
+  } else {
+    gid('fe-product').value = val;
+  }
+  hideSuggest('edit-' + type);
+}
 // ============================================================
 // CHECKOUT CONTAINER SUGGEST
 // ============================================================
@@ -1735,6 +2515,7 @@ try { window.renderAll = renderAll; } catch (e) {}
 try { window.renderPurchase = renderPurchase; } catch (e) {}
 try { window.renderSupplierTable = renderSupplierTable; } catch (e) {}
 try { window.renderLogisticsTable = renderLogisticsTable; } catch (e) {}
+try { window.getStoreDisplayName = getStoreDisplayName; } catch (e) {}
 try { window.showAdminView = showAdminView; } catch (e) {}
 try { window.showLogisticsView = showLogisticsView; } catch (e) {}
 try { window.showSupplierView = showSupplierView; } catch (e) {}

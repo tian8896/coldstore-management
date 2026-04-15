@@ -263,7 +263,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260414h" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260415b" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -602,12 +602,12 @@ tr:hover td{background:rgba(0,191,255,.03)}
 <div class="main">
 <div class="left">
   <div class="section">
-    <div class="stitle">❄️ 冷库选择 / Cold Store</div>
+    <div class="stitle">❄️ 门店选择 / Cold Store</div>
     <div class="warehouse-selector">
-      <button class="warehouse-btn active" onclick="selectColdStore(1)">冷库 1</button>
-      <button class="warehouse-btn" onclick="selectColdStore(2)">冷库 2</button>
-      <button class="warehouse-btn" onclick="selectColdStore(3)">冷库 3</button>
-      <button class="warehouse-btn" onclick="selectColdStore(4)">冷库 4</button>
+      <button class="warehouse-btn active" onclick="selectColdStore(1)">HK Store</button>
+      <button class="warehouse-btn" onclick="selectColdStore(2)">Primer Store</button>
+      <button class="warehouse-btn" onclick="selectColdStore(3)">Super Store</button>
+      <button class="warehouse-btn" onclick="selectColdStore(4)">Cold Store 4</button>
     </div>
   </div>
 
@@ -717,7 +717,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
 
 <!-- 供应商采购添加/编辑弹窗 -->
 <div class="mov" id="supplierModal">
-  <div class="mdl" style="width:520px">
+  <div class="mdl" style="width:700px;max-height:85vh;overflow-y:auto">
     <h3 id="supplier-modal-title">📦 添加采购记录 / Add Purchase Record</h3>
     <div class="supplier-modal-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div class="fg"><label>集装箱号 Container No. *</label>
@@ -730,12 +730,36 @@ tr:hover td{background:rgba(0,191,255,.03)}
       <div class="fg"><label>供应商 Supplier *</label>
         <input type="text" id="supplier-supplier" placeholder="输入供应商名称" autocomplete="off">
       </div>
-      <div class="fg" style="position:relative"><label>品名 Product *</label>
-        <input type="text" id="supplier-product" placeholder="输入品名" autocomplete="off" oninput="showSuggest(this,'product')" onfocus="showSuggest(this,'product')" onblur="setTimeout(function(){hideSuggest('product')},200)">
-        <div class="suggest-list" id="suggest-product"></div>
-      </div>
-      <div class="fg"><label>数量 Quantity *</label>
-        <input type="number" id="supplier-qty" placeholder="输入货物数量" min="0" value="">
+      <div class="fg" style="grid-column:1 / -1;margin-bottom:4px">
+        <label>品名明细 Product Items *</label>
+        <div style="margin-top:6px;margin-bottom:8px">
+          <button type="button" class="abtn" style="background:#4CAF50;color:#fff;border:none" onclick="addSupplierItem()">+ 添加品名</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse">
+            <thead style="background:#f5f5f5">
+              <tr>
+                <th style="padding:6px;text-align:left;font-size:12px;border:1px solid #ddd">品名 Product *</th>
+                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:110px">数量 Qty *</th>
+                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px">操作</th>
+              </tr>
+            </thead>
+            <tbody id="supplierItemsBody">
+              <tr class="supplier-item-row">
+                <td style="padding:4px;border:1px solid #ddd;position:relative">
+                  <input type="text" class="supplier-item-product" placeholder="输入品名" data-rowid="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px" oninput="showSuggestSupplierItem(this)" onfocus="showSuggestSupplierItem(this)" onblur="setTimeout(function(){hideSuggest('supplier-item-0')},200)">
+                  <div class="suggest-list" id="suggest-supplier-item-0"></div>
+                </td>
+                <td style="padding:4px;border:1px solid #ddd">
+                  <input type="number" class="supplier-item-qty" placeholder="数量" min="0" value="" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center">
+                </td>
+                <td style="padding:4px;border:1px solid #ddd;text-align:center">
+                  <button type="button" class="abtn x" onclick="removeSupplierItem(this)" style="color:#ff4444;font-size:16px">×</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
       <div class="fg"><label>船名 Ship Name *</label>
         <input type="text" id="supplier-shipname" placeholder="输入船名" autocomplete="off">
@@ -834,7 +858,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
       <button class="btn" style="background:#cc0000;color:#fff;border-color:#cc0000" onclick="showClearModal('records')">🗑️ 清空记录</button>
     </div>
-    <div class="tw"><table><thead><tr><th style="font-family:Arial;font-size:14px">序列号<br><span style="text-transform:capitalize">Seq No</span></th><th style="font-family:Arial;font-size:14px">集装箱<br><span style="text-transform:capitalize">Container</span></th><th style="font-family:Arial;font-size:14px">供应商<br><span style="text-transform:capitalize">Supplier</span></th><th style="font-family:Arial;font-size:14px">品名<br><span style="text-transform:capitalize">Product</span></th><th style="font-family:Arial;font-size:14px">冷库<br><span style="text-transform:capitalize">Store</span></th><th style="font-family:Arial;font-size:14px">托盘 入库/剩余<br><span style="text-transform:capitalize">Pallets In/Rem</span></th><th style="font-family:Arial;font-size:14px">件数 入库/剩余<br><span style="text-transform:capitalize">Items In/Rem</span></th><th style="font-family:Arial;font-size:14px">入库时间<br><span style="text-transform:capitalize">In Date</span></th><th style="font-family:Arial;font-size:14px">出库时间<br><span style="text-transform:capitalize">Out Date</span></th><th style="font-family:Arial;font-size:14px">费用<br><span style="text-transform:capitalize">Fee</span></th><th style="font-family:Arial;font-size:14px">状态<br><span style="text-transform:capitalize">Status</span></th><th style="font-family:Arial;font-size:14px">操作<br><span style="text-transform:capitalize">Action</span></th></tr></thead><tbody id="tb-all"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th style="font-family:Arial;font-size:14px">序列号<br><span style="text-transform:capitalize">Seq No</span></th><th style="font-family:Arial;font-size:14px">集装箱<br><span style="text-transform:capitalize">Container</span></th><th style="font-family:Arial;font-size:14px">供应商<br><span style="text-transform:capitalize">Supplier</span></th><th style="font-family:Arial;font-size:14px">品名<br><span style="text-transform:capitalize">Product</span></th><th style="font-family:Arial;font-size:14px">门店<br><span style="text-transform:capitalize">Store</span></th><th style="font-family:Arial;font-size:14px">托盘 入库/剩余<br><span style="text-transform:capitalize">Pallets In/Rem</span></th><th style="font-family:Arial;font-size:14px">件数 入库/剩余<br><span style="text-transform:capitalize">Items In/Rem</span></th><th style="font-family:Arial;font-size:14px">入库时间<br><span style="text-transform:capitalize">In Date</span></th><th style="font-family:Arial;font-size:14px">出库时间<br><span style="text-transform:capitalize">Out Date</span></th><th style="font-family:Arial;font-size:14px">费用<br><span style="text-transform:capitalize">Fee</span></th><th style="font-family:Arial;font-size:14px">状态<br><span style="text-transform:capitalize">Status</span></th><th style="font-family:Arial;font-size:14px">操作<br><span style="text-transform:capitalize">Action</span></th></tr></thead><tbody id="tb-all"></tbody></table></div>
     <div class="es" id="es-all" style="display:none"><div class="em">📭</div><div>暂无记录 / No Records Yet</div></div>
   </div>
 
@@ -879,7 +903,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <div style="padding:20px">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
         <div style="background:#f0f8ff;border:1px solid #00bfff;border-radius:8px;padding:20px;text-align:center">
-          <div style="font-size:12px;color:#666;margin-bottom:8px">冷库 1 统计</div>
+          <div style="font-size:12px;color:#666;margin-bottom:8px">HK Store 统计</div>
           <div style="font-size:28px;font-weight:bold;color:#00bfff;margin-bottom:4px" id="stat-store1-count">0</div>
           <div style="font-size:12px;color:#666">集装箱</div>
           <div style="font-size:18px;font-weight:bold;color:#00bfff;margin-top:8px" id="stat-store1-pallets">0</div>
@@ -888,7 +912,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
           <div style="font-size:12px;color:#666">件数</div>
         </div>
         <div style="background:#f0f8ff;border:1px solid #00bfff;border-radius:8px;padding:20px;text-align:center">
-          <div style="font-size:12px;color:#666;margin-bottom:8px">冷库 2 统计</div>
+          <div style="font-size:12px;color:#666;margin-bottom:8px">Primer Store 统计</div>
           <div style="font-size:28px;font-weight:bold;color:#00bfff;margin-bottom:4px" id="stat-store2-count">0</div>
           <div style="font-size:12px;color:#666">集装箱</div>
           <div style="font-size:18px;font-weight:bold;color:#00bfff;margin-top:8px" id="stat-store2-pallets">0</div>
@@ -897,7 +921,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
           <div style="font-size:12px;color:#666">件数</div>
         </div>
         <div style="background:#f0f8ff;border:1px solid #00bfff;border-radius:8px;padding:20px;text-align:center">
-          <div style="font-size:12px;color:#666;margin-bottom:8px">冷库 3 统计</div>
+          <div style="font-size:12px;color:#666;margin-bottom:8px">Super Store 统计</div>
           <div style="font-size:28px;font-weight:bold;color:#00bfff;margin-bottom:4px" id="stat-store3-count">0</div>
           <div style="font-size:12px;color:#666">集装箱</div>
           <div style="font-size:18px;font-weight:bold;color:#00bfff;margin-top:8px" id="stat-store3-pallets">0</div>
@@ -906,7 +930,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
           <div style="font-size:12px;color:#666">件数</div>
         </div>
         <div style="background:#f0f8ff;border:1px solid #00bfff;border-radius:8px;padding:20px;text-align:center">
-          <div style="font-size:12px;color:#666;margin-bottom:8px">冷库 4 统计</div>
+          <div style="font-size:12px;color:#666;margin-bottom:8px">Cold Store 4 统计</div>
           <div style="font-size:28px;font-weight:bold;color:#00bfff;margin-bottom:4px" id="stat-store4-count">0</div>
           <div style="font-size:12px;color:#666">集装箱</div>
           <div style="font-size:18px;font-weight:bold;color:#00bfff;margin-top:8px" id="stat-store4-pallets">0</div>
@@ -1055,12 +1079,12 @@ tr:hover td{background:rgba(0,191,255,.03)}
       </select>
     </div>
     <div id="quickInStoreButtons">
-      <p style="margin-bottom:10px;font-size:13px;color:#666">选择冷库：</p>
+      <p style="margin-bottom:10px;font-size:13px;color:#666">选择门店 / Select store：</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-        <button class="btn btn-s" style="padding:14px;font-size:15px" onclick="doQuickIn(1)">❄️ 冷库 1</button>
-        <button class="btn btn-p" style="padding:14px;font-size:15px" onclick="doQuickIn(2)">❄️ 冷库 2</button>
-        <button class="btn btn-p" style="padding:14px;font-size:15px" onclick="doQuickIn(3)">❄️ 冷库 3</button>
-        <button class="btn btn-p" style="padding:14px;font-size:15px" onclick="doQuickIn(4)">❄️ 冷库 4</button>
+        <button class="btn btn-s" style="padding:14px;font-size:15px" onclick="doQuickIn(1)">❄️ HK Store</button>
+        <button class="btn btn-p" style="padding:14px;font-size:15px" onclick="doQuickIn(2)">❄️ Primer Store</button>
+        <button class="btn btn-p" style="padding:14px;font-size:15px" onclick="doQuickIn(3)">❄️ Super Store</button>
+        <button class="btn btn-p" style="padding:14px;font-size:15px" onclick="doQuickIn(4)">❄️ Cold Store 4</button>
       </div>
     </div>
     <div class="brow"><button class="btn btn-g" onclick="clQuickInModal()">取消 Cancel</button></div>
@@ -1097,22 +1121,22 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <div class="sett-section">
       <h4>💰 冷库费率设置 / Warehouse Rate Settings</h4>
       <div class="sett-row">
-        <span style="min-width:80px">冷库 1:</span>
+        <span style="min-width:100px">HK Store:</span>
         <input type="number" id="rate-store1" placeholder="38" min="0" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:4px">
         <span style="margin-left:8px">AED/托盘/周</span>
       </div>
       <div class="sett-row">
-        <span style="min-width:80px">冷库 2:</span>
+        <span style="min-width:100px">Primer Store:</span>
         <input type="number" id="rate-store2" placeholder="60" min="0" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:4px">
         <span style="margin-left:8px">AED/托盘/周</span>
       </div>
       <div class="sett-row">
-        <span style="min-width:80px">冷库 3:</span>
+        <span style="min-width:100px">Super Store:</span>
         <input type="number" id="rate-store3" placeholder="60" min="0" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:4px">
         <span style="margin-left:8px">AED/托盘/周</span>
       </div>
       <div class="sett-row">
-        <span style="min-width:80px">冷库 4:</span>
+        <span style="min-width:100px">Cold Store 4:</span>
         <input type="number" id="rate-store4" placeholder="60" min="0" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:4px">
         <span style="margin-left:8px">AED/托盘/周</span>
       </div>

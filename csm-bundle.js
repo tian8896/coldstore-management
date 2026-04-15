@@ -3,7 +3,8 @@
 // ============================================================
 const SK = 'csm_warehouse1';const LOCAL_STORAGE_KEY = 'csm_records_v3';
 // Firebase 配置
-var firebaseConfig = {  apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',  authDomain: 'superharves-cold-store.firebaseapp.com',  databaseURL: 'https://superharves-cold-store-default-rtdb.firebaseio.com',  projectId: 'superharves-cold-store',  storageBucket: 'superharves-cold-store.firebasestorage.app',  messagingSenderId: '379038228954',  appId: '1:379038228954:web:e64fa3be3f2f49b3aae0e3'};var dbRef = null;var legacyDbRef = null;var purchaseRef = null;var auth = null;var primaryRecsVal = {};var legacyRecsVal = {};
+var firebaseConfig = {  apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',  authDomain: 'superharves-cold-store.firebaseapp.com',  databaseURL: 'https://superharves-cold-store-default-rtdb.firebaseio.com',  projectId: 'superharves-cold-store',  storageBucket: 'superharves-cold-store.firebasestorage.app',  messagingSenderId: '379038228954',  appId: '1:379038228954:web:e64fa3be3f2f49b3aae0e3'};var dbRef = null;var legacyDbRef = null;var purchaseRef = null;var salesCustomersRef = null;var salesOrdersRef = null;var auth = null;var primaryRecsVal = {};var legacyRecsVal = {};
+var salesCustomers = [];var salesOrders = [];var salesSubView = 'dash';
 // 冷库费率（可配置，默认值）
 // HK Store (store 1): 38 AED/托盘/周 + 5% VAT
 // Primer / Super / Cold Store 4 (store 2–4): 60 AED/托盘/周 + 5% VAT
@@ -136,6 +137,16 @@ function attachDataListenersForRole() {
     bindValueListener(supplierRef, function(snap) {
       updateSupplierRecsFromData(snap.val() || {}, isAdmin);
     });
+    if (isAdmin && salesCustomersRef && salesOrdersRef) {
+      bindValueListener(salesCustomersRef, function(snap) {
+        salesCustomers = csmSalesObjToArr(snap.val(), false);
+        refreshSalesUi();
+      });
+      bindValueListener(salesOrdersRef, function(snap) {
+        salesOrders = csmSalesObjToArr(snap.val(), true);
+        refreshSalesUi();
+      });
+    }
     return;
   }
   if (isSupplier) {
@@ -206,7 +217,7 @@ function backfillPurchaseSeq() {  if (!purchaseRef || !seqCounterRef) return;  v
 // ============================================================
 (function () {  function csmBoot() {    initFirebase();    setDefTimes();    loadSettings();  }  if (document.readyState === 'loading') {    window.addEventListener('DOMContentLoaded', csmBoot);  } else {    csmBoot();  }})();function initFirebase() {  if (typeof firebase !== 'undefined' && firebase.initializeApp) {    initApp();    return;  }  var ver = '10.14.1';  var bases = ['https://cdn.jsdelivr.net/npm/firebase@' + ver + '/', 'https://www.gstatic.com/firebasejs/' + ver + '/'];  function loadScriptsSequential(urls, i, onOk, onFail) {    if (i >= urls.length) { onOk(); return; }    var s = document.createElement('script');    s.src = urls[i];    s.onload = function() { loadScriptsSequential(urls, i + 1, onOk, onFail); };    s.onerror = function() { onFail(); };    document.head.appendChild(s);  }  function tryBase(bi) {    if (bi >= bases.length) {      toast('❌ Firebase 无法加载，请换网络或稍后再试', 'err');      showLoginModal();      return;    }    var b = bases[bi];    var urls = [b + 'firebase-app-compat.js', b + 'firebase-database-compat.js', b + 'firebase-auth-compat.js'];    loadScriptsSequential(urls, 0, function() { initApp(); }, function() { tryBase(bi + 1); });  }  tryBase(0);}function initApp() {  if (window.__csmInitDone) return;  window.__csmInitDone = true;  
 // 加载保存的费率  
-loadRates();  try {    if (!firebase.apps || !firebase.apps.length) { firebase.initializeApp(firebaseConfig); }    auth = firebase.auth();    try { window.csmAuth = auth; } catch (e1) {}    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function () {});    dbRef = firebase.database().ref(SK);    purchaseRef = firebase.database().ref('csm_purchase');    supplierRef = firebase.database().ref('csm_supplier_recs');    legacyDbRef = (SK !== LOCAL_STORAGE_KEY) ? firebase.database().ref(LOCAL_STORAGE_KEY) : null;    
+loadRates();  try {    if (!firebase.apps || !firebase.apps.length) { firebase.initializeApp(firebaseConfig); }    auth = firebase.auth();    try { window.csmAuth = auth; } catch (e1) {}    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function () {});    dbRef = firebase.database().ref(SK);    purchaseRef = firebase.database().ref('csm_purchase');    supplierRef = firebase.database().ref('csm_supplier_recs');    salesCustomersRef = firebase.database().ref('csm_sales_w1/customers');    salesOrdersRef = firebase.database().ref('csm_sales_w1/orders');    legacyDbRef = (SK !== LOCAL_STORAGE_KEY) ? firebase.database().ref(LOCAL_STORAGE_KEY) : null;    
 // 初始化序号计数器引用（必须在这里做，避免 onAuthStateChanged 同步触发时 seqCounterRef 为 null）
 seqCounterRef = dbRef.parent.child('csm_seq_counter');    
 // Firebase Auth 状态监听    
@@ -1864,7 +1875,7 @@ function selectColdStore(n) {  currentColdStore = n;  document.querySelectorAll(
 // ============================================================
 // TAB SWITCH
 // ============================================================
-function swTab(tab) {  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('ac'); });  document.querySelectorAll('.tc').forEach(function(t) { t.classList.remove('ac'); });  var tabNames = ['purchase', 'records', 'checkout', 'stats'];  var idx = tabNames.indexOf(tab);  document.querySelectorAll('.tab')[idx].classList.add('ac');  document.getElementById('tc-' + tab).classList.add('ac');}
+function swTab(tab) {  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('ac'); });  document.querySelectorAll('.tc').forEach(function(t) { t.classList.remove('ac'); });  var tabNames = ['purchase', 'records', 'checkout', 'stats', 'sales', 'sales_finance'];  var idx = tabNames.indexOf(tab);  if (idx < 0) idx = 0;  var tabs = document.querySelectorAll('.tab');  if (tabs[idx]) tabs[idx].classList.add('ac');  var panel = document.getElementById('tc-' + tab);  if (panel) panel.classList.add('ac');  if (tab === 'sales') { try { refreshSalesUi(); swSalesSub(salesSubView || 'dash'); } catch (eS) {} }  if (tab === 'sales_finance') { try { refreshSalesUi(); } catch (eF) {} }}
 // ============================================================
 // PURCHASE RECORDS
 // ============================================================
@@ -2508,6 +2519,311 @@ var LOGISTICS_KEY = 'csm_customs_fees';function getLogisticsFees() {  try {    v
     });
   }
 })();
+// ============================================================
+// W1 SALES & FINANCE (Firebase: csm_sales_w1/customers | orders)
+// ============================================================
+function csmSalesObjToArr(val, isOrders) {
+  var out = [];
+  Object.keys(val || {}).forEach(function(k) {
+    var o = Object.assign({}, val[k] || {});
+    o.id = k;
+    out.push(o);
+  });
+  if (isOrders) {
+    out.sort(function(a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); });
+  } else {
+    out.sort(function(a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
+  }
+  return out;
+}
+function csmSalesRound2(x) { return Math.round(x * 100) / 100; }
+function csmSalesComputeTotals(unitPrice, qty, vatMode) {
+  var u = parseFloat(unitPrice) || 0;
+  var q = parseFloat(qty) || 0;
+  if (vatMode === 'included') {
+    var totalI = csmSalesRound2(u * q);
+    var netI = csmSalesRound2((u / 1.05) * q);
+    var vatI = csmSalesRound2(totalI - netI);
+    return { total: totalI, net: netI, vat: vatI };
+  }
+  var netE = csmSalesRound2(u * q);
+  var totalE = csmSalesRound2(u * q * 1.05);
+  var vatE = csmSalesRound2(totalE - netE);
+  return { total: totalE, net: netE, vat: vatE };
+}
+function csmSalesLocalYmd(d) {
+  var y = d.getFullYear();
+  var m = ('0' + (d.getMonth() + 1)).slice(-2);
+  var da = ('0' + d.getDate()).slice(-2);
+  return y + '-' + m + '-' + da;
+}
+function csmSalesPayLabel(code, forFinance) {
+  var c = String(code || '');
+  if (forFinance) {
+    if (c === 'cash') return '\u5df2\u4ed8\u6b3e';
+    if (c === 'cash_pending') return 'cash pending';
+    if (c === 'credit') return '\u672a\u4ed8\u6b3e';
+    return c || '-';
+  }
+  if (c === 'cash') return 'Cash \u5df2\u4ed8\u6b3e';
+  if (c === 'cash_pending') return 'Cash pending \u5f85\u73b0\u91d1';
+  if (c === 'credit') return 'Credit \u8d4a\u8d26';
+  return c || '-';
+}
+function csmEscapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+function refreshSalesUi() {
+  if (!isAdmin) return;
+  renderSalesDashCards();
+  renderSalesCustomersTable();
+  renderSalesOrdersTable();
+  renderSalesFinanceTable();
+}
+function swSalesSub(view) {
+  salesSubView = view || 'dash';
+  var dash = gid('sales-panel-dash');
+  var cust = gid('sales-panel-customers');
+  var ord = gid('sales-panel-orders');
+  if (dash) dash.style.display = salesSubView === 'dash' ? 'block' : 'none';
+  if (cust) cust.style.display = salesSubView === 'customers' ? 'block' : 'none';
+  if (ord) ord.style.display = salesSubView === 'orders' ? 'block' : 'none';
+  var b1 = gid('sales-sub-btn-dash');
+  var b2 = gid('sales-sub-btn-cust');
+  var b3 = gid('sales-sub-btn-orders');
+  if (b1) { b1.classList.toggle('btn-s', salesSubView === 'dash'); b1.classList.toggle('btn-g', salesSubView !== 'dash'); }
+  if (b2) { b2.classList.toggle('btn-s', salesSubView === 'customers'); b2.classList.toggle('btn-g', salesSubView !== 'customers'); }
+  if (b3) { b3.classList.toggle('btn-s', salesSubView === 'orders'); b3.classList.toggle('btn-g', salesSubView !== 'orders'); }
+}
+function renderSalesDashCards() {
+  var el1 = gid('sales-dash-today');
+  var el2 = gid('sales-dash-confirmed');
+  var el3 = gid('sales-dash-unpaid');
+  if (!el1) return;
+  var today = csmSalesLocalYmd(new Date());
+  var nToday = salesOrders.filter(function(o) { return (o.createdAt || '').slice(0, 10) === today; }).length;
+  el1.textContent = String(nToday);
+  var conf = salesOrders.filter(function(o) { return o.orderStatus === 'confirmed'; });
+  var sumConf = conf.reduce(function(s, o) { return s + (parseFloat(o.totalAmount) || 0); }, 0);
+  if (el2) el2.textContent = sumConf.toFixed(2);
+  var unpaid = conf.filter(function(o) { return o.paymentStatus === 'credit' || o.paymentStatus === 'cash_pending'; });
+  var sumUnpaid = unpaid.reduce(function(s, o) { return s + (parseFloat(o.totalAmount) || 0); }, 0);
+  if (el3) el3.textContent = sumUnpaid.toFixed(2);
+}
+function renderSalesCustomersTable() {
+  var tb = gid('tb-sales-customers');
+  if (!tb) return;
+  if (!salesCustomers.length) {
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888">No customers yet</td></tr>';
+    return;
+  }
+  tb.innerHTML = salesCustomers.map(function(c) {
+    return '<tr><td>' + csmEscapeHtml(c.name) + '</td><td>' + csmEscapeHtml(c.address) + '</td><td>' + csmEscapeHtml(c.vatNumber) + '</td><td>' + csmEscapeHtml(c.phone) + '</td><td>' + csmEscapeHtml(c.email) + '</td><td>' +
+      '<button class="abtn" onclick="openSalesCustomerModal(\'' + c.id + '\')">Edit</button> ' +
+      '<button class="abtn x" onclick="deleteSalesCustomer(\'' + c.id + '\')">Del</button></td></tr>';
+  }).join('');
+}
+function renderSalesOrdersTable() {
+  var tb = gid('tb-sales-orders');
+  if (!tb) return;
+  var f = gid('sales-order-filter');
+  var st = f ? f.value : '';
+  var rows = salesOrders.filter(function(o) { return !st || o.orderStatus === st; });
+  if (!rows.length) {
+    tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#888">No orders</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map(function(o) {
+    var vm = o.vatMode === 'included' ? 'Inc.VAT' : 'Ex+5%';
+    var actions = '';
+    if (o.orderStatus === 'draft') {
+      actions = '<button class="abtn" onclick="openSalesOrderModal(\'' + o.id + '\')">Edit</button> ' +
+        '<button class="abtn" onclick="salesSubmitOrder(\'' + o.id + '\')">Submit</button> ' +
+        '<button class="abtn x" onclick="salesDeleteOrder(\'' + o.id + '\')">Del</button>';
+    } else if (o.orderStatus === 'submitted') {
+      actions = '<button class="abtn" onclick="salesUndoSubmit(\'' + o.id + '\')">Withdraw</button> ' +
+        '<button class="abtn" style="background:#2e7d32;color:#fff;border:none" onclick="salesConfirmOrder(\'' + o.id + '\')">Confirm</button>';
+    } else {
+      actions = '<span style="color:#888">Locked</span>';
+    }
+    return '<tr><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + csmEscapeHtml(o.containerNo || '') + '</td><td>' + csmEscapeHtml(o.productName || '') + '</td><td>' + csmEscapeHtml(String(o.quantity)) + '</td><td>' +
+      csmEscapeHtml(String(o.unitPrice)) + '</td><td>' + vm + '</td><td>' + (parseFloat(o.totalAmount) || 0).toFixed(2) + '</td><td>' + csmSalesPayLabel(o.paymentStatus, false) + '</td><td>' + csmEscapeHtml(o.orderStatus || '') + '</td><td>' + actions + '</td></tr>';
+  }).join('');
+}
+function renderSalesFinanceTable() {
+  var tb = gid('tb-sales-finance');
+  var elLines = gid('sales-fin-lines');
+  var elTot = gid('sales-fin-total');
+  var elUn = gid('sales-fin-unpaid');
+  if (!tb) return;
+  var conf = salesOrders.filter(function(o) { return o.orderStatus === 'confirmed'; });
+  if (elLines) elLines.textContent = String(conf.length);
+  var sum = conf.reduce(function(s, o) { return s + (parseFloat(o.totalAmount) || 0); }, 0);
+  var sumUn = conf.filter(function(o) { return o.paymentStatus === 'credit' || o.paymentStatus === 'cash_pending'; })
+    .reduce(function(s, o) { return s + (parseFloat(o.totalAmount) || 0); }, 0);
+  if (elTot) elTot.textContent = sum.toFixed(2);
+  if (elUn) elUn.textContent = sumUn.toFixed(2);
+  if (!conf.length) {
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888">No confirmed orders</td></tr>';
+    return;
+  }
+  var sorted = conf.slice().sort(function(a, b) { return String(b.confirmedAt || b.createdAt || '').localeCompare(String(a.confirmedAt || a.createdAt || '')); });
+  tb.innerHTML = sorted.map(function(o) {
+    return '<tr><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + csmEscapeHtml(o.containerNo || '') + '</td><td>' + csmEscapeHtml(o.productName || '') + '</td><td>' + csmEscapeHtml(String(o.quantity)) + '</td><td>' +
+      (parseFloat(o.totalAmount) || 0).toFixed(2) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, true)) + '</td></tr>';
+  }).join('');
+}
+function openSalesCustomerModal(id) {
+  var m = gid('sales-customer-modal');
+  if (!m) return;
+  m.classList.add('sh');
+  gid('sales-customer-id').value = id || '';
+  gid('sales-customer-name').value = '';
+  gid('sales-customer-address').value = '';
+  gid('sales-customer-vat').value = '';
+  gid('sales-customer-phone').value = '';
+  gid('sales-customer-email').value = '';
+  if (id) {
+    var c = salesCustomers.find(function(x) { return x.id === id; });
+    if (c) {
+      gid('sales-customer-name').value = c.name || '';
+      gid('sales-customer-address').value = c.address || '';
+      gid('sales-customer-vat').value = c.vatNumber || '';
+      gid('sales-customer-phone').value = c.phone || '';
+      gid('sales-customer-email').value = c.email || '';
+    }
+  }
+}
+function clSalesCustomerModal() { var m = gid('sales-customer-modal'); if (m) m.classList.remove('sh'); }
+function saveSalesCustomerFromModal() {
+  if (!salesCustomersRef) { toast('Database not connected', 'err'); return; }
+  var id = (gid('sales-customer-id').value || '').trim();
+  var name = (gid('sales-customer-name').value || '').trim();
+  if (!name) { toast('Customer name required', 'err'); return; }
+  if (!id) id = 'sc_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  var rec = {
+    name: name,
+    address: (gid('sales-customer-address').value || '').trim(),
+    vatNumber: (gid('sales-customer-vat').value || '').trim(),
+    phone: (gid('sales-customer-phone').value || '').trim(),
+    email: (gid('sales-customer-email').value || '').trim(),
+    updatedAt: new Date().toISOString()
+  };
+  salesCustomersRef.child(id).set(rec).then(function() {
+    toast('Customer saved', 'ok');
+    clSalesCustomerModal();
+  }).catch(function(e) { toast('Save failed: ' + (e.message || e), 'err'); });
+}
+function deleteSalesCustomer(id) {
+  if (!id || !salesCustomersRef) return;
+  var used = salesOrders.some(function(o) { return o.customerId === id; });
+  if (used) { toast('Customer is used in orders', 'err'); return; }
+  if (!confirm('Delete this customer?')) return;
+  salesCustomersRef.child(id).remove().then(function() { toast('Deleted', 'ok'); }).catch(function() { toast('Delete failed', 'err'); });
+}
+function salesFillCustomerSelect(sel) {
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Select customer</option>' + salesCustomers.map(function(c) {
+    var vid = String(c.id || '').replace(/"/g, '');
+    return '<option value="' + vid + '">' + csmEscapeHtml(c.name) + '</option>';
+  }).join('');
+}
+function openSalesOrderModal(id) {
+  var m = gid('sales-order-modal');
+  if (!m) return;
+  m.classList.add('sh');
+  gid('sales-order-id').value = id || '';
+  salesFillCustomerSelect(gid('sales-order-customer'));
+  gid('sales-order-cn').value = '';
+  gid('sales-order-product').value = '';
+  gid('sales-order-qty').value = '1';
+  gid('sales-order-price').value = '';
+  var rEx = document.getElementById('sales-vat-excluded');
+  var rIn = document.getElementById('sales-vat-included');
+  if (rEx) rEx.checked = true;
+  gid('sales-order-payment').value = 'cash_pending';
+  if (id) {
+    var o = salesOrders.find(function(x) { return x.id === id; });
+    if (!o) { clSalesOrderModal(); return; }
+    if (o.orderStatus !== 'draft') { toast('Only draft orders editable', 'err'); clSalesOrderModal(); return; }
+    gid('sales-order-customer').value = o.customerId || '';
+    gid('sales-order-cn').value = o.containerNo || '';
+    gid('sales-order-product').value = o.productName || '';
+    gid('sales-order-qty').value = String(o.quantity);
+    gid('sales-order-price').value = String(o.unitPrice);
+    if (o.vatMode === 'included' && rIn) rIn.checked = true;
+    else if (rEx) rEx.checked = true;
+    gid('sales-order-payment').value = o.paymentStatus || 'cash_pending';
+  }
+}
+function clSalesOrderModal() { var m = gid('sales-order-modal'); if (m) m.classList.remove('sh'); }
+function saveSalesOrderFromModal() {
+  if (!salesOrdersRef) { toast('Database not connected', 'err'); return; }
+  var id = (gid('sales-order-id').value || '').trim();
+  var customerId = gid('sales-order-customer').value;
+  var cust = salesCustomers.find(function(c) { return c.id === customerId; });
+  if (!cust) { toast('Select customer', 'err'); return; }
+  var cn = (gid('sales-order-cn').value || '').trim().toUpperCase();
+  var product = (gid('sales-order-product').value || '').trim();
+  var qty = parseFloat(gid('sales-order-qty').value) || 0;
+  var unitPrice = parseFloat(gid('sales-order-price').value);
+  if (!cn || !product || qty <= 0 || !(unitPrice >= 0)) { toast('Check container, product, qty and unit price', 'err'); return; }
+  var vatMode = document.getElementById('sales-vat-included') && document.getElementById('sales-vat-included').checked ? 'included' : 'excluded';
+  var payment = gid('sales-order-payment').value || 'cash_pending';
+  var amounts = csmSalesComputeTotals(unitPrice, qty, vatMode);
+  if (!id) id = 'so_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  var existing = salesOrders.find(function(x) { return x.id === id; });
+  if (existing && existing.orderStatus !== 'draft') { toast('Not editable', 'err'); return; }
+  var rec = {
+    customerId: customerId,
+    customerName: cust.name || '',
+    containerNo: cn,
+    productName: product,
+    quantity: qty,
+    unitPrice: unitPrice,
+    vatMode: vatMode,
+    paymentStatus: payment,
+    orderStatus: 'draft',
+    totalAmount: amounts.total,
+    netAmount: amounts.net,
+    vatAmount: amounts.vat,
+    createdAt: (existing && existing.createdAt) ? existing.createdAt : new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  salesOrdersRef.child(id).set(rec).then(function() {
+    toast('Order saved (draft)', 'ok');
+    clSalesOrderModal();
+  }).catch(function(e) { toast('Save failed: ' + (e.message || e), 'err'); });
+}
+function salesSubmitOrder(id) {
+  var o = salesOrders.find(function(x) { return x.id === id; });
+  if (!o || o.orderStatus !== 'draft' || !salesOrdersRef) return;
+  salesOrdersRef.child(id).update({ orderStatus: 'submitted', updatedAt: new Date().toISOString() }).then(function() { toast('Submitted', 'ok'); }).catch(function(e) { toast(e.message, 'err'); });
+}
+function salesUndoSubmit(id) {
+  var o = salesOrders.find(function(x) { return x.id === id; });
+  if (!o || o.orderStatus !== 'submitted' || !salesOrdersRef) return;
+  salesOrdersRef.child(id).update({ orderStatus: 'draft', updatedAt: new Date().toISOString() }).then(function() { toast('Withdrawn', 'ok'); }).catch(function(e) { toast(e.message, 'err'); });
+}
+function salesConfirmOrder(id) {
+  var o = salesOrders.find(function(x) { return x.id === id; });
+  if (!o || o.orderStatus !== 'submitted' || !salesOrdersRef) return;
+  salesOrdersRef.child(id).update({
+    orderStatus: 'confirmed',
+    confirmedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }).then(function() { toast('Confirmed', 'ok'); }).catch(function(e) { toast(e.message, 'err'); });
+}
+function salesDeleteOrder(id) {
+  var o = salesOrders.find(function(x) { return x.id === id; });
+  if (!o || o.orderStatus !== 'draft' || !salesOrdersRef) return;
+  if (!confirm('Delete draft order?')) return;
+  salesOrdersRef.child(id).remove().then(function() { toast('Deleted', 'ok'); }).catch(function(e) { toast(e.message, 'err'); });
+}
 window.__csmMainScriptRan=1;
 try { window.initApp = initApp; } catch (e) {}
 try { window.initFirebase = initFirebase; } catch (e) {}

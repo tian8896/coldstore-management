@@ -263,7 +263,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260415e" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260415g" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -839,6 +839,8 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <div class="tab" onclick="swTab('records')">📋 库存记录 Records</div>
     <div class="tab" onclick="swTab('checkout')">📤 出库记录 Checkout</div>
     <div class="tab" onclick="swTab('stats')">📊 统计报表 Stats</div>
+    <div class="tab" onclick="swTab('sales')">📑 销售记录 Sales</div>
+    <div class="tab" onclick="swTab('sales_finance')">💼 财务记录 Finance</div>
   </div>
 
   <div class="tc ac" id="tc-purchase">
@@ -942,6 +944,66 @@ tr:hover td{background:rgba(0,191,255,.03)}
       <div id="supplier-stats" style="margin-top:20px"></div>
     </div>
   </div>
+
+  <div class="tc" id="tc-sales">
+    <p style="font-size:13px;color:#555;margin:0 0 12px;line-height:1.6">销售系统：客户信息、集装箱销售订单、付款状态与财务统计。订单需<strong>确认</strong>后进入「财务记录」。</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;border-bottom:1px solid #e0e0e0;padding-bottom:10px">
+      <button type="button" class="btn btn-s" id="sales-sub-btn-dash" onclick="swSalesSub('dash')">财务统计 Dashboard</button>
+      <button type="button" class="btn btn-g" id="sales-sub-btn-cust" onclick="swSalesSub('customers')">客户管理 Customers</button>
+      <button type="button" class="btn btn-g" id="sales-sub-btn-orders" onclick="swSalesSub('orders')">销售订单 Orders</button>
+    </div>
+    <div id="sales-panel-dash">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px">
+        <div style="background:#e8f5e9;border:1px solid #43a047;border-radius:8px;padding:16px;text-align:center">
+          <div style="font-size:12px;color:#666">今日订单数 Today orders</div>
+          <div style="font-size:28px;font-weight:bold;color:#2e7d32" id="sales-dash-today">0</div>
+        </div>
+        <div style="background:#e3f2fd;border:1px solid #1976d2;border-radius:8px;padding:16px;text-align:center">
+          <div style="font-size:12px;color:#666">总销售额（已确认）Confirmed sales AED</div>
+          <div style="font-size:24px;font-weight:bold;color:#1565c0" id="sales-dash-confirmed">0.00</div>
+        </div>
+        <div style="background:#fff3e0;border:1px solid #f57c00;border-radius:8px;padding:16px;text-align:center">
+          <div style="font-size:12px;color:#666">未付款金额（赊账+待现金）Unpaid AED</div>
+          <div style="font-size:24px;font-weight:bold;color:#e65100" id="sales-dash-unpaid">0.00</div>
+        </div>
+      </div>
+    </div>
+    <div id="sales-panel-customers" style="display:none">
+      <div class="brow" style="margin-bottom:12px">
+        <button type="button" class="btn btn-s" onclick="openSalesCustomerModal('')">+ 新增客户 Add customer</button>
+      </div>
+      <div class="tw"><table><thead><tr>
+        <th>Customer name</th><th>Address</th><th>VAT No.</th><th>Phone</th><th>Email</th><th>Action</th>
+      </tr></thead><tbody id="tb-sales-customers"></tbody></table></div>
+    </div>
+    <div id="sales-panel-orders" style="display:none">
+      <div class="brow" style="margin-bottom:12px;flex-wrap:wrap;gap:10px;align-items:center">
+        <button type="button" class="btn btn-s" onclick="openSalesOrderModal('')">+ 创建订单 New order</button>
+        <label style="font-size:13px;color:#666">状态 Status</label>
+        <select id="sales-order-filter" onchange="renderSalesOrdersTable()" style="padding:6px 10px;border:1px solid #ccc;border-radius:4px">
+          <option value="">全部 All</option>
+          <option value="draft">Draft</option>
+          <option value="submitted">Submitted</option>
+          <option value="confirmed">Confirmed</option>
+        </select>
+      </div>
+      <div class="tw"><table><thead><tr>
+        <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit</th><th>VAT</th><th>Total</th><th>Payment</th><th>Status</th><th>Actions</th>
+      </tr></thead><tbody id="tb-sales-orders"></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="tc" id="tc-sales_finance">
+    <p style="font-size:13px;color:#555;margin:0 0 12px">以下为<strong>已确认</strong>销售订单的财务视图（自动生成）。</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:16px">
+      <div style="background:#f5f5f5;border-radius:8px;padding:12px"><div style="font-size:12px;color:#666">Confirmed lines</div><div style="font-size:22px;font-weight:bold" id="sales-fin-lines">0</div></div>
+      <div style="background:#f5f5f5;border-radius:8px;padding:12px"><div style="font-size:12px;color:#666">Total amount AED</div><div style="font-size:22px;font-weight:bold" id="sales-fin-total">0.00</div></div>
+      <div style="background:#f5f5f5;border-radius:8px;padding:12px"><div style="font-size:12px;color:#666">Unpaid AED</div><div style="font-size:22px;font-weight:bold;color:#c62828" id="sales-fin-unpaid">0.00</div></div>
+    </div>
+    <div class="tw"><table><thead><tr>
+      <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Total AED</th><th>Payment (fin.)</th>
+    </tr></thead><tbody id="tb-sales-finance"></tbody></table></div>
+  </div>
 </div>
 </div>
 </div>
@@ -961,6 +1023,52 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <p>此处预留 <strong>公司级财务</strong> 的<strong>独立</strong>模块（总账、应收应付、报表、对账等），与两座冷库的<strong>仓储业务数据域分离</strong>。</p>
     <p>将来若财务需要引用冷库侧数据，建议只保存<strong>外部引用</strong>（例如业务单号、金额快照、对账批次号），需要实时明细时再按需查询或同步，以保持各域边界清晰、审计可追溯。</p>
     <p style="font-size:13px;color:#888">Independent from W1/W2 ops data; future ties via document IDs, amounts snapshots, or controlled sync—not tight table coupling.</p>
+  </div>
+</div>
+
+<div class="mov" id="sales-customer-modal">
+  <div class="mdl" style="width:520px;max-height:85vh;overflow-y:auto">
+    <h3>客户 Customer</h3>
+    <input type="hidden" id="sales-customer-id">
+    <div class="fg"><label>Customer name *</label><input type="text" id="sales-customer-name" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></div>
+    <div class="fg"><label>Address</label><input type="text" id="sales-customer-address" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></div>
+    <div class="fg"><label>VAT number</label><input type="text" id="sales-customer-vat" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></div>
+    <div class="fg"><label>Phone</label><input type="text" id="sales-customer-phone" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></div>
+    <div class="fg"><label>Email</label><input type="text" id="sales-customer-email" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></div>
+    <p style="font-size:12px;color:#888">需在 Firebase Realtime Database 规则中允许已登录用户读写 <code>csm_sales_w1</code>（管理员）。</p>
+    <div class="brow">
+      <button type="button" class="btn btn-s" onclick="saveSalesCustomerFromModal()">Save</button>
+      <button type="button" class="btn btn-g" onclick="clSalesCustomerModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="mov" id="sales-order-modal">
+  <div class="mdl" style="width:560px;max-height:85vh;overflow-y:auto">
+    <h3>销售订单 Sales order</h3>
+    <input type="hidden" id="sales-order-id">
+    <div class="fg"><label>Customer *</label><select id="sales-order-customer" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></select></div>
+    <div class="fg"><label>Container No. *</label><input type="text" id="sales-order-cn" maxlength="11" style="text-transform:uppercase;width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></div>
+    <div class="fg"><label>Product name *</label><input type="text" id="sales-order-product" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></div>
+    <div class="fg"><label>Quantity *</label><input type="number" id="sales-order-qty" min="0.01" step="any" value="1" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></div>
+    <div class="fg"><label>Unit price (AED) *</label><input type="number" id="sales-order-price" min="0" step="any" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></div>
+    <div class="fg"><label>VAT on unit price</label>
+      <div style="display:flex;gap:16px;align-items:center;margin-top:6px">
+        <label style="display:flex;align-items:center;gap:6px;font-weight:normal"><input type="radio" name="sales-vat-mode" id="sales-vat-excluded" value="excluded" checked> Excludes VAT (+5% on line)</label>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:normal"><input type="radio" name="sales-vat-mode" id="sales-vat-included" value="included"> Includes VAT (total = unit×qty)</label>
+      </div>
+    </div>
+    <div class="fg"><label>Payment status</label>
+      <select id="sales-order-payment" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px">
+        <option value="cash">Cash received 已付款</option>
+        <option value="cash_pending">Cash pending 待现金</option>
+        <option value="credit">Credit 赊账未付</option>
+      </select>
+    </div>
+    <div class="brow">
+      <button type="button" class="btn btn-s" onclick="saveSalesOrderFromModal()">Save draft</button>
+      <button type="button" class="btn btn-g" onclick="clSalesOrderModal()">Cancel</button>
+    </div>
   </div>
 </div>
 

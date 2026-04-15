@@ -1,6 +1,0 @@
-{
-  "csm_sales_w1": {
-    ".read": "auth != null && root.child('csm_users').child(auth.uid).child('role').val() == 'admin'",
-    ".write": "auth != null && root.child('csm_users').child(auth.uid).child('role').val() == 'admin'"
-  }
-}

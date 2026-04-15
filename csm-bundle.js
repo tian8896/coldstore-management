@@ -1531,7 +1531,7 @@ var editOutBtn = isAdmin ? '<button class="abtn" onclick="showEditOutRecord(\'' 
 // ============================================================
 // 搜索和导出功能
 // ============================================================
-var checkoutSearchFilters = {  cn: '',  supplier: '',  product: '',  dateStart: '',  dateEnd: ''};function applySearch() {  checkoutSearchFilters = {    cn: (gid('search-cn').value || '').trim().toLowerCase(),    supplier: (gid('search-supplier').value || '').trim().toLowerCase(),    product: (gid('search-product').value || '').trim().toLowerCase(),    dateStart: gid('search-date-start').value || '',    dateEnd: gid('search-date-end').value || ''  };  renderCheckout();  toast('✅ 筛选条件已应用', 'ok');}function resetSearch() {  gid('search-cn').value = '';  gid('search-supplier').value = '';  gid('search-product').value = '';  gid('search-date-start').value = '';  gid('search-date-end').value = '';  checkoutSearchFilters = {    cn: '',    supplier: '',    product: '',    dateStart: '',    dateEnd: ''  };  renderCheckout();  toast('✅ 已重置筛选条件', 'ok');}function matchSearchFilters(inRec) {  var f = checkoutSearchFilters;  
+var checkoutSearchFilters = {  cn: '',  supplier: '',  product: '',  dateStart: '',  dateEnd: ''};function applySearch() {  checkoutSearchFilters = {    cn: (gid('search-cn').value || '').trim().toLowerCase(),    supplier: (gid('search-supplier').value || '').trim().toLowerCase(),    product: (gid('search-product').value || '').trim().toLowerCase(),    dateStart: gid('search-date-start').value || '',    dateEnd: gid('search-date-end').value || ''  };  renderCheckout();  toast('Confirmed', 'ok');}function resetSearch() {  gid('search-cn').value = '';  gid('search-supplier').value = '';  gid('search-product').value = '';  gid('search-date-start').value = '';  gid('search-date-end').value = '';  checkoutSearchFilters = {    cn: '',    supplier: '',    product: '',    dateStart: '',    dateEnd: ''  };  renderCheckout();  toast('Filters reset', 'ok');}function matchSearchFilters(inRec) {  var f = checkoutSearchFilters;  
 // 集装箱号匹配  
 if (f.cn && (inRec.cn || '').toLowerCase().indexOf(f.cn) < 0) {    return false;  }  
 // 供应商匹配  
@@ -1545,7 +1545,7 @@ var data = [];  var cnGroups = {};  recs.filter(function(r) { return r.type === 
 // 添加没有出库记录的入库集装箱（只显示当前冷库的）  
 var allInRecs = recs.filter(function(r) { return !r.type && r.store === currentColdStore; });  allInRecs.forEach(function(inRec) {    if (!cnGroups[inRec.cn]) {      cnGroups[inRec.cn] = { recs: [], inRec: inRec };    } else if (!cnGroups[inRec.cn].inRec) {      cnGroups[inRec.cn].inRec = inRec;    }  });  
 // 表头  
-data.push(['序列号', '集装箱号', '供应商', '品名', '周/日期', '托盘数', '出库托盘', '出库件数', '剩余件数', '入库件数', '单价', '金额', '5% VAT', '合计']);  
+data.push(['Seq No', 'Container', 'Supplier', 'Product', 'Week / Date', 'Pallets', 'Out Pallets', 'Out Items', 'Rem Items', 'In Items', 'Unit Price', 'Amount', '5% VAT', 'Total']);  
 // 按集装箱号排序  
 Object.keys(cnGroups).sort().forEach(function(cn) {    var group = cnGroups[cn];    var inRec = group.inRec;    var outRecs = (group.recs || []).sort(function(a, b) { return new Date(a.dep) - new Date(b.dep); });    if (!inRec) return;    
 // 应用搜索筛选    
@@ -1561,9 +1561,9 @@ data.forEach(function(row) {
 var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
 var link = document.createElement('a');
 link.href = URL.createObjectURL(blob);
-link.download = '出库记录_' + new Date().toISOString().slice(0, 10) + '.csv';
+link.download = 'checkout_records_' + new Date().toISOString().slice(0, 10) + '.csv';
 link.click();
-toast('✅ 导出成功', 'ok');
+toast('Export completed', 'ok');
 }
 // ============================================================
 // DETAIL MODAL

@@ -54,6 +54,8 @@ th{background:var(--bg2);padding:12px 14px;text-align:left;font-size:14px;font-f
 td{padding:11px 14px;border-bottom:1px solid rgba(48,54,61,.5);color:var(--tx);white-space:nowrap;font-size:14px;font-family:var(--csm-font-en);font-weight:700}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:rgba(0,191,255,.03)}
+th.csm-sel-th,td.csm-sel-td{width:44px;min-width:44px;max-width:44px;text-align:center;padding:10px 8px;vertical-align:middle}
+.csm-sales-row-cb{width:16px;height:16px;cursor:pointer;accent-color:var(--ac);margin:0}
 .bdg{display:inline-block;padding:5px 10px;border-radius:3px;font-size:13px;font-weight:700;font-family:var(--csm-font-en)}
 .bdg-a{background:var(--am15);color:var(--am);border:1px solid rgba(210,153,34,.3)}
 .bdg-d{background:var(--gr15);color:var(--gr);border:1px solid rgba(63,185,80,.3)}
@@ -273,7 +275,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260415s" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260415t" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -1004,6 +1006,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
         </select>
       </div>
       <div class="tw"><table><thead><tr>
+        <th class="csm-sel-th" title="选择">选</th>
         <th>Order No.<br><span style="font-size:11px;color:#888">订单号</span></th>
         <th>Created<br><span style="font-size:11px;color:#888">生成时间</span></th>
         <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net unit (AED)</th><th>VAT (AED)</th><th>5% VAT</th><th>Total (AED)</th><th>Payment</th><th>Status</th><th>Actions</th>
@@ -1020,6 +1023,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
       <div style="background:#f5f5f5;border-radius:8px;padding:12px"><div style="font-size:12px;color:#666">Unpaid AED</div><div style="font-size:22px;font-weight:bold;color:#c62828" id="sales-fin-unpaid">0.00</div></div>
     </div>
     <div class="tw"><table><thead><tr>
+      <th class="csm-sel-th" title="选择">选</th>
       <th>Order No.<br><span style="font-size:11px;color:#888">订单号</span></th>
       <th>Created<br><span style="font-size:11px;color:#888">生成时间</span></th>
       <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net unit (AED)</th><th>VAT (AED)</th><th>Total (AED)</th><th>Payment (fin.)</th>

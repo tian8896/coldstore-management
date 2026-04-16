@@ -2772,6 +2772,9 @@ function csmEscapeHtml(s) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
+function csmAttrEscape(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
 function refreshSalesUi() {
   if (!isAdmin && !isStaff) return;
   renderSalesDashCards();
@@ -2836,7 +2839,7 @@ function renderSalesOrdersTable() {
       '未税净额 Net AED: <strong>' + csmSalesRound2(sn).toFixed(2) + '</strong>　|　VAT AED: <strong>' + csmSalesRound2(sv).toFixed(2) + '</strong>　|　<strong>含税合计 Total AED: ' + csmSalesRound2(stt).toFixed(2) + '</strong>';
   }
   if (!rows.length) {
-    tb.innerHTML = '<tr><td colspan="14" style="text-align:center;color:#888">No orders</td></tr>';
+    tb.innerHTML = '<tr><td colspan="15" style="text-align:center;color:#888">No orders</td></tr>';
     updOrdSummary(0, 0, 0, 0, 0);
     return;
   }
@@ -2869,7 +2872,7 @@ function renderSalesOrdersTable() {
     } else {
       actions = '<span style="color:#888">Locked</span>';
     }
-    return '<tr><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + csmEscapeHtml(o.containerNo || '') + '</td><td>' + w1ProductHtml(o.productName) + '</td><td>' + csmEscapeHtml(String(o.quantity)) + '</td><td>' +
+    return '<tr><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + csmEscapeHtml(o.containerNo || '') + '</td><td>' + w1ProductHtml(o.productName) + '</td><td>' + csmEscapeHtml(String(o.quantity)) + '</td><td>' +
       csmEscapeHtml((parseFloat(o.unitPrice) || 0).toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.vatAmt.toFixed(2)) + '</td><td>' + csmEscapeHtml(vm) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesPayLabel(o.paymentStatus, false) + '</td><td>' + csmEscapeHtml(o.orderStatus || '') + '</td><td>' + actions + '</td></tr>';
   }).join('');
 }
@@ -2894,7 +2897,7 @@ function renderSalesFinanceTable() {
       '未税净额 Net AED: <strong>' + csmSalesRound2(sn).toFixed(2) + '</strong>　|　VAT AED: <strong>' + csmSalesRound2(sv).toFixed(2) + '</strong>　|　<strong>含税合计 Total AED: ' + csmSalesRound2(stt).toFixed(2) + '</strong>';
   }
   if (!conf.length) {
-    tb.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#888">No confirmed orders</td></tr>';
+    tb.innerHTML = '<tr><td colspan="12" style="text-align:center;color:#888">No confirmed orders</td></tr>';
     updFinSummary(0, 0, 0, 0, 0);
     return;
   }
@@ -2920,7 +2923,7 @@ function renderSalesFinanceTable() {
   updFinSummary(sorted.length, fq, fn, fv, ft);
   tb.innerHTML = sorted.map(function(o) {
     var nv = csmSalesNetUnitAndVat(o);
-    return '<tr><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + csmEscapeHtml(o.containerNo || '') + '</td><td>' + w1ProductHtml(o.productName) + '</td><td>' + csmEscapeHtml(String(o.quantity)) + '</td><td>' +
+    return '<tr><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + csmEscapeHtml(o.containerNo || '') + '</td><td>' + w1ProductHtml(o.productName) + '</td><td>' + csmEscapeHtml(String(o.quantity)) + '</td><td>' +
       csmEscapeHtml((parseFloat(o.unitPrice) || 0).toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.vatAmt.toFixed(2)) + '</td><td>' +
       csmSalesLineTotalForDisplay(o).toFixed(2) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, true)) + '</td></tr>';
   }).join('');

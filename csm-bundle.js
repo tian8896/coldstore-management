@@ -2864,13 +2864,46 @@ function salesFillCustomerSelect(sel) {
     return '<option value="' + vid + '">' + csmEscapeHtml(c.name) + '</option>';
   }).join('');
 }
+function getPurchaseCnListSorted() {
+  var seen = {};
+  var list = [];
+  if (!purchaseRecs || !purchaseRecs.length) return list;
+  purchaseRecs.forEach(function(p) {
+    var cn = String(p.cn || '').trim().toUpperCase();
+    if (cn && !seen[cn]) {
+      seen[cn] = true;
+      list.push(cn);
+    }
+  });
+  list.sort();
+  return list;
+}
+function buildSalesOrderCnSelectHtml(selectedRaw) {
+  var list = getPurchaseCnListSorted();
+  var selNorm = String(selectedRaw || '').trim().toUpperCase();
+  var html = '<option value="">请选择集装箱号 / Select from purchase</option>';
+  var found = false;
+  list.forEach(function(cn) {
+    var isSel = selNorm && cn === selNorm;
+    if (isSel) found = true;
+    html += '<option value="' + w1EscAttr(cn) + '"' + (isSel ? ' selected' : '') + '>' + w1EscHtml(cn) + '</option>';
+  });
+  if (selNorm && !found) {
+    html += '<option value="' + w1EscAttr(selNorm) + '" selected>' + w1EscHtml(selNorm) + ' (未在采购列表)</option>';
+  }
+  return html;
+}
+function refreshSalesOrderCnSelect(selectedCn) {
+  var el = gid('sales-order-cn');
+  if (!el) return;
+  el.innerHTML = buildSalesOrderCnSelectHtml(selectedCn || '');
+}
 function openSalesOrderModal(id) {
   var m = gid('sales-order-modal');
   if (!m) return;
   m.classList.add('sh');
   gid('sales-order-id').value = id || '';
   salesFillCustomerSelect(gid('sales-order-customer'));
-  gid('sales-order-cn').value = '';
   var sop = gid('sales-order-product');
   if (sop) sop.innerHTML = buildProductSelectOptionsHtml('');
   gid('sales-order-qty').value = '1';
@@ -2884,13 +2917,15 @@ function openSalesOrderModal(id) {
     if (!o) { clSalesOrderModal(); return; }
     if (o.orderStatus !== 'draft') { toast('Only draft orders editable', 'err'); clSalesOrderModal(); return; }
     gid('sales-order-customer').value = o.customerId || '';
-    gid('sales-order-cn').value = o.containerNo || '';
+    refreshSalesOrderCnSelect(o.containerNo || '');
     if (sop) sop.innerHTML = buildProductSelectOptionsHtml(o.productName || '');
     gid('sales-order-qty').value = String(o.quantity);
     gid('sales-order-price').value = String(o.unitPrice);
     if (o.vatMode === 'included' && rIn) rIn.checked = true;
     else if (rEx) rEx.checked = true;
     gid('sales-order-payment').value = o.paymentStatus || 'cash_pending';
+  } else {
+    refreshSalesOrderCnSelect('');
   }
 }
 function clSalesOrderModal() { var m = gid('sales-order-modal'); if (m) m.classList.remove('sh'); }
@@ -2901,6 +2936,10 @@ function saveSalesOrderFromModal() {
   var cust = salesCustomers.find(function(c) { return c.id === customerId; });
   if (!cust) { toast('Select customer', 'err'); return; }
   var cn = (gid('sales-order-cn').value || '').trim().toUpperCase();
+  if (!cn) {
+    toast(getPurchaseCnListSorted().length === 0 ? '暂无采购记录中的集装箱号，请先在 Warehouse1 采购中录入' : '请选择集装箱号 / Select container', 'err');
+    return;
+  }
   if (getW1ProductsNormalized().length === 0) { toast('Add products in Settings → 品名管理 first', 'err'); return; }
   var product = canonicalProductName((gid('sales-order-product').value || '').trim());
   var qty = parseFloat(gid('sales-order-qty').value) || 0;

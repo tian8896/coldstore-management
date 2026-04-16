@@ -2681,6 +2681,26 @@ function csmSalesComputeTotals(unitPrice, qty, vatMode) {
   var vatE = csmSalesRound2(totalE - netE);
   return { total: totalE, net: netE, vat: vatE };
 }
+function csmSalesLineTotalForDisplay(o) {
+  var vatMode = (o && o.vatMode === 'included') ? 'included' : 'excluded';
+  var u = parseFloat(o && o.unitPrice);
+  var q = parseFloat(o && o.quantity);
+  if ((u >= 0 || u === 0) && q > 0) {
+    return csmSalesComputeTotals(u, q, vatMode).total;
+  }
+  return parseFloat(o && o.totalAmount) || 0;
+}
+function csmSalesVatModeCellLabel(o) {
+  return (o && o.vatMode === 'included') ? 'Incl. 5% VAT' : 'Excl. +5% VAT';
+}
+function csmSalesNetUnitAndVat(o) {
+  var vatMode = (o && o.vatMode === 'included') ? 'included' : 'excluded';
+  var u = parseFloat(o && o.unitPrice) || 0;
+  var q = parseFloat(o && o.quantity) || 0;
+  if (q <= 0) return { netUnit: 0, vatAmt: 0 };
+  var a = csmSalesComputeTotals(u, q, vatMode);
+  return { netUnit: csmSalesRound2(a.net / q), vatAmt: a.vat };
+}
 function csmSalesLocalYmd(d) {
   var y = d.getFullYear();
   var m = ('0' + (d.getMonth() + 1)).slice(-2);
@@ -2738,10 +2758,10 @@ function renderSalesDashCards() {
   var nToday = salesOrders.filter(function(o) { return (o.createdAt || '').slice(0, 10) === today; }).length;
   el1.textContent = String(nToday);
   var conf = salesOrders.filter(function(o) { return o.orderStatus === 'confirmed'; });
-  var sumConf = conf.reduce(function(s, o) { return s + (parseFloat(o.totalAmount) || 0); }, 0);
+  var sumConf = conf.reduce(function(s, o) { return s + csmSalesLineTotalForDisplay(o); }, 0);
   if (el2) el2.textContent = sumConf.toFixed(2);
   var unpaid = conf.filter(function(o) { return o.paymentStatus === 'credit' || o.paymentStatus === 'cash_pending'; });
-  var sumUnpaid = unpaid.reduce(function(s, o) { return s + (parseFloat(o.totalAmount) || 0); }, 0);
+  var sumUnpaid = unpaid.reduce(function(s, o) { return s + csmSalesLineTotalForDisplay(o); }, 0);
   if (el3) el3.textContent = sumUnpaid.toFixed(2);
 }
 function renderSalesCustomersTable() {
@@ -2764,11 +2784,13 @@ function renderSalesOrdersTable() {
   var st = f ? f.value : '';
   var rows = salesOrders.filter(function(o) { return !st || o.orderStatus === st; });
   if (!rows.length) {
-    tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#888">No orders</td></tr>';
+    tb.innerHTML = '<tr><td colspan="12" style="text-align:center;color:#888">No orders</td></tr>';
     return;
   }
   tb.innerHTML = rows.map(function(o) {
-    var vm = o.vatMode === 'included' ? 'Inc.VAT' : 'Ex+5%';
+    var vm = csmSalesVatModeCellLabel(o);
+    var lineTot = csmSalesLineTotalForDisplay(o);
+    var nv = csmSalesNetUnitAndVat(o);
     var actions = '';
     if (o.orderStatus === 'draft') {
       actions = '<button class="abtn" onclick="openSalesOrderModal(\'' + o.id + '\')">Edit</button> ' +
@@ -2783,7 +2805,7 @@ function renderSalesOrdersTable() {
       actions = '<span style="color:#888">Locked</span>';
     }
     return '<tr><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + csmEscapeHtml(o.containerNo || '') + '</td><td>' + w1ProductHtml(o.productName) + '</td><td>' + csmEscapeHtml(String(o.quantity)) + '</td><td>' +
-      csmEscapeHtml(String(o.unitPrice)) + '</td><td>' + vm + '</td><td>' + (parseFloat(o.totalAmount) || 0).toFixed(2) + '</td><td>' + csmSalesPayLabel(o.paymentStatus, false) + '</td><td>' + csmEscapeHtml(o.orderStatus || '') + '</td><td>' + actions + '</td></tr>';
+      csmEscapeHtml((parseFloat(o.unitPrice) || 0).toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.vatAmt.toFixed(2)) + '</td><td>' + csmEscapeHtml(vm) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesPayLabel(o.paymentStatus, false) + '</td><td>' + csmEscapeHtml(o.orderStatus || '') + '</td><td>' + actions + '</td></tr>';
   }).join('');
 }
 function renderSalesFinanceTable() {
@@ -2794,19 +2816,21 @@ function renderSalesFinanceTable() {
   if (!tb) return;
   var conf = salesOrders.filter(function(o) { return o.orderStatus === 'confirmed'; });
   if (elLines) elLines.textContent = String(conf.length);
-  var sum = conf.reduce(function(s, o) { return s + (parseFloat(o.totalAmount) || 0); }, 0);
+  var sum = conf.reduce(function(s, o) { return s + csmSalesLineTotalForDisplay(o); }, 0);
   var sumUn = conf.filter(function(o) { return o.paymentStatus === 'credit' || o.paymentStatus === 'cash_pending'; })
-    .reduce(function(s, o) { return s + (parseFloat(o.totalAmount) || 0); }, 0);
+    .reduce(function(s, o) { return s + csmSalesLineTotalForDisplay(o); }, 0);
   if (elTot) elTot.textContent = sum.toFixed(2);
   if (elUn) elUn.textContent = sumUn.toFixed(2);
   if (!conf.length) {
-    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888">No confirmed orders</td></tr>';
+    tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#888">No confirmed orders</td></tr>';
     return;
   }
   var sorted = conf.slice().sort(function(a, b) { return String(b.confirmedAt || b.createdAt || '').localeCompare(String(a.confirmedAt || a.createdAt || '')); });
   tb.innerHTML = sorted.map(function(o) {
+    var nv = csmSalesNetUnitAndVat(o);
     return '<tr><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + csmEscapeHtml(o.containerNo || '') + '</td><td>' + w1ProductHtml(o.productName) + '</td><td>' + csmEscapeHtml(String(o.quantity)) + '</td><td>' +
-      (parseFloat(o.totalAmount) || 0).toFixed(2) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, true)) + '</td></tr>';
+      csmEscapeHtml((parseFloat(o.unitPrice) || 0).toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.vatAmt.toFixed(2)) + '</td><td>' +
+      csmSalesLineTotalForDisplay(o).toFixed(2) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, true)) + '</td></tr>';
   }).join('');
 }
 function openSalesCustomerModal(id) {

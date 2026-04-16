@@ -273,7 +273,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260415n" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260415p" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -962,6 +962,11 @@ tr:hover td{background:rgba(0,191,255,.03)}
   </div>
 
   <div class="tc" id="tc-sales">
+    <style>
+      /* 销售模块：表头与表格英文 Arial + 加粗 */
+      #tc-sales .tw table, #tc-sales .tw th, #tc-sales .tw td,
+      #tc-sales #sales-panel-dash { font-family: Arial, "Microsoft YaHei", "PingFang SC", sans-serif; font-weight: bold; }
+    </style>
     <p style="font-size:13px;color:#555;margin:0 0 12px;line-height:1.6">销售系统：客户信息、集装箱销售订单、付款状态与财务统计。订单需<strong>确认</strong>后进入「财务记录」。</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;border-bottom:1px solid #e0e0e0;padding-bottom:10px">
       <button type="button" class="btn btn-s" id="sales-sub-btn-dash" onclick="swSalesSub('dash')">财务统计 Dashboard</button>
@@ -1004,12 +1009,17 @@ tr:hover td{background:rgba(0,191,255,.03)}
         </select>
       </div>
       <div class="tw"><table><thead><tr>
-        <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit</th><th>VAT</th><th>Total</th><th>Payment</th><th>Status</th><th>Actions</th>
+        <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net unit (AED)</th><th>VAT (AED)</th><th>5% VAT</th><th>Total (AED)</th><th>Payment</th><th>Status</th><th>Actions</th>
       </tr></thead><tbody id="tb-sales-orders"></tbody></table></div>
     </div>
   </div>
 
   <div class="tc" id="tc-sales_finance">
+    <style>
+      #tc-sales_finance .tw table, #tc-sales_finance .tw th, #tc-sales_finance .tw td,
+      #tc-sales_finance > p,
+      #tc-sales_finance #sales-fin-lines, #tc-sales_finance #sales-fin-total, #tc-sales_finance #sales-fin-unpaid { font-family: Arial, "Microsoft YaHei", "PingFang SC", sans-serif; font-weight: bold; }
+    </style>
     <p style="font-size:13px;color:#555;margin:0 0 12px">以下为<strong>已确认</strong>销售订单的财务视图（自动生成）。</p>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:16px">
       <div style="background:#f5f5f5;border-radius:8px;padding:12px"><div style="font-size:12px;color:#666">Confirmed lines</div><div style="font-size:22px;font-weight:bold" id="sales-fin-lines">0</div></div>
@@ -1017,7 +1027,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
       <div style="background:#f5f5f5;border-radius:8px;padding:12px"><div style="font-size:12px;color:#666">Unpaid AED</div><div style="font-size:22px;font-weight:bold;color:#c62828" id="sales-fin-unpaid">0.00</div></div>
     </div>
     <div class="tw"><table><thead><tr>
-      <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Total AED</th><th>Payment (fin.)</th>
+      <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net unit (AED)</th><th>VAT (AED)</th><th>Total (AED)</th><th>Payment (fin.)</th>
     </tr></thead><tbody id="tb-sales-finance"></tbody></table></div>
   </div>
 </div>

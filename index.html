@@ -263,7 +263,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260415i" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260415j" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -625,8 +625,10 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <div class="fg"><label>供应商 Supplier</label>
       <input type="text" id="f-supplier" placeholder="输入供应商名称" autocomplete="off">
     </div>
-    <div class="fg"><label>日期 Date <span style="color:var(--rd)">*</span></label>
-      <input type="text" id="f-product" placeholder="输入品名" autocomplete="off">
+    <div class="fg"><label>品名 Product <span style="color:var(--rd)">*</span></label>
+      <select id="f-product" class="csm-product-select" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-size:14px">
+        <option value="">请选择品名</option>
+      </select>
     </div>
     <div class="fg"><label>托盘数量 Pallets</label>
       <input type="number" id="f-pallets" placeholder="输入托盘数量" min="1" value="1">
@@ -749,9 +751,10 @@ tr:hover td{background:rgba(0,191,255,.03)}
             </thead>
             <tbody id="supplierItemsBody">
               <tr class="supplier-item-row">
-                <td style="padding:4px;border:1px solid #ddd;position:relative">
-                  <input type="text" class="supplier-item-product" placeholder="输入品名" data-rowid="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px" oninput="showSuggestSupplierItem(this)" onfocus="showSuggestSupplierItem(this)" onblur="setTimeout(function(){hideSuggest('supplier-item-0')},200)">
-                  <div class="suggest-list" id="suggest-supplier-item-0"></div>
+                <td style="padding:4px;border:1px solid #ddd">
+                  <select class="supplier-item-product csm-product-select" data-rowid="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;font-size:13px">
+                    <option value="">请选择品名</option>
+                  </select>
                 </td>
                 <td style="padding:4px;border:1px solid #ddd">
                   <input type="number" class="supplier-item-qty" placeholder="数量" min="0" value="" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center">
@@ -1052,7 +1055,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <input type="hidden" id="sales-order-id">
     <div class="fg"><label>Customer *</label><select id="sales-order-customer" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></select></div>
     <div class="fg"><label>Container No. *</label><input type="text" id="sales-order-cn" maxlength="11" style="text-transform:uppercase;width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></div>
-    <div class="fg"><label>Product name *</label><input type="text" id="sales-order-product" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></div>
+    <div class="fg"><label>Product name *</label><select id="sales-order-product" class="csm-product-select" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:14px"></select></div>
     <div class="fg"><label>Quantity *</label><input type="number" id="sales-order-qty" min="0.01" step="any" value="1" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></div>
     <div class="fg"><label>Unit price (AED) *</label><input type="number" id="sales-order-price" min="0" step="any" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></div>
     <div class="fg"><label>VAT on unit price</label>
@@ -1111,9 +1114,10 @@ tr:hover td{background:rgba(0,191,255,.03)}
         </thead>
         <tbody id="purchaseItemsBody">
           <tr class="purchase-item-row">
-            <td style="padding:4px;border:1px solid #ddd;position:relative">
-              <input type="text" class="item-product" placeholder="品名" data-rowid="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px" oninput="showSuggestPurchaseItem(this)" onfocus="showSuggestPurchaseItem(this)" onblur="setTimeout(function(){hideSuggest('purchase-item-0')},200)">
-              <div class="suggest-list" id="suggest-purchase-item-0"></div>
+            <td style="padding:4px;border:1px solid #ddd">
+              <select class="item-product csm-product-select" data-rowid="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;font-size:13px">
+                <option value="">请选择品名</option>
+              </select>
             </td>
             <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-qty" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>
             <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-demurrage" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>
@@ -1145,9 +1149,10 @@ tr:hover td{background:rgba(0,191,255,.03)}
       <input type="text" id="fe-supplier" oninput="showSuggestEdit(this,'supplier')" onfocus="showSuggestEdit(this,'supplier')" onblur="setTimeout(function(){hideSuggest('edit-supplier')},200)">
       <div class="suggest-list" id="suggest-edit-supplier"></div>
     </div>
-    <div class="fg" style="position:relative"><label>日期 Date</label>
-      <input type="text" id="fe-product" oninput="showSuggestEdit(this,'product')" onfocus="showSuggestEdit(this,'product')" onblur="setTimeout(function(){hideSuggest('edit-product')},200)">
-      <div class="suggest-list" id="suggest-edit-product"></div>
+    <div class="fg"><label>品名 Product</label>
+      <select id="fe-product" class="csm-product-select" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:14px">
+        <option value="">请选择品名</option>
+      </select>
     </div>
     <div class="fg"><label>数量 Qty</label>
       <input type="number" id="fe-qty" min="0">

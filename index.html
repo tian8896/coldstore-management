@@ -273,7 +273,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260415m" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260415n" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -1064,7 +1064,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
     <h3>销售订单 Sales order</h3>
     <input type="hidden" id="sales-order-id">
     <div class="fg"><label>Customer *</label><select id="sales-order-customer" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></select></div>
-    <div class="fg"><label>Container No. *</label><select id="sales-order-cn" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:14px;text-transform:uppercase"><option value="">请选择集装箱号 / From purchase</option></select></div>
+    <div class="fg"><label>Container No. *</label><select id="sales-order-cn" onchange="salesOrderOnCnChange()" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:14px;text-transform:uppercase"><option value="">请选择集装箱号 / From purchase</option></select></div>
     <div class="fg"><label>Product name *</label><select id="sales-order-product" class="csm-product-select" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:14px"></select></div>
     <div class="fg"><label>Unit price (AED) *</label><input type="number" id="sales-order-price" min="0" step="any" style="width:100%;padding:12px 14px;border:1px solid #ccc;border-radius:6px;font-size:15px"></div>
     <div class="fg"><label>VAT on unit price</label>

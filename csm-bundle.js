@@ -2898,6 +2898,40 @@ function refreshSalesOrderCnSelect(selectedCn) {
   if (!el) return;
   el.innerHTML = buildSalesOrderCnSelectHtml(selectedCn || '');
 }
+function getDistinctPurchaseProductsForCn(cn) {
+  var key = String(cn || '').trim().toUpperCase();
+  var out = [];
+  var seen = {};
+  if (!key || !purchaseRecs || !purchaseRecs.length) return out;
+  purchaseRecs.forEach(function(p) {
+    if (String(p.cn || '').trim().toUpperCase() !== key) return;
+    var pr = String(p.product || '').trim();
+    if (!pr) return;
+    var lk = pr.toLowerCase();
+    if (seen[lk]) return;
+    seen[lk] = true;
+    out.push(pr);
+  });
+  return out;
+}
+function salesOrderOnCnChange() {
+  var cn = (gid('sales-order-cn').value || '').trim().toUpperCase();
+  var productEl = gid('sales-order-product');
+  if (!productEl) return;
+  if (!cn) {
+    productEl.innerHTML = buildProductSelectOptionsHtml('');
+    return;
+  }
+  var distinct = getDistinctPurchaseProductsForCn(cn);
+  if (distinct.length === 1) {
+    productEl.innerHTML = buildProductSelectOptionsHtml(distinct[0]);
+  } else if (distinct.length > 1) {
+    productEl.innerHTML = buildProductSelectOptionsHtml('');
+    toast('该集装箱在采购中有多个品名，请手动选择品名', 'ok');
+  } else {
+    productEl.innerHTML = buildProductSelectOptionsHtml('');
+  }
+}
 function openSalesOrderModal(id) {
   var m = gid('sales-order-modal');
   if (!m) return;

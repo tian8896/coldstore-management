@@ -273,7 +273,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260415r" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260415s" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -1004,6 +1004,8 @@ tr:hover td{background:rgba(0,191,255,.03)}
         </select>
       </div>
       <div class="tw"><table><thead><tr>
+        <th>Order No.<br><span style="font-size:11px;color:#888">订单号</span></th>
+        <th>Created<br><span style="font-size:11px;color:#888">生成时间</span></th>
         <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net unit (AED)</th><th>VAT (AED)</th><th>5% VAT</th><th>Total (AED)</th><th>Payment</th><th>Status</th><th>Actions</th>
       </tr></thead><tbody id="tb-sales-orders"></tbody></table></div>
       <div id="sales-orders-list-summary" style="margin-top:10px;padding:12px 14px;background:#f5f9ff;border:1px solid #c5ced6;border-radius:6px;font-size:13px;color:#333;line-height:1.65"></div>
@@ -1018,6 +1020,8 @@ tr:hover td{background:rgba(0,191,255,.03)}
       <div style="background:#f5f5f5;border-radius:8px;padding:12px"><div style="font-size:12px;color:#666">Unpaid AED</div><div style="font-size:22px;font-weight:bold;color:#c62828" id="sales-fin-unpaid">0.00</div></div>
     </div>
     <div class="tw"><table><thead><tr>
+      <th>Order No.<br><span style="font-size:11px;color:#888">订单号</span></th>
+      <th>Created<br><span style="font-size:11px;color:#888">生成时间</span></th>
       <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net unit (AED)</th><th>VAT (AED)</th><th>Total (AED)</th><th>Payment (fin.)</th>
     </tr></thead><tbody id="tb-sales-finance"></tbody></table></div>
     <div id="sales-finance-list-summary" style="margin-top:10px;padding:12px 14px;background:#f5f5f5;border:1px solid #ddd;border-radius:6px;font-size:13px;color:#333;line-height:1.65"></div>
@@ -1065,6 +1069,8 @@ tr:hover td{background:rgba(0,191,255,.03)}
   <div class="mdl" style="width:560px;max-height:85vh;overflow-y:auto">
     <h3>销售订单 Sales order</h3>
     <input type="hidden" id="sales-order-id">
+    <div class="fg"><label>订单号 Order No.</label><div id="sales-order-order-no-display" style="padding:10px 12px;background:#f5f5f5;border:1px solid #ddd;border-radius:5px;font-weight:700">—</div></div>
+    <div class="fg"><label>生成时间 Created at</label><div id="sales-order-created-display" style="padding:10px 12px;background:#f5f5f5;border:1px solid #ddd;border-radius:5px">—</div></div>
     <div class="fg"><label>Customer *</label><select id="sales-order-customer" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></select></div>
     <div class="fg"><label>Container No. *</label><select id="sales-order-cn" onchange="salesOrderOnCnChange()" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:14px;text-transform:uppercase"><option value="">请选择集装箱号 / From purchase</option></select></div>
     <div class="fg"><label>Product name *</label><select id="sales-order-product" class="csm-product-select" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:14px"></select></div>

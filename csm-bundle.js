@@ -2660,11 +2660,46 @@ function csmSalesObjToArr(val, isOrders) {
     out.push(o);
   });
   if (isOrders) {
-    out.sort(function(a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); });
+    out.sort(function(a, b) {
+      var an = String(a.orderNo || '');
+      var bn = String(b.orderNo || '');
+      if (an && bn) return bn.localeCompare(an, undefined, { numeric: true });
+      if (an && !bn) return -1;
+      if (!an && bn) return 1;
+      return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+    });
   } else {
     out.sort(function(a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
   }
   return out;
+}
+function csmSalesLocalYmdCompact(d) {
+  d = d || new Date();
+  var y = d.getFullYear();
+  var m = ('0' + (d.getMonth() + 1)).slice(-2);
+  var da = ('0' + d.getDate()).slice(-2);
+  return '' + y + m + da;
+}
+function csmSalesNextOrderNoForDate(ymdCompact) {
+  var prefix = 'SO-' + ymdCompact + '-';
+  var maxN = 0;
+  (salesOrders || []).forEach(function(o) {
+    var on = String(o.orderNo || '');
+    if (on.indexOf(prefix) !== 0) return;
+    var tail = parseInt(on.slice(prefix.length), 10);
+    if (!isNaN(tail) && tail > maxN) maxN = tail;
+  });
+  return prefix + ('000' + (maxN + 1)).slice(-3);
+}
+function csmSalesFormatOrderCreated(iso) {
+  if (!iso) return '\u2014';
+  try {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    return d.toLocaleString(undefined, { hour12: false });
+  } catch (e1) {
+    return String(iso);
+  }
 }
 function csmSalesRound2(x) { return Math.round(x * 100) / 100; }
 function csmSalesComputeTotals(unitPrice, qty, vatMode) {
@@ -2801,7 +2836,7 @@ function renderSalesOrdersTable() {
       '未税净额 Net AED: <strong>' + csmSalesRound2(sn).toFixed(2) + '</strong>　|　VAT AED: <strong>' + csmSalesRound2(sv).toFixed(2) + '</strong>　|　<strong>含税合计 Total AED: ' + csmSalesRound2(stt).toFixed(2) + '</strong>';
   }
   if (!rows.length) {
-    tb.innerHTML = '<tr><td colspan="12" style="text-align:center;color:#888">No orders</td></tr>';
+    tb.innerHTML = '<tr><td colspan="14" style="text-align:center;color:#888">No orders</td></tr>';
     updOrdSummary(0, 0, 0, 0, 0);
     return;
   }
@@ -2834,7 +2869,7 @@ function renderSalesOrdersTable() {
     } else {
       actions = '<span style="color:#888">Locked</span>';
     }
-    return '<tr><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + csmEscapeHtml(o.containerNo || '') + '</td><td>' + w1ProductHtml(o.productName) + '</td><td>' + csmEscapeHtml(String(o.quantity)) + '</td><td>' +
+    return '<tr><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + csmEscapeHtml(o.containerNo || '') + '</td><td>' + w1ProductHtml(o.productName) + '</td><td>' + csmEscapeHtml(String(o.quantity)) + '</td><td>' +
       csmEscapeHtml((parseFloat(o.unitPrice) || 0).toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.vatAmt.toFixed(2)) + '</td><td>' + csmEscapeHtml(vm) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesPayLabel(o.paymentStatus, false) + '</td><td>' + csmEscapeHtml(o.orderStatus || '') + '</td><td>' + actions + '</td></tr>';
   }).join('');
 }
@@ -2859,11 +2894,18 @@ function renderSalesFinanceTable() {
       '未税净额 Net AED: <strong>' + csmSalesRound2(sn).toFixed(2) + '</strong>　|　VAT AED: <strong>' + csmSalesRound2(sv).toFixed(2) + '</strong>　|　<strong>含税合计 Total AED: ' + csmSalesRound2(stt).toFixed(2) + '</strong>';
   }
   if (!conf.length) {
-    tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#888">No confirmed orders</td></tr>';
+    tb.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#888">No confirmed orders</td></tr>';
     updFinSummary(0, 0, 0, 0, 0);
     return;
   }
-  var sorted = conf.slice().sort(function(a, b) { return String(b.confirmedAt || b.createdAt || '').localeCompare(String(a.confirmedAt || a.createdAt || '')); });
+  var sorted = conf.slice().sort(function(a, b) {
+    var an = String(a.orderNo || '');
+    var bn = String(b.orderNo || '');
+    if (an && bn) return bn.localeCompare(an, undefined, { numeric: true });
+    if (an && !bn) return -1;
+    if (!an && bn) return 1;
+    return String(b.confirmedAt || b.createdAt || '').localeCompare(String(a.confirmedAt || a.createdAt || ''));
+  });
   var fq = 0;
   var fn = 0;
   var fv = 0;
@@ -2878,7 +2920,7 @@ function renderSalesFinanceTable() {
   updFinSummary(sorted.length, fq, fn, fv, ft);
   tb.innerHTML = sorted.map(function(o) {
     var nv = csmSalesNetUnitAndVat(o);
-    return '<tr><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + csmEscapeHtml(o.containerNo || '') + '</td><td>' + w1ProductHtml(o.productName) + '</td><td>' + csmEscapeHtml(String(o.quantity)) + '</td><td>' +
+    return '<tr><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + csmEscapeHtml(o.containerNo || '') + '</td><td>' + w1ProductHtml(o.productName) + '</td><td>' + csmEscapeHtml(String(o.quantity)) + '</td><td>' +
       csmEscapeHtml((parseFloat(o.unitPrice) || 0).toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.vatAmt.toFixed(2)) + '</td><td>' +
       csmSalesLineTotalForDisplay(o).toFixed(2) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, true)) + '</td></tr>';
   }).join('');
@@ -3020,6 +3062,8 @@ function openSalesOrderModal(id) {
   var rIn = document.getElementById('sales-vat-included');
   if (rEx) rEx.checked = true;
   gid('sales-order-payment').value = 'cash_pending';
+  var onDisp = gid('sales-order-order-no-display');
+  var ctDisp = gid('sales-order-created-display');
   if (id) {
     var o = salesOrders.find(function(x) { return x.id === id; });
     if (!o) { clSalesOrderModal(); return; }
@@ -3032,8 +3076,12 @@ function openSalesOrderModal(id) {
     if (o.vatMode === 'included' && rIn) rIn.checked = true;
     else if (rEx) rEx.checked = true;
     gid('sales-order-payment').value = o.paymentStatus || 'cash_pending';
+    if (onDisp) onDisp.textContent = o.orderNo || '\u2014';
+    if (ctDisp) ctDisp.textContent = csmSalesFormatOrderCreated(o.createdAt);
   } else {
     refreshSalesOrderCnSelect('');
+    if (onDisp) onDisp.textContent = csmSalesNextOrderNoForDate(csmSalesLocalYmdCompact(new Date()));
+    if (ctDisp) ctDisp.textContent = csmSalesFormatOrderCreated(new Date().toISOString()) + ' \uFF08\u9884\u89C8\uFF0C\u4EE5\u4FDD\u5B58\u65F6\u4E3A\u51C6\uFF09';
   }
 }
 function clSalesOrderModal() { var m = gid('sales-order-modal'); if (m) m.classList.remove('sh'); }
@@ -3059,7 +3107,19 @@ function saveSalesOrderFromModal() {
   if (!id) id = 'so_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   var existing = salesOrders.find(function(x) { return x.id === id; });
   if (existing && existing.orderStatus !== 'draft') { toast('Not editable', 'err'); return; }
+  var nowIso = new Date().toISOString();
+  var ymdToday = csmSalesLocalYmdCompact(new Date());
+  var orderNoVal;
+  var createdVal;
+  if (existing) {
+    orderNoVal = existing.orderNo || csmSalesNextOrderNoForDate(csmSalesLocalYmdCompact(new Date(existing.createdAt || nowIso)));
+    createdVal = existing.createdAt || nowIso;
+  } else {
+    orderNoVal = csmSalesNextOrderNoForDate(ymdToday);
+    createdVal = nowIso;
+  }
   var rec = {
+    orderNo: orderNoVal,
     customerId: customerId,
     customerName: cust.name || '',
     containerNo: cn,
@@ -3072,8 +3132,8 @@ function saveSalesOrderFromModal() {
     totalAmount: amounts.total,
     netAmount: amounts.net,
     vatAmount: amounts.vat,
-    createdAt: (existing && existing.createdAt) ? existing.createdAt : new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    createdAt: createdVal,
+    updatedAt: nowIso
   };
   salesOrdersRef.child(id).set(rec).then(function() {
     toast('Order saved (draft)', 'ok');

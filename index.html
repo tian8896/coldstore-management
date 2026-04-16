@@ -8,30 +8,30 @@
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#ffffff;--bg2:#f5f5f5;--bg3:#fafafa;--bg4:#f0f0f0;--bd:#e0e0e0;--tx:#1a1a1a;--tx2:#666666;--ac:#0066cc;--ac15:rgba(0,102,204,0.15);--am:#ff9900;--am15:rgba(255,153,0,0.15);--gr:#00aa00;--gr15:rgba(0,170,0,0.15);--rd:#cc0000;--rd15:rgba(204,0,0,0.15);--ice:#00bfff}
-body{font-family:'Courier New',Courier,monospace;background:var(--bg);color:var(--tx);min-height:100vh;font-size:15px}
+:root{--bg:#ffffff;--bg2:#f5f5f5;--bg3:#fafafa;--bg4:#f0f0f0;--bd:#e0e0e0;--tx:#1a1a1a;--tx2:#666666;--ac:#0066cc;--ac15:rgba(0,102,204,0.15);--am:#ff9900;--am15:rgba(255,153,0,0.15);--gr:#00aa00;--gr15:rgba(0,170,0,0.15);--rd:#cc0000;--rd15:rgba(204,0,0,0.15);--ice:#00bfff;--csm-font-en:Arial,"Helvetica Neue",Helvetica,"Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif}
+body{font-family:var(--csm-font-en);font-weight:700;background:var(--bg);color:var(--tx);min-height:100vh;font-size:15px}
 header{background:linear-gradient(135deg,#ffffff,#f5f5f5);border-bottom:2px solid var(--ice);padding:20px 36px;position:relative;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
 header::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent,transparent 60px,rgba(0,191,255,0.04) 60px,rgba(0,191,255,0.04) 62px);pointer-events:none}
-header h1{font-size:24px;letter-spacing:3px;text-transform:uppercase;color:var(--ice);text-shadow:0 0 20px rgba(0,191,255,0.2);position:relative}
+header h1{font-size:24px;letter-spacing:3px;text-transform:uppercase;color:var(--ice);text-shadow:0 0 20px rgba(0,191,255,0.2);position:relative;font-family:var(--csm-font-en);font-weight:700}
 header p{color:var(--tx);font-size:17px;font-weight:bold;margin-top:4px;letter-spacing:1px;position:relative}
 .hstats{display:flex;gap:28px;margin-top:14px;position:relative}
 .hstat{text-align:center}
 .hstat .v{font-size:22px;font-weight:bold;color:var(--am)}
-.hstat .l{font-size:11px;color:var(--tx2);letter-spacing:1px;text-transform:uppercase}
+.hstat .l{font-size:11px;color:var(--tx2);letter-spacing:1px;text-transform:uppercase;font-family:var(--csm-font-en);font-weight:700}
 .main{display:grid;grid-template-columns:360px 1fr;min-height:calc(100vh - 130px)}
 .left{border-right:1px solid var(--bd);padding:20px 15px 20px 20px;display:flex;flex-direction:column;gap:18px;overflow-y:auto;background:#fafafa}
 .section{background:var(--bg3);border:1px solid var(--bd);border-radius:7px;padding:18px 15px}
-.stitle{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--tx2);margin-bottom:14px;padding-bottom:9px;border-bottom:1px solid var(--bd)}
+.stitle{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--tx2);margin-bottom:14px;padding-bottom:9px;border-bottom:1px solid var(--bd);font-family:var(--csm-font-en);font-weight:700}
 .warehouse-selector{display:flex;gap:8px;margin-bottom:12px}
-.warehouse-btn{flex:1;padding:10px;border:2px solid var(--bd);border-radius:6px;background:var(--bg2);color:var(--tx2);font-weight:bold;cursor:pointer;transition:all .2s;text-transform:uppercase;font-size:12px}
+.warehouse-btn{flex:1;padding:10px;border:2px solid var(--bd);border-radius:6px;background:var(--bg2);color:var(--tx2);font-family:var(--csm-font-en);font-weight:700;cursor:pointer;transition:all .2s;text-transform:uppercase;font-size:12px}
 .warehouse-btn.active{border-color:var(--ice);background:rgba(0,191,255,0.1);color:var(--ice)}
 .warehouse-btn:hover{border-color:var(--ice)}
 .fg{margin-bottom:13px}
-.fg label{display:block;font-size:11px;color:var(--tx2);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px}
-.fg input,.fg select,.fg textarea{width:100%;background:var(--bg4);border:1px solid var(--bd);border-radius:5px;padding:10px 12px;color:var(--tx);font-family:'Courier New',monospace;font-size:15px;outline:none;transition:border-color .2s}
+.fg label{display:block;font-size:11px;color:var(--tx2);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;font-family:var(--csm-font-en);font-weight:700}
+.fg input,.fg select,.fg textarea{width:100%;background:var(--bg4);border:1px solid var(--bd);border-radius:5px;padding:10px 12px;color:var(--tx);font-family:var(--csm-font-en);font-size:15px;font-weight:700;outline:none;transition:border-color .2s}
 .fg input:focus,.fg select:focus{border-color:var(--ac)}
 .fg input::placeholder{color:var(--tx2);opacity:.7;font-size:13px}
-.btn{display:inline-flex;align-items:center;justify-content:center;padding:11px 18px;border:none;border-radius:5px;font-family:'Courier New',monospace;font-size:13px;font-weight:bold;letter-spacing:1px;cursor:pointer;transition:all .2s;text-transform:uppercase;gap:5px}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:11px 18px;border:none;border-radius:5px;font-family:var(--csm-font-en);font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .2s;text-transform:uppercase;gap:5px}
 .btn-p{background:var(--ac);color:#fff}
 .btn-p:hover{background:#0052a3;box-shadow:0 0 14px var(--ac15)}
 .btn-s{background:var(--gr);color:#fff}
@@ -43,22 +43,22 @@ header p{color:var(--tx);font-size:17px;font-weight:bold;margin-top:4px;letter-s
 .brow{display:flex;gap:8px;margin-top:14px}
 .right{display:flex;flex-direction:column;font-size:15px;overflow:hidden}
 .tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--bd);padding:0 21px}
-.tab{padding:14px 20px;font-size:15px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:var(--tx2);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.tab{padding:14px 20px;font-size:15px;font-family:var(--csm-font-en);font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--tx2);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
 .tab:hover{color:var(--tx)}
 .tab.ac{color:var(--ice);border-bottom-color:var(--ice)}
 .tc{flex:1;padding:18px 21px;overflow:auto;display:none;width:100%}
 .tc.ac{display:flex;flex-direction:column}
 .tw{overflow-x:auto;border:1px solid var(--bd);border-radius:6px;flex:1;min-width:0}
 table{width:max-content;min-width:100%;border-collapse:collapse;font-size:14px}
-th{background:var(--bg2);padding:12px 14px;text-align:left;font-size:14px;font-weight:bold;letter-spacing:.5px;text-transform:uppercase;color:var(--tx);border-bottom:2px solid var(--bd);white-space:nowrap}
-td{padding:11px 14px;border-bottom:1px solid rgba(48,54,61,.5);color:var(--tx);white-space:nowrap;font-size:14px;font-weight:500}
+th{background:var(--bg2);padding:12px 14px;text-align:left;font-size:14px;font-family:var(--csm-font-en);font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--tx);border-bottom:2px solid var(--bd);white-space:nowrap}
+td{padding:11px 14px;border-bottom:1px solid rgba(48,54,61,.5);color:var(--tx);white-space:nowrap;font-size:14px;font-family:var(--csm-font-en);font-weight:700}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:rgba(0,191,255,.03)}
-.bdg{display:inline-block;padding:5px 10px;border-radius:3px;font-size:13px;font-weight:bold;font-family:Arial,sans-serif}
+.bdg{display:inline-block;padding:5px 10px;border-radius:3px;font-size:13px;font-weight:700;font-family:var(--csm-font-en)}
 .bdg-a{background:var(--am15);color:var(--am);border:1px solid rgba(210,153,34,.3)}
 .bdg-d{background:var(--gr15);color:var(--gr);border:1px solid rgba(63,185,80,.3)}
 .ftag{color:var(--ac);font-weight:bold}
-.abtn{padding:8px 16px;border:1px solid var(--bd);border-radius:4px;background:transparent;color:var(--tx);font-family:Arial,sans-serif;font-size:13px;font-weight:bold;cursor:pointer;margin-right:5px;transition:all .15s}
+.abtn{padding:8px 16px;border:1px solid var(--bd);border-radius:4px;background:transparent;color:var(--tx);font-family:var(--csm-font-en);font-size:13px;font-weight:700;cursor:pointer;margin-right:5px;transition:all .15s}
 .abtn:hover{border-color:var(--ac);color:var(--ac)}
 .abtn.x:hover{border-color:var(--rd);color:var(--rd)}
 .mov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
@@ -73,8 +73,8 @@ tr:hover td{background:rgba(0,191,255,.03)}
 .mr:last-child .mv{color:var(--ac);font-size:18px}
 .mdl .brow{margin-top:18px}
 /* 所有弹窗（.mov）：英文以 Arial 为主，字重加粗；中文由系统黑体回退；!important 覆盖全局 .fg 等 monospace */
-.mov,.mov *{font-family:Arial,"Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif!important;font-weight:bold!important}
-.tst{position:fixed;bottom:24px;right:24px;padding:12px 18px;border-radius:6px;font-size:13px;letter-spacing:.5px;z-index:12000;animation:ti .3s ease;max-width:320px;line-height:1.6}
+.mov,.mov *{font-family:var(--csm-font-en)!important;font-weight:700!important}
+.tst{position:fixed;bottom:24px;right:24px;padding:12px 18px;border-radius:6px;font-size:13px;font-family:var(--csm-font-en);font-weight:700;letter-spacing:.5px;z-index:12000;animation:ti .3s ease;max-width:320px;line-height:1.6}
 .tst-ok{background:var(--bg3);border:1px solid var(--gr);color:var(--gr);box-shadow:0 0 18px var(--gr15)}
 .tst-err{background:var(--bg3);border:1px solid var(--rd);color:var(--rd);box-shadow:0 0 18px var(--rd15)}
 @keyframes ti{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
@@ -89,13 +89,13 @@ tr:hover td{background:rgba(0,191,255,.03)}
 .login-screen{position:fixed;inset:0;background:linear-gradient(135deg,#ffffff,#f5f5f5);display:flex;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(4px)}
 .login-screen.hidden{display:none}
 .login-box{background:#fff;border:2px solid var(--ice);border-radius:12px;padding:40px;width:420px;max-width:90vw;box-shadow:0 8px 32px rgba(0,191,255,0.2)}
-.login-box h2{color:var(--ice);font-size:24px;margin-bottom:8px;text-align:center;letter-spacing:2px}
+.login-box h2{color:var(--ice);font-size:24px;margin-bottom:8px;text-align:center;letter-spacing:2px;font-family:var(--csm-font-en);font-weight:700}
 .login-box p{color:var(--tx);text-align:center;margin-bottom:28px;font-size:17px;font-weight:bold}
 .login-form .fg{margin-bottom:16px}
 .login-form label{display:block;font-size:12px;color:var(--tx2);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;font-weight:bold}
-.login-form input{width:100%;background:#f5f5f5;border:1px solid var(--bd);border-radius:6px;padding:12px 14px;color:var(--tx);font-family:'Courier New',monospace;font-size:14px;outline:none;transition:all .2s}
+.login-form input{width:100%;background:#f5f5f5;border:1px solid var(--bd);border-radius:6px;padding:12px 14px;color:var(--tx);font-family:var(--csm-font-en);font-size:14px;font-weight:700;outline:none;transition:all .2s}
 .login-form input:focus{border-color:var(--ice);background:#fff;box-shadow:0 0 8px rgba(0,191,255,0.15)}
-.login-btn{width:100%;padding:14px;background:var(--ice);color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:bold;letter-spacing:1px;cursor:pointer;transition:all .2s;text-transform:uppercase;margin-top:8px}
+.login-btn{width:100%;padding:14px;background:var(--ice);color:#fff;border:none;border-radius:6px;font-size:14px;font-family:var(--csm-font-en);font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .2s;text-transform:uppercase;margin-top:8px}
 .login-btn:hover{background:#0099cc;box-shadow:0 4px 12px rgba(0,191,255,0.2)}
 .login-btn:active{transform:scale(0.98)}
 .login-error{color:var(--rd);font-size:12px;margin-top:12px;text-align:center;display:none}
@@ -120,7 +120,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
 .supplier-modal-grid .fg input,.supplier-modal-grid .fg select{font-weight:bold;color:#111;background:#fff}
 .supplier-modal-grid .fg input::placeholder{color:#888;opacity:1}
 /* EDITABLE TABLE */
-.edt{width:70px;background:var(--bg4);border:1px solid var(--bd);border-radius:3px;padding:4px 6px;color:var(--tx);font-family:'Courier New',monospace;font-size:13px;text-align:right;outline:none}
+.edt{width:70px;background:var(--bg4);border:1px solid var(--bd);border-radius:3px;padding:4px 6px;color:var(--tx);font-family:var(--csm-font-en);font-size:13px;font-weight:700;text-align:right;outline:none}
 .edt:focus{border-color:var(--ac);background:#fff}
 .edt-cn{width:100px;text-align:left}
 .edt-wide{width:100px}
@@ -152,7 +152,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
 #sales-order-modal .sales-vat-option .sales-vat-option-sub{font-size:12px;color:#555;line-height:1.35;font-weight:bold}
 .portal-shell{display:none;padding:12px 36px;background:var(--bg3);border-bottom:1px solid var(--bd)}
 .portal-shell .portal-btn-row{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch}
-.portal-app-btn{flex:0 0 auto;min-width:140px;padding:10px 16px;border:2px solid var(--bd);border-radius:6px;background:var(--bg2);color:var(--tx2);font-weight:bold;cursor:pointer;transition:all .2s;font-size:12px;font-family:'Courier New',Courier,monospace;text-align:center;line-height:1.35}
+.portal-app-btn{flex:0 0 auto;min-width:140px;padding:10px 16px;border:2px solid var(--bd);border-radius:6px;background:var(--bg2);color:var(--tx2);font-family:var(--csm-font-en);font-weight:700;cursor:pointer;transition:all .2s;font-size:12px;text-align:center;line-height:1.35}
 .portal-app-btn:hover{border-color:var(--ice);color:var(--ice)}
 .portal-app-btn.ac{border-color:var(--ice);background:rgba(0,191,255,0.12);color:var(--ice)}
 .portal-suite{display:block}
@@ -273,7 +273,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260415p" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260415q" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -962,11 +962,6 @@ tr:hover td{background:rgba(0,191,255,.03)}
   </div>
 
   <div class="tc" id="tc-sales">
-    <style>
-      /* 销售模块：表头与表格英文 Arial + 加粗 */
-      #tc-sales .tw table, #tc-sales .tw th, #tc-sales .tw td,
-      #tc-sales #sales-panel-dash { font-family: Arial, "Microsoft YaHei", "PingFang SC", sans-serif; font-weight: bold; }
-    </style>
     <p style="font-size:13px;color:#555;margin:0 0 12px;line-height:1.6">销售系统：客户信息、集装箱销售订单、付款状态与财务统计。订单需<strong>确认</strong>后进入「财务记录」。</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;border-bottom:1px solid #e0e0e0;padding-bottom:10px">
       <button type="button" class="btn btn-s" id="sales-sub-btn-dash" onclick="swSalesSub('dash')">财务统计 Dashboard</button>
@@ -1015,11 +1010,6 @@ tr:hover td{background:rgba(0,191,255,.03)}
   </div>
 
   <div class="tc" id="tc-sales_finance">
-    <style>
-      #tc-sales_finance .tw table, #tc-sales_finance .tw th, #tc-sales_finance .tw td,
-      #tc-sales_finance > p,
-      #tc-sales_finance #sales-fin-lines, #tc-sales_finance #sales-fin-total, #tc-sales_finance #sales-fin-unpaid { font-family: Arial, "Microsoft YaHei", "PingFang SC", sans-serif; font-weight: bold; }
-    </style>
     <p style="font-size:13px;color:#555;margin:0 0 12px">以下为<strong>已确认</strong>销售订单的财务视图（自动生成）。</p>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:16px">
       <div style="background:#f5f5f5;border-radius:8px;padding:12px"><div style="font-size:12px;color:#666">Confirmed lines</div><div style="font-size:22px;font-weight:bold" id="sales-fin-lines">0</div></div>

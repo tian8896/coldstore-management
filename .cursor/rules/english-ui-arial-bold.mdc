@@ -1,0 +1,10 @@
+---
+description: English UI copy uses Arial stack + bold
+alwaysApply: true
+---
+
+# 英文界面：Arial + 加粗
+
+- 面向用户的**英文**文案（标签、按钮、表头、表格单元格中的拉丁内容、Toast、弹窗、动态拼出的英文短语等）应使用 **`--csm-font-en`**（`index.html` 中 `:root` 已定义：Arial 为首，含中文字体回退）并配合 **`font-weight: 700`**（或等效 bold）。
+- 新增全局样式或内联样式时，优先使用 **`var(--csm-font-en)`**，避免再引入 **`Courier New`** 等作为 UI 正文字体。
+- 代码片段、等宽数据（如纯技术 `code` 路径展示）若需等宽可单独保留 monospace；普通说明性英文仍用上述规则。

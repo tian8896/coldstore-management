@@ -2690,6 +2690,16 @@ function csmSalesLineTotalForDisplay(o) {
   }
   return parseFloat(o && o.totalAmount) || 0;
 }
+function csmSalesLineNetVatTotal(o) {
+  var vatMode = (o && o.vatMode === 'included') ? 'included' : 'excluded';
+  var u = parseFloat(o && o.unitPrice);
+  var q = parseFloat(o && o.quantity);
+  if ((u >= 0 || u === 0) && q > 0) {
+    return csmSalesComputeTotals(u, q, vatMode);
+  }
+  var t = parseFloat(o && o.totalAmount) || 0;
+  return { net: 0, vat: 0, total: t };
+}
 function csmSalesVatModeCellLabel(o) {
   return (o && o.vatMode === 'included') ? 'Incl. 5% VAT' : 'Excl. +5% VAT';
 }
@@ -2779,14 +2789,34 @@ function renderSalesCustomersTable() {
 }
 function renderSalesOrdersTable() {
   var tb = gid('tb-sales-orders');
+  var sumEl = gid('sales-orders-list-summary');
   if (!tb) return;
   var f = gid('sales-order-filter');
   var st = f ? f.value : '';
   var rows = salesOrders.filter(function(o) { return !st || o.orderStatus === st; });
+  function updOrdSummary(n, sq, sn, sv, stt) {
+    if (!sumEl) return;
+    sumEl.innerHTML = '<strong>本页合计（当前筛选列表）</strong> · <strong>Filtered list</strong><br>' +
+      '行数 Rows: <strong>' + n + '</strong>　|　数量 Qty: <strong>' + csmSalesRound2(sq) + '</strong><br>' +
+      '未税净额 Net AED: <strong>' + csmSalesRound2(sn).toFixed(2) + '</strong>　|　VAT AED: <strong>' + csmSalesRound2(sv).toFixed(2) + '</strong>　|　<strong>含税合计 Total AED: ' + csmSalesRound2(stt).toFixed(2) + '</strong>';
+  }
   if (!rows.length) {
     tb.innerHTML = '<tr><td colspan="12" style="text-align:center;color:#888">No orders</td></tr>';
+    updOrdSummary(0, 0, 0, 0, 0);
     return;
   }
+  var sumQty = 0;
+  var sumNet = 0;
+  var sumVat = 0;
+  var sumTot = 0;
+  rows.forEach(function(o) {
+    sumQty += parseFloat(o.quantity) || 0;
+    var a = csmSalesLineNetVatTotal(o);
+    sumNet += a.net;
+    sumVat += a.vat;
+    sumTot += a.total;
+  });
+  updOrdSummary(rows.length, sumQty, sumNet, sumVat, sumTot);
   tb.innerHTML = rows.map(function(o) {
     var vm = csmSalesVatModeCellLabel(o);
     var lineTot = csmSalesLineTotalForDisplay(o);
@@ -2813,6 +2843,7 @@ function renderSalesFinanceTable() {
   var elLines = gid('sales-fin-lines');
   var elTot = gid('sales-fin-total');
   var elUn = gid('sales-fin-unpaid');
+  var sumFinEl = gid('sales-finance-list-summary');
   if (!tb) return;
   var conf = salesOrders.filter(function(o) { return o.orderStatus === 'confirmed'; });
   if (elLines) elLines.textContent = String(conf.length);
@@ -2821,11 +2852,30 @@ function renderSalesFinanceTable() {
     .reduce(function(s, o) { return s + csmSalesLineTotalForDisplay(o); }, 0);
   if (elTot) elTot.textContent = sum.toFixed(2);
   if (elUn) elUn.textContent = sumUn.toFixed(2);
+  function updFinSummary(n, sq, sn, sv, stt) {
+    if (!sumFinEl) return;
+    sumFinEl.innerHTML = '<strong>表格合计（当前页全部已确认行）</strong> · <strong>Table total (confirmed)</strong><br>' +
+      '行数 Rows: <strong>' + n + '</strong>　|　数量 Qty: <strong>' + csmSalesRound2(sq) + '</strong><br>' +
+      '未税净额 Net AED: <strong>' + csmSalesRound2(sn).toFixed(2) + '</strong>　|　VAT AED: <strong>' + csmSalesRound2(sv).toFixed(2) + '</strong>　|　<strong>含税合计 Total AED: ' + csmSalesRound2(stt).toFixed(2) + '</strong>';
+  }
   if (!conf.length) {
     tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#888">No confirmed orders</td></tr>';
+    updFinSummary(0, 0, 0, 0, 0);
     return;
   }
   var sorted = conf.slice().sort(function(a, b) { return String(b.confirmedAt || b.createdAt || '').localeCompare(String(a.confirmedAt || a.createdAt || '')); });
+  var fq = 0;
+  var fn = 0;
+  var fv = 0;
+  var ft = 0;
+  sorted.forEach(function(o) {
+    fq += parseFloat(o.quantity) || 0;
+    var a = csmSalesLineNetVatTotal(o);
+    fn += a.net;
+    fv += a.vat;
+    ft += a.total;
+  });
+  updFinSummary(sorted.length, fq, fn, fv, ft);
   tb.innerHTML = sorted.map(function(o) {
     var nv = csmSalesNetUnitAndVat(o);
     return '<tr><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + csmEscapeHtml(o.containerNo || '') + '</td><td>' + w1ProductHtml(o.productName) + '</td><td>' + csmEscapeHtml(String(o.quantity)) + '</td><td>' +

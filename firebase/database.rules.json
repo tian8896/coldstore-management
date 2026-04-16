@@ -17,37 +17,49 @@
     },
 
     "csm_warehouse1": {
-      ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics')",
-      ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics')"
+      ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics')",
+      ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics')"
     },
 
     "csm_records_v3": {
-      ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics')",
-      ".write": "auth != null && root.child('csm_users').child(auth.uid).child('role').val() == 'admin'"
+      ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics')",
+      ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff')"
     },
 
     "csm_purchase": {
-      ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics')",
-      ".write": "auth != null && root.child('csm_users').child(auth.uid).child('role').val() == 'admin'"
+      ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics')",
+      ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff')"
     },
 
     "csm_supplier_recs": {
       ".indexOn": ["ownerUid", "supplier"],
-      ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics' || (root.child('csm_users').child(auth.uid).child('role').val() == 'supplier' && ((query.orderByChild == 'ownerUid' && query.equalTo == auth.uid) || (query.orderByChild == 'supplier' && query.equalTo == root.child('csm_users').child(auth.uid).child('supplierName').val()))))",
+      ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics' || (root.child('csm_users').child(auth.uid).child('role').val() == 'supplier' && ((query.orderByChild == 'ownerUid' && query.equalTo == auth.uid) || (query.orderByChild == 'supplier' && query.equalTo == root.child('csm_users').child(auth.uid).child('supplierName').val()))))",
       "$recId": {
-        ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics' || data.child('ownerUid').val() == auth.uid || (!data.child('ownerUid').exists() && data.child('supplier').val() == root.child('csm_users').child(auth.uid).child('supplierName').val()))",
-        ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || (root.child('csm_users').child(auth.uid).child('role').val() == 'supplier' && ((data.exists() && data.child('ownerUid').val() == auth.uid) || (!data.exists() && newData.child('ownerUid').val() == auth.uid) || (!data.child('ownerUid').exists() && data.child('supplier').val() == root.child('csm_users').child(auth.uid).child('supplierName').val()))))"
+        ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics' || data.child('ownerUid').val() == auth.uid || (!data.child('ownerUid').exists() && data.child('supplier').val() == root.child('csm_users').child(auth.uid).child('supplierName').val()))",
+        ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || (root.child('csm_users').child(auth.uid).child('role').val() == 'staff' && !(newData.child('status').val() == 'confirmed' && (!data.exists() || data.child('status').val() != 'confirmed'))) || (root.child('csm_users').child(auth.uid).child('role').val() == 'supplier' && ((data.exists() && data.child('ownerUid').val() == auth.uid) || (!data.exists() && newData.child('ownerUid').val() == auth.uid) || (!data.child('ownerUid').exists() && data.child('supplier').val() == root.child('csm_users').child(auth.uid).child('supplierName').val()))))"
       }
     },
 
     "csm_seq_counter": {
       ".read": "auth != null",
-      ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics' || root.child('csm_users').child(auth.uid).child('role').val() == 'supplier')"
+      ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff' || root.child('csm_users').child(auth.uid).child('role').val() == 'logistics' || root.child('csm_users').child(auth.uid).child('role').val() == 'supplier')"
     },
 
     "csm_sales_w1": {
-      ".read": "auth != null && root.child('csm_users').child(auth.uid).child('role').val() == 'admin'",
-      ".write": "auth != null && root.child('csm_users').child(auth.uid).child('role').val() == 'admin'"
+      ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff')",
+      ".write": false,
+      "customers": {
+        "$cid": {
+          ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff')",
+          ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff')"
+        }
+      },
+      "orders": {
+        "$oid": {
+          ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff')",
+          ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || (root.child('csm_users').child(auth.uid).child('role').val() == 'staff' && !(newData.child('orderStatus').val() == 'confirmed' && (!data.exists() || data.child('orderStatus').val() != 'confirmed'))))"
+        }
+      }
     }
   }
 }

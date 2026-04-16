@@ -33,7 +33,22 @@ function loadRatesToSettings() {  gid('rate-store1').value = warehouseRates[1]; 
 // ============================================================
 // STATE
 // ============================================================
-var recs = [];var currentColdStore = 1;var currentUser = null;var currentUserEmail = null;var isAdmin = false;var isLogistics = false;var isSupplier = false;var currentSupplierName = null; 
+var recs = [];var currentColdStore = 1;var currentUser = null;var currentUserEmail = null;var isAdmin = false;var isStaff = false;var isLogistics = false;var isSupplier = false;var currentSupplierName = null;
+function canManageAccounts() { return isAdmin === true; }
+function updatePortalNavForStaff() {
+  var w2 = gid('portalBtnW2');
+  var fin = gid('portalBtnFin');
+  if (w2) w2.style.display = isStaff ? 'none' : '';
+  if (fin) fin.style.display = isStaff ? 'none' : '';
+}
+function updateStaffRestrictedVisibility() {
+  var br = gid('btn-clear-records');
+  var bc = gid('btn-clear-checkout');
+  if (br) br.style.display = isStaff ? 'none' : '';
+  if (bc) bc.style.display = isStaff ? 'none' : '';
+  var acc = gid('settings-account-section');
+  if (acc) acc.style.display = canManageAccounts() ? '' : 'none';
+} 
 // 管理员主界面：Warehouse1 / Warehouse2 / 公司财务 一键切换
 var currentMainSuite = 'w1'; 
 // 供应商自己的名称（用于在采购记录中识别）
@@ -96,7 +111,7 @@ function updateSupplierRecsFromData(data, canMigrateStatus) {
       }
     });
   }
-  if (isAdmin || isLogistics) {
+  if (isAdmin || isStaff || isLogistics) {
     renderPurchase();
   }
   if (isSupplier) renderSupplierTable();
@@ -118,7 +133,7 @@ function attachDataListenersForRole() {
   legacyRecsVal = {};
   purchaseRecs = [];
   supplierRecs = [];
-  if (isAdmin || isLogistics) {
+  if (isAdmin || isStaff || isLogistics) {
     bindValueListener(dbRef, function(snap) {
       primaryRecsVal = snap.val() || {};
       rebuildMergedRecs();
@@ -133,11 +148,11 @@ function attachDataListenersForRole() {
       updatePurchaseRecsFromData(snap.val() || {});
     });
   }
-  if (isAdmin || isLogistics) {
+  if (isAdmin || isStaff || isLogistics) {
     bindValueListener(supplierRef, function(snap) {
       updateSupplierRecsFromData(snap.val() || {}, isAdmin);
     });
-    if (isAdmin && salesCustomersRef && salesOrdersRef) {
+    if ((isAdmin || isStaff) && salesCustomersRef && salesOrdersRef) {
       bindValueListener(salesCustomersRef, function(snap) {
         salesCustomers = csmSalesObjToArr(snap.val(), false);
         refreshSalesUi();
@@ -226,9 +241,9 @@ auth.onAuthStateChanged(function(user) {      if (user) {
 console.log('Firebase Auth: User logged in', user.email);        currentUser = user.uid;        currentUserEmail = user.email;        setLoginVerifyTimer();        
 // 登录弹窗在资料校验通过后再关闭，避免「闪一下又退回登录」        
 // 获取用户角色（异步，精确更新显示）        
-var usersRef = firebase.database().ref('csm_users/' + user.uid);        usersRef.once('value').then(function(snap) {          var userData = snap.val();          var userDisplay = gid('currentUserDisplay');          var rootRef = firebase.database().ref();          function applyProfile(ud) {            ud = ud || {};            var r = String(ud.role != null ? ud.role : '').toLowerCase().replace(/\s/g, '');            isAdmin = r === 'admin';            isLogistics = r === 'logistics';            isSupplier = r === 'supplier';            currentSupplierName = ud.supplierName || null;            attachDataListenersForRole();            var newRoleText = isLogistics ? '物流公司' : (isSupplier ? '供应商' : '管理员');            if (userDisplay) { userDisplay.textContent = (user.email || 'User') + ' (' + newRoleText + ')'; }            if (isLogistics) { showLogisticsView(); }            else if (isSupplier) { showSupplierView(); }            else { isAdmin = true; showAdminView(); }          }          function bootstrapFirstAdmin() {            var profile = { email: user.email || '', role: 'admin', createdAt: firebase.database.ServerValue.TIMESTAMP };            var upd = {};            upd['csm_users/' + user.uid] = profile;            upd['csm_meta/site_initialized'] = true;            rootRef.update(upd).then(function() {              clearLoginVerifyTimer();              try {                applyProfile(profile);                toast('✅ 首次登录：已创建管理员', 'ok');                var lm0 = gid('loginModal');                if (lm0) { lm0.style.display = 'none'; lm0.classList.remove('sh'); }                var le0 = gid('login-error');                if (le0) { le0.style.display = 'none'; le0.style.color = ''; }              } catch (uiErr2) {                console.error('csm first-admin UI error', uiErr2);                pendingLoginError = '已写入管理员资料，但界面加载失败：' + (uiErr2 && uiErr2.message ? uiErr2.message : String(uiErr2));                toast('界面加载失败', 'err');                clearLoginVerifyTimer();                auth.signOut();              }            }).catch(function(e) {              console.error(e);              pendingLoginError = '首次初始化写入失败：' + (e.message || e) + '。规则需允许：已登录用户 update 写入 csm_users 下自己的节点，以及 csm_meta/site_initialized。';              toast('❌ 数据库写入失败', 'err');              clearLoginVerifyTimer();              auth.signOut();            });          }          if (userData) {            clearLoginVerifyTimer();            try {              applyProfile(userData);              toast('✅ 欢迎 ' + (user.email || 'User'), 'ok');              var lmOk = gid('loginModal');              if (lmOk) { lmOk.style.display = 'none'; lmOk.classList.remove('sh'); }              var leOk = gid('login-error');              if (leOk) { leOk.style.display = 'none'; leOk.style.color = ''; }            } catch (uiErr) {              console.error('csm login UI error', uiErr);              pendingLoginError = '登录成功但界面加载失败：' + (uiErr && uiErr.message ? uiErr.message : String(uiErr)) + '。请打开控制台查看 csm login UI error。';              toast('界面加载失败', 'err');              clearLoginVerifyTimer();              auth.signOut();            }          } else {            rootRef.child('csm_meta/site_initialized').once('value').then(function(metaSnap) {              if (metaSnap.val() === true) {                pendingLoginError = '您的账号未在 csm_users 中登记。请让管理员在「设置 → 用户管理」中添加，或在 Firebase 控制台手动添加 csm_users/' + user.uid;                toast('⚠️ 账号未注册', 'err');                clearLoginVerifyTimer();                auth.signOut();                return;              }              rootRef.child('csm_users').once('value').then(function(allSnap) {                var all = allSnap.val() || {};                var n = Object.keys(all).length;                if (n > 0) {                  rootRef.child('csm_meta/site_initialized').set(true).catch(function() {});                  pendingLoginError = '数据库里已有 ' + n + ' 个用户资料，但当前账号未登记。请管理员在「用户管理」中添加您，或手动写入 csm_users/' + user.uid;                  toast('⚠️ 账号未注册', 'err');                  clearLoginVerifyTimer();                  auth.signOut();                } else {                  bootstrapFirstAdmin();                }              }).catch(function(e) {                console.error(e);                pendingLoginError = '无法读取 csm_users（常被数据库规则拦截）。请在规则中为 csm_users 增加 ".read": "auth != null"，或手动在控制台添加 csm_users 节点与 csm_meta/site_initialized=true。详情：' + (e.message || e);                toast('❌ 无法校验用户表', 'err');                clearLoginVerifyTimer();                auth.signOut();              });            }).catch(function(e) {              console.error(e);              pendingLoginError = '无法读取 csm_meta/site_initialized：' + (e.message || e) + '。请在规则中为 csm_meta 增加已登录可读。';              toast('❌ 数据库读取失败', 'err');              clearLoginVerifyTimer();              auth.signOut();            });          }        }).catch(function(e) {          console.error('csm_users profile read error', e);          var permHint = (e && e.code === 'PERMISSION_DENIED') ? '（PERMISSION_DENIED：请在 Realtime Database 规则中允许已登录用户读取 csm_users 与 csm_meta。）' : '';          pendingLoginError = '读取个人资料失败：' + (e.message || e) + permHint + ' 路径：csm_users/' + (firebase.auth().currentUser && firebase.auth().currentUser.uid);          toast('❌ 读取用户失败', 'err');          clearLoginVerifyTimer();          auth.signOut();        });      } else {        clearLoginVerifyTimer();        
+var usersRef = firebase.database().ref('csm_users/' + user.uid);        usersRef.once('value').then(function(snap) {          var userData = snap.val();          var userDisplay = gid('currentUserDisplay');          var rootRef = firebase.database().ref();          function applyProfile(ud) {            ud = ud || {};            var r = String(ud.role != null ? ud.role : '').toLowerCase().replace(/\s/g, '');            isStaff = r === 'staff';            isAdmin = r === 'admin';            isLogistics = r === 'logistics';            isSupplier = r === 'supplier';            currentSupplierName = ud.supplierName || null;            attachDataListenersForRole();            var newRoleText = isLogistics ? '物流公司' : (isSupplier ? '供应商' : (isStaff ? '大丰收员工' : '管理员'));            if (userDisplay) { userDisplay.textContent = (user.email || 'User') + ' (' + newRoleText + ')'; }            if (isLogistics) { showLogisticsView(); }            else if (isSupplier) { showSupplierView(); }            else if (isAdmin || isStaff) { showAdminView(); }            else { toast('账号角色未识别，请联系管理员', 'err'); try { auth.signOut(); } catch (ePr) {} }            try { window.isAdmin = isAdmin; window.isStaff = isStaff; } catch (eW) {}          }          function bootstrapFirstAdmin() {            var profile = { email: user.email || '', role: 'admin', createdAt: firebase.database.ServerValue.TIMESTAMP };            var upd = {};            upd['csm_users/' + user.uid] = profile;            upd['csm_meta/site_initialized'] = true;            rootRef.update(upd).then(function() {              clearLoginVerifyTimer();              try {                applyProfile(profile);                toast('✅ 首次登录：已创建管理员', 'ok');                var lm0 = gid('loginModal');                if (lm0) { lm0.style.display = 'none'; lm0.classList.remove('sh'); }                var le0 = gid('login-error');                if (le0) { le0.style.display = 'none'; le0.style.color = ''; }              } catch (uiErr2) {                console.error('csm first-admin UI error', uiErr2);                pendingLoginError = '已写入管理员资料，但界面加载失败：' + (uiErr2 && uiErr2.message ? uiErr2.message : String(uiErr2));                toast('界面加载失败', 'err');                clearLoginVerifyTimer();                auth.signOut();              }            }).catch(function(e) {              console.error(e);              pendingLoginError = '首次初始化写入失败：' + (e.message || e) + '。规则需允许：已登录用户 update 写入 csm_users 下自己的节点，以及 csm_meta/site_initialized。';              toast('❌ 数据库写入失败', 'err');              clearLoginVerifyTimer();              auth.signOut();            });          }          if (userData) {            clearLoginVerifyTimer();            try {              applyProfile(userData);              toast('✅ 欢迎 ' + (user.email || 'User'), 'ok');              var lmOk = gid('loginModal');              if (lmOk) { lmOk.style.display = 'none'; lmOk.classList.remove('sh'); }              var leOk = gid('login-error');              if (leOk) { leOk.style.display = 'none'; leOk.style.color = ''; }            } catch (uiErr) {              console.error('csm login UI error', uiErr);              pendingLoginError = '登录成功但界面加载失败：' + (uiErr && uiErr.message ? uiErr.message : String(uiErr)) + '。请打开控制台查看 csm login UI error。';              toast('界面加载失败', 'err');              clearLoginVerifyTimer();              auth.signOut();            }          } else {            rootRef.child('csm_meta/site_initialized').once('value').then(function(metaSnap) {              if (metaSnap.val() === true) {                pendingLoginError = '您的账号未在 csm_users 中登记。请让管理员在「设置 → 用户管理」中添加，或在 Firebase 控制台手动添加 csm_users/' + user.uid;                toast('⚠️ 账号未注册', 'err');                clearLoginVerifyTimer();                auth.signOut();                return;              }              rootRef.child('csm_users').once('value').then(function(allSnap) {                var all = allSnap.val() || {};                var n = Object.keys(all).length;                if (n > 0) {                  rootRef.child('csm_meta/site_initialized').set(true).catch(function() {});                  pendingLoginError = '数据库里已有 ' + n + ' 个用户资料，但当前账号未登记。请管理员在「用户管理」中添加您，或手动写入 csm_users/' + user.uid;                  toast('⚠️ 账号未注册', 'err');                  clearLoginVerifyTimer();                  auth.signOut();                } else {                  bootstrapFirstAdmin();                }              }).catch(function(e) {                console.error(e);                pendingLoginError = '无法读取 csm_users（常被数据库规则拦截）。请在规则中为 csm_users 增加 ".read": "auth != null"，或手动在控制台添加 csm_users 节点与 csm_meta/site_initialized=true。详情：' + (e.message || e);                toast('❌ 无法校验用户表', 'err');                clearLoginVerifyTimer();                auth.signOut();              });            }).catch(function(e) {              console.error(e);              pendingLoginError = '无法读取 csm_meta/site_initialized：' + (e.message || e) + '。请在规则中为 csm_meta 增加已登录可读。';              toast('❌ 数据库读取失败', 'err');              clearLoginVerifyTimer();              auth.signOut();            });          }        }).catch(function(e) {          console.error('csm_users profile read error', e);          var permHint = (e && e.code === 'PERMISSION_DENIED') ? '（PERMISSION_DENIED：请在 Realtime Database 规则中允许已登录用户读取 csm_users 与 csm_meta。）' : '';          pendingLoginError = '读取个人资料失败：' + (e.message || e) + permHint + ' 路径：csm_users/' + (firebase.auth().currentUser && firebase.auth().currentUser.uid);          toast('❌ 读取用户失败', 'err');          clearLoginVerifyTimer();          auth.signOut();        });      } else {        clearLoginVerifyTimer();        
 // 用户未登录，显示登录弹窗        
-console.log('Firebase Auth: User not logged in');        currentUser = null;        currentUserEmail = null;        isAdmin = false;        isLogistics = false;        isSupplier = false;        currentSupplierName = null;        currentMainSuite = 'w1';        try { sessionStorage.removeItem('csm_main_suite'); } catch (eAu) {}        var shellAu = gid('adminPortalShell');        if (shellAu) { shellAu.style.display = 'none'; shellAu.setAttribute('aria-hidden', 'true'); }        if (typeof resetMainSuiteForNonAdmin === 'function') resetMainSuiteForNonAdmin();        var h1Au = gid('headerTitle');        var hpAu = gid('headerSubtitle');        if (h1Au) h1Au.textContent = '🧊 迪拜大丰收冷库管理系统';        if (hpAu) hpAu.textContent = 'Super Harvest Cold Store Management System - Warehouse 1';        var ls = document.querySelector('.login-screen');        if (ls) ls.classList.remove('hidden');        showLoginModal();      }    });    
+console.log('Firebase Auth: User not logged in');        currentUser = null;        currentUserEmail = null;        isAdmin = false;        isStaff = false;        isLogistics = false;        isSupplier = false;        currentSupplierName = null;        currentMainSuite = 'w1';        try { window.isAdmin = false; window.isStaff = false; } catch (eW2) {}        try { sessionStorage.removeItem('csm_main_suite'); } catch (eAu) {}        var shellAu = gid('adminPortalShell');        if (shellAu) { shellAu.style.display = 'none'; shellAu.setAttribute('aria-hidden', 'true'); }        if (typeof resetMainSuiteForNonAdmin === 'function') resetMainSuiteForNonAdmin();        var h1Au = gid('headerTitle');        var hpAu = gid('headerSubtitle');        if (h1Au) h1Au.textContent = '🧊 迪拜大丰收冷库管理系统';        if (hpAu) hpAu.textContent = 'Super Harvest Cold Store Management System - Warehouse 1';        var ls = document.querySelector('.login-screen');        if (ls) ls.classList.remove('hidden');        showLoginModal();      }    });    
 toast('✅ Firebase 连接成功', 'ok');  } catch(e) {    console.error('Firebase init error:', e);    window.__csmInitDone = false;    toast('❌ Firebase 连接失败: ' + e.message, 'err');    showLoginModal();  }}
 // 初始化默认账号
 function initDefaultUsers() {  var users = getUsers();  if (Object.keys(users).length === 0) {    users = {      'admin': { password: 'admin123', role: 'admin', name: '管理员' }    };    saveUsers(users);  }}function clearLoginVerifyTimer() {  if (window.__csmLoginVerifyTimer) {    clearTimeout(window.__csmLoginVerifyTimer);    window.__csmLoginVerifyTimer = null;  }}function setLoginVerifyTimer() {  clearLoginVerifyTimer();  window.__csmLoginVerifyTimer = setTimeout(function() {    window.__csmLoginVerifyTimer = null;    if (!auth || typeof firebase === 'undefined' || !firebase.auth().currentUser) return;    var le = gid('login-error');    if (le && /正在验证|验证账号/.test(le.textContent || '')) {      pendingLoginError = '登录验证超时（45秒）。请检查：① Realtime Database 规则是否允许已登录用户读取 csm_users、csm_meta；② Firebase「身份验证 → 设置 → 已授权网域」是否包含当前主机名「' + location.hostname + '」（只填域名，不要带页面路径）；③ Network 里 database 请求是否失败。';      toast('登录验证超时', 'err');      clearLoginVerifyTimer();      auth.signOut();    }  }, 45000);}
@@ -331,7 +346,7 @@ function propagateSupplierDisplayName(oldName, newName, ownerUid) {
       } catch (eLs) {}
       var nKeys = Object.keys(updates).length;
       if (nKeys) toast('已同步更新 ' + nKeys + ' 处供应商名称', 'ok');
-      if (typeof renderPurchase === 'function' && (isAdmin || isLogistics)) renderPurchase();
+      if (typeof renderPurchase === 'function' && (isAdmin || isStaff || isLogistics)) renderPurchase();
       if (typeof renderSupplierTable === 'function' && isSupplier) renderSupplierTable();
       if (typeof renderAll === 'function') renderAll();
     });
@@ -470,7 +485,7 @@ var userId = userCredential.user.uid;      firebase.database().ref('csm_users/' 
 // 默认物流公司角色        
 createdAt: firebase.database.ServerValue.TIMESTAMP      });      toast('✅ 注册成功', 'ok');    })    .catch(function(error) {      console.error('Firebase Auth: Register failed', error);      var errorMsg = '注册失败';      if (error.code === 'auth/email-already-in-use') {        errorMsg = '邮箱已被注册';      } else if (error.code === 'auth/invalid-email') {        errorMsg = '邮箱格式错误';      } else if (error.code === 'auth/weak-password') {        errorMsg = '密码强度不足';      }      gid('login-error').textContent = errorMsg;      gid('login-error').style.display = 'block';    });}
 // 退出登录
-function doLogout() {  auth.signOut()    .then(function() {      console.log('Firebase Auth: Logged out');      currentUser = null;      currentUserEmail = null;      isAdmin = false;      isLogistics = false;      isSupplier = false;      currentSupplierName = null;      currentMainSuite = 'w1';      try { sessionStorage.removeItem('csm_main_suite'); } catch (eLo) {}      
+function doLogout() {  auth.signOut()    .then(function() {      console.log('Firebase Auth: Logged out');      currentUser = null;      currentUserEmail = null;      isAdmin = false;      isStaff = false;      isLogistics = false;      isSupplier = false;      currentSupplierName = null;      currentMainSuite = 'w1';      try { window.isAdmin = false; window.isStaff = false; } catch (eW3) {}      try { sessionStorage.removeItem('csm_main_suite'); } catch (eLo) {}      
 // 重置界面      
 var userDisplay = gid('currentUserDisplay');      if (userDisplay) {        userDisplay.textContent = '未登录';      }      var shellLo = gid('adminPortalShell');      if (shellLo) { shellLo.style.display = 'none'; shellLo.setAttribute('aria-hidden', 'true'); }      resetMainSuiteForNonAdmin();      var h1 = gid('headerTitle') || document.querySelector('header h1');      var hp = gid('headerSubtitle') || document.querySelector('header p');      if (h1) h1.textContent = '🧊 迪拜大丰收冷库管理系统';      if (hp) hp.textContent = 'Super Harvest Cold Store Management System - Warehouse 1';      toast('已退出登录', 'ok');    })    .catch(function(error) {      console.error('Firebase Auth: Logout failed', error);    });}
 // Google 登录
@@ -507,7 +522,7 @@ function applyPortalHeaderTitles(mode) {
 function updateAdminPortalShellVisibility() {
   var shell = gid('adminPortalShell');
   if (!shell) return;
-  if (isAdmin) {
+  if (isAdmin || isStaff) {
     shell.style.display = 'block';
     shell.setAttribute('aria-hidden', 'false');
   } else {
@@ -527,8 +542,12 @@ function resetMainSuiteForNonAdmin() {
   applyPortalHeaderTitles('w1');
 }
 function switchMainSuite(mode) {
-  if (!isAdmin) {
-    toast('仅管理员可使用顶部模块切换', 'err');
+  if (!isAdmin && !isStaff) {
+    toast('仅主界面账号可使用顶部模块切换', 'err');
+    return;
+  }
+  if (isStaff && mode !== 'w1') {
+    toast('大丰收员工仅可使用 Warehouse 1', 'err');
     return;
   }
   if (mode !== 'w1' && mode !== 'w2' && mode !== 'fin') mode = 'w1';
@@ -545,7 +564,7 @@ function switchMainSuite(mode) {
 }
 try { window.switchMainSuite = switchMainSuite; } catch (eSw) {}
 // 显示管理员视图
-function showAdminView() {  var lv = gid('logisticsView');  var sv = gid('supplierView');  if (lv) lv.style.display = 'none';  if (sv) sv.style.display = 'none';  var rights = document.querySelectorAll('.right');  if (rights[2]) rights[2].style.display = 'block';  var ui = gid('userInfo');  if (ui) ui.style.display = 'flex';  updateAdminPortalShellVisibility();  try { currentMainSuite = sessionStorage.getItem('csm_main_suite') || 'w1'; } catch (e1) { currentMainSuite = 'w1'; }  if (currentMainSuite !== 'w1' && currentMainSuite !== 'w2' && currentMainSuite !== 'fin') currentMainSuite = 'w1';  switchMainSuite(currentMainSuite);  updateSettingsButton();  renderPurchase();}
+function showAdminView() {  var lv = gid('logisticsView');  var sv = gid('supplierView');  if (lv) lv.style.display = 'none';  if (sv) sv.style.display = 'none';  var rights = document.querySelectorAll('.right');  if (rights[2]) rights[2].style.display = 'block';  var ui = gid('userInfo');  if (ui) ui.style.display = 'flex';  updateAdminPortalShellVisibility();  try { currentMainSuite = sessionStorage.getItem('csm_main_suite') || 'w1'; } catch (e1) { currentMainSuite = 'w1'; }  if (currentMainSuite !== 'w1' && currentMainSuite !== 'w2' && currentMainSuite !== 'fin') currentMainSuite = 'w1';  if (isStaff) { currentMainSuite = 'w1'; try { sessionStorage.setItem('csm_main_suite', 'w1'); } catch (eSt) {} }  switchMainSuite(currentMainSuite);  updatePortalNavForStaff();  updateStaffRestrictedVisibility();  updateSettingsButton();  renderPurchase();}
 // 显示清关公司视图
 function showLogisticsView() {  var shell = gid('adminPortalShell');  if (shell) { shell.style.display = 'none'; shell.setAttribute('aria-hidden', 'true'); }  resetMainSuiteForNonAdmin();  var sv = gid('supplierView');  if (sv) sv.style.display = 'none';  var rights = document.querySelectorAll('.right');  if (rights[2]) rights[2].style.display = 'none';  var lv2 = gid('logisticsView');  if (lv2) lv2.style.display = 'block';  var ui2 = gid('userInfo');  if (ui2) ui2.style.display = 'none';  var h1a = gid('headerTitle') || document.querySelector('header h1');  if (h1a) h1a.textContent = '物流公司系统 / Logistics System';  var hs = gid('headerSubtitle');  if (hs) hs.textContent = 'Logistics fee tracking';  var lname = gid('logisticsUserName');  if (lname) lname.textContent = currentUserEmail || currentUser;  updateSettingsButton();  renderLogisticsTable();}
 // 显示供应商视图
@@ -840,6 +859,10 @@ function undoSubmitSupplierRec(id) {
   });
 }
 function confirmSupplierRec(id) {
+  if (!isAdmin) {
+    toast('仅管理员可确认或采用供应商记录', 'err');
+    return;
+  }
   var rec = supplierRecs.find(function(r) { return r.id === id; });
   if (!rec) return;
   var status = rec.status || 'draft';
@@ -974,12 +997,16 @@ function renderSupplierTable() {
       } else {
         actionBtns = '<span style="color:#aaa;font-size:12px">—</span>';
       }
-    } else if (isAdmin) {
+    } else if (isAdmin || isStaff) {
       if (status === 'submitted') {
-        actionBtns =
-          '<button class="abtn" onclick="editSupplierRec(\'' + r.id + '\')">✏️</button> ' +
-          '<button class="abtn" style="background:#2e7d32;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">✅ 确认</button> ' +
-          '<button class="abtn x" onclick="delSupplierRec(\'' + r.id + '\')">🗑</button>';
+        if (isAdmin) {
+          actionBtns =
+            '<button class="abtn" onclick="editSupplierRec(\'' + r.id + '\')">✏️</button> ' +
+            '<button class="abtn" style="background:#2e7d32;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">✅ 确认</button> ' +
+            '<button class="abtn x" onclick="delSupplierRec(\'' + r.id + '\')">🗑</button>';
+        } else {
+          actionBtns = '<span style="color:#888;font-size:12px">待管理员确认</span>';
+        }
       } else if (status === 'confirmed') {
         actionBtns = '<span style="color:#aaa;font-size:12px">已确认</span>';
       } else {
@@ -1103,6 +1130,7 @@ var allUsers = [];
 
 // 加载所有用户
 function loadAllUsers() {
+  if (!canManageAccounts()) return;
   var usersRef = firebase.database().ref('csm_users');
   usersRef.once('value').then(function(snap) {
     var data = snap.val() || {};
@@ -1140,6 +1168,7 @@ function renderUserMgmtList() {
   allUsers.forEach(function(user) {
     var roleLabel = {
       'admin': '<span style="background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:10px;font-size:12px">管理员</span>',
+      'staff': '<span style="background:#ede7f6;color:#5e35b1;padding:2px 8px;border-radius:10px;font-size:12px">大丰收员工</span>',
       'logistics': '<span style="background:#fff8e1;color:#f57f17;padding:2px 8px;border-radius:10px;font-size:12px">物流公司</span>',
       'supplier': '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;font-size:12px">供应商</span>',
       'pending': '<span style="background:#ffebee;color:#c62828;padding:2px 8px;border-radius:10px;font-size:12px">待审核</span>'
@@ -1147,6 +1176,7 @@ function renderUserMgmtList() {
     
     var selectOptions = '<select id="role_' + user.uid + '" style="padding:5px;border-radius:4px;border:1px solid #ddd">';
     selectOptions += '<option value="admin"' + (user.role === 'admin' ? ' selected' : '') + '>管理员</option>';
+    selectOptions += '<option value="staff"' + (user.role === 'staff' ? ' selected' : '') + '>大丰收员工</option>';
     selectOptions += '<option value="logistics"' + (user.role === 'logistics' ? ' selected' : '') + '>物流公司</option>';
     selectOptions += '<option value="supplier"' + (user.role === 'supplier' ? ' selected' : '') + '>供应商</option>';
     selectOptions += '<option value="pending"' + (user.role === 'pending' ? ' selected' : '') + '>待审核</option>';
@@ -1174,6 +1204,10 @@ function renderUserMgmtList() {
 
 // 保存用户角色（独立弹窗 userMgmtModal）
 function saveUserRole(uid) {
+  if (!canManageAccounts()) {
+    toast('需要管理员权限', 'err');
+    return;
+  }
   var role = document.getElementById('role_' + uid).value;
   var supplierNameInput = document.getElementById('supplierName_' + uid);
   var supplierName = supplierNameInput ? String(supplierNameInput.value || '').trim() : '';
@@ -1201,6 +1235,10 @@ function saveUserRole(uid) {
 
 // 打开用户管理面板
 function openUserManagement() {
+  if (!canManageAccounts()) {
+    toast('需要管理员权限', 'err');
+    return;
+  }
   var modal = document.getElementById('userMgmtModal');
   if (modal) {
     modal.style.display = 'flex';
@@ -1219,7 +1257,7 @@ function closeUserManagement() {
 
 
 // 更新设置按钮显示状态
-function updateSettingsButton() {  var settingsBtn = document.querySelector('button[onclick="openSettings()"]');  if (settingsBtn) {    settingsBtn.style.display = isAdmin ? 'inline-block' : 'none';  }}
+function updateSettingsButton() {  var settingsBtn = document.querySelector('button[onclick="openSettings()"]');  if (settingsBtn) {    settingsBtn.style.display = (isAdmin || isStaff) ? 'inline-block' : 'none';  }}
 // ============================================================
 // UTILS
 // ============================================================
@@ -1270,7 +1308,7 @@ var actualFee = calcActualFee(r);
 // 判断是否已全部出库    
 var isFullyCheckedOut = remaining_pallets === 0 && r.dep;    var status = r.dep ? '<span class="bdg bdg-d">已出库</span>' : '<span class="bdg bdg-a">在库</span>';    
 // 管理员才显示修改按钮    
-var editBtn = isAdmin ? '<button class="abtn" onclick="showEditRecord(\'' + r.id + '\')" style="margin-left:4px">✏️</button>' : '';    
+var editBtn = (isAdmin || isStaff) ? '<button class="abtn" onclick="showEditRecord(\'' + r.id + '\')" style="margin-left:4px">✏️</button>' : '';    
 // 费用显示逻辑：    
 // 1. 在库（未出库或部分出库）：黄色背景显示预估费用    
 // 2. 已全部出库：显示实际冷库费总和（关联出库记录）    
@@ -1538,7 +1576,7 @@ var outRemPallets = inRec.pallets - palletsOutSoFar;
 // 如果剩余托盘为0，剩余件数也必须为0        
 if (outRemPallets === 0) {          outRemItems = 0;        }        
 // 管理员才显示修改按钮        
-var editOutBtn = isAdmin ? '<button class="abtn" onclick="showEditOutRecord(\'' + or.id + '\')" style="margin-left:4px">✏️</button>' : '';        html.push('<tr style="background:#f0fff0">' +          '<td style="padding-left:20px;color:#0066cc;font-size:13px">' + (or.seq || '-') + '</td>' +          '<td style="padding-left:20px;color:#999">' + cn + '</td>' +          '<td style="color:#999;font-family:Arial">' + fmtSupplierName(or.supplier) + '</td>' +          '<td style="color:#999;font-family:Arial;text-transform:capitalize">' + or.product + '</td>' +          '<td style="color:#00aa00;font-weight:bold">' + fdt(or.dep) + '</td>' +          '<td>-</td>' +          '<td><span style="color:#cc0000;font-weight:bold">' + or.pallets_out + '</span> / <strong style="color:#00aa00">' + (outRemPallets >= 0 ? outRemPallets : '0') + '</strong></td>' +          '<td><span style="color:#cc0000;font-weight:bold">' + or.items_out + '</span></td>' +          '<td><strong style="color:#00aa00">' + (outRemItems >= 0 ? outRemItems : '0') + '</strong></td>' +          '<td>-</td>' +          '<td>-</td>' +          '<td>-</td>' +          '<td>-</td>' +          '<td>' + editOutBtn + '</td>' +          '</tr>');      });      currentDate = new Date(weekEnd);      currentDate.setDate(currentDate.getDate() + 1);      weekNum++;    }  });  tb.innerHTML = html.join('');}
+var editOutBtn = (isAdmin || isStaff) ? '<button class="abtn" onclick="showEditOutRecord(\'' + or.id + '\')" style="margin-left:4px">✏️</button>' : '';        html.push('<tr style="background:#f0fff0">' +          '<td style="padding-left:20px;color:#0066cc;font-size:13px">' + (or.seq || '-') + '</td>' +          '<td style="padding-left:20px;color:#999">' + cn + '</td>' +          '<td style="color:#999;font-family:Arial">' + fmtSupplierName(or.supplier) + '</td>' +          '<td style="color:#999;font-family:Arial;text-transform:capitalize">' + or.product + '</td>' +          '<td style="color:#00aa00;font-weight:bold">' + fdt(or.dep) + '</td>' +          '<td>-</td>' +          '<td><span style="color:#cc0000;font-weight:bold">' + or.pallets_out + '</span> / <strong style="color:#00aa00">' + (outRemPallets >= 0 ? outRemPallets : '0') + '</strong></td>' +          '<td><span style="color:#cc0000;font-weight:bold">' + or.items_out + '</span></td>' +          '<td><strong style="color:#00aa00">' + (outRemItems >= 0 ? outRemItems : '0') + '</strong></td>' +          '<td>-</td>' +          '<td>-</td>' +          '<td>-</td>' +          '<td>-</td>' +          '<td>' + editOutBtn + '</td>' +          '</tr>');      });      currentDate = new Date(weekEnd);      currentDate.setDate(currentDate.getDate() + 1);      weekNum++;    }  });  tb.innerHTML = html.join('');}
 // ============================================================
 // 搜索和导出功能
 // ============================================================
@@ -1694,8 +1732,8 @@ function showOutDet(id) {
 // 编辑入库记录（管理员权限）
 // ============================================================
 function showEditRecord(id) {
-  if (!isAdmin) {
-    toast('需要管理员权限', 'err');
+  if (!isAdmin && !isStaff) {
+    toast('需要管理员或大丰收员工权限', 'err');
     return;
   }
   var r = recs.find(function(x) { return x.id === id; });
@@ -1736,6 +1774,10 @@ function saveEditRecord() {
 // 清空记录功能
 // ============================================================
 function showClearModal(type) {
+  if (!canManageAccounts()) {
+    toast('需要管理员权限', 'err');
+    return;
+  }
   gid('clear-type').value = type;
   gid('clear-option').value = 'all';
   gid('clear-cn-select-container').style.display = 'none';
@@ -1769,6 +1811,10 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 function confirmClear() {
+  if (!canManageAccounts()) {
+    toast('需要管理员权限', 'err');
+    return;
+  }
   var type = gid('clear-type').value;
   var option = gid('clear-option').value;
   var cn = gid('clear-cn-select').value;
@@ -1818,8 +1864,8 @@ function confirmClear() {
 // 编辑出库记录（管理员权限）
 // ============================================================
 function showEditOutRecord(id) {
-  if (!isAdmin) {
-    toast('需要管理员权限', 'err');
+  if (!isAdmin && !isStaff) {
+    toast('需要管理员或大丰收员工权限', 'err');
     return;
   }
   var r = recs.find(function(x) { return x.id === id; });
@@ -1942,7 +1988,7 @@ var searchDate = (gid('search-purchase-date').value || '').trim();  var searchCn
 // 过滤 warehouse1 采购记录  
 var filteredRecs = purchaseRecs.filter(function(r) {    var matchDate = !searchDate || (r.purchaseDate || '').indexOf(searchDate) !== -1;    var matchCn = !searchCn || (r.cn || '').indexOf(searchCn) !== -1;    var matchSupplier = !searchSupplier || (r.supplier || '').toUpperCase().indexOf(searchSupplier) !== -1;    return matchDate && matchCn && matchSupplier;  });  
 // 合并供应商记录：只显示尚未在 warehouse1 采购列表中的记录  
-var adoptedSupplierIds = {};  purchaseRecs.forEach(function(r) { if (r.sourceSupplierRecId) adoptedSupplierIds[r.sourceSupplierRecId] = true; });  var supplierOnlyRecs = supplierRecs.filter(function(r) {    if (!r.id || !r.cn) return false;    if (adoptedSupplierIds[r.id]) return false;     if (isAdmin && r.status !== 'submitted' && r.status !== 'confirmed') return false;
+var adoptedSupplierIds = {};  purchaseRecs.forEach(function(r) { if (r.sourceSupplierRecId) adoptedSupplierIds[r.sourceSupplierRecId] = true; });  var supplierOnlyRecs = supplierRecs.filter(function(r) {    if (!r.id || !r.cn) return false;    if (adoptedSupplierIds[r.id]) return false;     if ((isAdmin || isStaff) && r.status !== 'submitted' && r.status !== 'confirmed') return false;
 // 已在 warehouse1 中，不再重复显示    
 var matchDate = !searchDate || (r.purchaseDate || '').indexOf(searchDate) !== -1;    var matchCn = !searchCn || (r.cn || '').indexOf(searchCn) !== -1;    var matchSupplier = !searchSupplier || (r.supplier || '').toUpperCase().indexOf(searchSupplier) !== -1;    return matchDate && matchCn && matchSupplier;  });  if (filteredRecs.length === 0 && supplierOnlyRecs.length === 0) { tb.innerHTML = ''; es.style.display = 'block'; return; }  es.style.display = 'none';  
 // 按集装箱号分组  
@@ -1956,7 +2002,7 @@ items.forEach(function(r) {      var total = (r.demurrage||0)+(r.customs||0)+(r.
 // 显示供应商专属记录（在 warehouse1 采购列表中没有的）  
 if (supplierOnlyRecs.length > 0) {    
 // 按采购日期排序    
-supplierOnlyRecs.sort(function(a, b) { return new Date(b.purchaseDate) - new Date(a.purchaseDate); });    supplierOnlyRecs.forEach(function(r) {      var status = r.status || 'draft';      var supplierLabel = '<span style="background:#fff3e0;color:#e65100;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">供应商</span>';      var statusBadge = status === 'submitted' ? '<span style="background:#fff8e1;color:#f57f17;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">已提交</span>' : '<span style="background:#e8f5e9;color:#2e7d32;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">已确认</span>';      var cnClickFn = "openSupplierCNDetail('" + r.id + "')";      var actionBtn = status === 'submitted' ? '<button type="button" class="abtn" style="background:#2e7d32;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">✅ 确认采用</button>' : '<button type="button" class="abtn" style="background:#0066cc;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">📥 采用</button>';      html += '<tr style="background:#fffbf5">' +        '<td style="font-size:13px;color:#ff9900">' + (r.seq || '-') + '</td>' +        '<td><a href="javascript:void(0)" onclick="' + cnClickFn + '" style="color:#ff9900;font-weight:bold;text-decoration:underline">' + (r.cn || '-') + '</a>' + supplierLabel + statusBadge + '</td>' +        '<td style="font-family:Arial;color:#666">' + fmtSupplierName(r.supplier) + '</td>' +        '<td style="font-family:Arial;text-transform:capitalize">' + fmtTitleCase(r.product) + '</td>' +        '<td>' + (r.purchaseDate ? fdt(r.purchaseDate+'T00:00:00') : '-') + '</td>' +        '<td style="font-family:Arial">' + (r.qty || 0) + '</td>' +        '<td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>' +        '<td style="color:#f57f17;font-weight:bold">' + (status === 'submitted' ? '待管理员确认' : '待采用') + '</td>' +        '<td>' + actionBtn + '</td>' +      '</tr>';    });  }  tb.innerHTML = html;}
+supplierOnlyRecs.sort(function(a, b) { return new Date(b.purchaseDate) - new Date(a.purchaseDate); });    supplierOnlyRecs.forEach(function(r) {      var status = r.status || 'draft';      var supplierLabel = '<span style="background:#fff3e0;color:#e65100;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">供应商</span>';      var statusBadge = status === 'submitted' ? '<span style="background:#fff8e1;color:#f57f17;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">已提交</span>' : '<span style="background:#e8f5e9;color:#2e7d32;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">已确认</span>';      var cnClickFn = "openSupplierCNDetail('" + r.id + "')";      var actionBtn = isAdmin ? (status === 'submitted' ? '<button type="button" class="abtn" style="background:#2e7d32;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">✅ 确认采用</button>' : '<button type="button" class="abtn" style="background:#0066cc;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">📥 采用</button>') : '<span style="color:#888;font-size:12px">' + (status === 'submitted' ? '待管理员确认' : '待管理员采用') + '</span>';      html += '<tr style="background:#fffbf5">' +        '<td style="font-size:13px;color:#ff9900">' + (r.seq || '-') + '</td>' +        '<td><a href="javascript:void(0)" onclick="' + cnClickFn + '" style="color:#ff9900;font-weight:bold;text-decoration:underline">' + (r.cn || '-') + '</a>' + supplierLabel + statusBadge + '</td>' +        '<td style="font-family:Arial;color:#666">' + fmtSupplierName(r.supplier) + '</td>' +        '<td style="font-family:Arial;text-transform:capitalize">' + fmtTitleCase(r.product) + '</td>' +        '<td>' + (r.purchaseDate ? fdt(r.purchaseDate+'T00:00:00') : '-') + '</td>' +        '<td style="font-family:Arial">' + (r.qty || 0) + '</td>' +        '<td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>' +        '<td style="color:#f57f17;font-weight:bold">' + (status === 'submitted' ? '待管理员确认' : '待采用') + '</td>' +        '<td>' + actionBtn + '</td>' +      '</tr>';    });  }  tb.innerHTML = html;}
 // 按集装箱号查找供应商记录并弹出详情
 function openSupplierCNDetailByCN(cn) {  var rec = supplierRecs.find(function(r) { return r.cn === cn; });  if (!rec) return;  openSupplierCNDetail(rec.id);}
 // 按集装箱号编辑供应商记录
@@ -1999,7 +2045,12 @@ function openSettings() {
   renderSettList('product');
   renderSettList('shipcompany');
   loadRatesToSettings();
-  loadUserList();
+  if (canManageAccounts()) loadUserList();
+  else {
+    var ul = gid('user-list');
+    if (ul) ul.innerHTML = '';
+  }
+  updateStaffRestrictedVisibility();
   gid('settingsModal').classList.add('sh');
 }
 function clSettings() {
@@ -2009,6 +2060,7 @@ function clSettings() {
 // FIREBASE USER MANAGEMENT
 // ============================================================// 加载用户列表
 function loadUserList() {
+  if (!canManageAccounts()) return;
   var usersRef = firebase.database().ref('csm_users');
   usersRef.once('value').then(function(snap) {
     var users = [];
@@ -2043,6 +2095,7 @@ function renderUserList(users) {
     html += '<td style="padding:8px;text-align:center;border:1px solid #ddd">';
     html += '<select id="role-' + user.uid + '" onchange="toggleUserSupplierNameInput(\'' + user.uid + '\', this.value)" style="padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px">';
     html += '<option value="admin"' + (user.role === 'admin' ? ' selected' : '') + '>管理员</option>';
+    html += '<option value="staff"' + (user.role === 'staff' ? ' selected' : '') + '>大丰收员工</option>';
     html += '<option value="logistics"' + (user.role === 'logistics' ? ' selected' : '') + '>物流公司</option>';
     html += '<option value="supplier"' + (user.role === 'supplier' ? ' selected' : '') + '>供应商</option>';
     html += '</select>';
@@ -2076,6 +2129,10 @@ function toggleUserSupplierNameInput(uid, role) {
 }
 // 修改用户角色（设置面板内嵌列表）
 function changeUserRole(uid) {
+  if (!canManageAccounts()) {
+    toast('需要管理员权限', 'err');
+    return;
+  }
   var roleEl = gid('role-' + uid);
   var supplierNameEl = gid('supplier-name-' + uid);
   var newRole = roleEl ? roleEl.value : 'logistics';
@@ -2104,6 +2161,10 @@ function changeUserRole(uid) {
 }
 // 删除用户
 function deleteUser(uid, email) {
+  if (!canManageAccounts()) {
+    toast('需要管理员权限', 'err');
+    return;
+  }
   if (!confirm('确认删除用户 ' + (email || uid) + '？\n\n注意：此操作不会删除 Firebase Authentication 账号，只会移除用户角色信息。')) {
     return;
   }
@@ -2119,7 +2180,7 @@ function deleteUser(uid, email) {
 }
 // 创建新用户（仅管理员可用；使用独立 Firebase App 创建，避免管理员会话被切换成新用户）
 function createUser() {
-  if (!isAdmin) {
+  if (!canManageAccounts()) {
     toast('需要管理员权限', 'err');
     return;
   }
@@ -2167,7 +2228,7 @@ function createUser() {
     toast('创建通道不可用', 'err');
     return;
   }
-  var roleLabel = role === 'admin' ? '管理员' : (role === 'logistics' ? '物流公司' : '供应商');
+  var roleLabel = role === 'admin' ? '管理员' : (role === 'staff' ? '大丰收员工' : (role === 'logistics' ? '物流公司' : '供应商'));
   sec.createUserWithEmailAndPassword(email, password)
     .then(function(userCredential) {
       var uid = userCredential.user.uid;
@@ -2578,7 +2639,7 @@ function csmEscapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 function refreshSalesUi() {
-  if (!isAdmin) return;
+  if (!isAdmin && !isStaff) return;
   renderSalesDashCards();
   renderSalesCustomersTable();
   renderSalesOrdersTable();
@@ -2645,8 +2706,10 @@ function renderSalesOrdersTable() {
         '<button class="abtn" onclick="salesSubmitOrder(\'' + o.id + '\')">Submit</button> ' +
         '<button class="abtn x" onclick="salesDeleteOrder(\'' + o.id + '\')">Del</button>';
     } else if (o.orderStatus === 'submitted') {
-      actions = '<button class="abtn" onclick="salesUndoSubmit(\'' + o.id + '\')">Withdraw</button> ' +
-        '<button class="abtn" style="background:#2e7d32;color:#fff;border:none" onclick="salesConfirmOrder(\'' + o.id + '\')">Confirm</button>';
+      actions = '<button class="abtn" onclick="salesUndoSubmit(\'' + o.id + '\')">Withdraw</button>';
+      if (isAdmin) {
+        actions += ' <button class="abtn" style="background:#2e7d32;color:#fff;border:none" onclick="salesConfirmOrder(\'' + o.id + '\')">Confirm</button>';
+      }
     } else {
       actions = '<span style="color:#888">Locked</span>';
     }
@@ -2810,6 +2873,10 @@ function salesUndoSubmit(id) {
   salesOrdersRef.child(id).update({ orderStatus: 'draft', updatedAt: new Date().toISOString() }).then(function() { toast('Withdrawn', 'ok'); }).catch(function(e) { toast(e.message, 'err'); });
 }
 function salesConfirmOrder(id) {
+  if (!isAdmin) {
+    toast('仅管理员可确认销售订单', 'err');
+    return;
+  }
   var o = salesOrders.find(function(x) { return x.id === id; });
   if (!o || o.orderStatus !== 'submitted' || !salesOrdersRef) return;
   salesOrdersRef.child(id).update({

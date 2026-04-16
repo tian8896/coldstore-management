@@ -177,7 +177,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
       <button type="button" class="login-forgot-btn" id="btn-login-forgot" onclick="if(typeof sendLoginPasswordReset==='function')sendLoginPasswordReset();">忘记密码？发送重置邮件</button>
     </div>
     <div id="login-error" style="color:#cc0000;font-size:13px;margin:8px 0;display:none;min-height:1.2em;word-break:break-word"></div>
-    <p id="login-hint" style="font-size:11px;color:#666;margin-top:6px;line-height:1.5">① 用户资料在 <strong>Realtime Database</strong>，路径 <code style="font-size:10px">csm_users/&lt;UID&gt;</code>，<code style="font-size:10px">role</code>：admin / logistics / supplier。② Firebase 控制台 → 身份验证 → 设置 → <strong>已授权网域</strong> 须添加 <code style="font-size:10px">tian8896.github.io</code>（仅域名，勿带 <code style="font-size:10px">/coldstore-management</code> 路径）。③ 数据库规则须允许已登录用户读取 <code style="font-size:10px">csm_users</code>、<code style="font-size:10px">csm_meta</code>。④ 仍失败时 F12 控制台执行 <code style="font-size:10px">csmDiagnoseLogin()</code> 查看读写结果。</p>
+    <p id="login-hint" style="font-size:11px;color:#666;margin-top:6px;line-height:1.5">① 用户资料在 <strong>Realtime Database</strong>，路径 <code style="font-size:10px">csm_users/&lt;UID&gt;</code>，<code style="font-size:10px">role</code>：admin / staff（大丰收员工）/ logistics / supplier。② Firebase 控制台 → 身份验证 → 设置 → <strong>已授权网域</strong> 须添加 <code style="font-size:10px">tian8896.github.io</code>（仅域名，勿带 <code style="font-size:10px">/coldstore-management</code> 路径）。③ 数据库规则须允许已登录用户读取 <code style="font-size:10px">csm_users</code>、<code style="font-size:10px">csm_meta</code>。④ 仍失败时 F12 控制台执行 <code style="font-size:10px">csmDiagnoseLogin()</code> 查看读写结果。</p>
     <button type="button" class="btn btn-s" id="btn-login-submit" style="width:100%;padding:12px;font-size:16px;margin-top:10px">登录 Login</button>
   </div>
 </div>
@@ -263,7 +263,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260415g" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260415i" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -308,18 +308,19 @@ tr:hover td{background:rgba(0,191,255,.03)}
           var userData = snap.val();
           if (userData) {
             var r = String(userData.role || '').toLowerCase().replace(/\s/g, '');
+            window.isStaff = r === 'staff';
             window.isAdmin = r === 'admin';
             window.isLogistics = r === 'logistics';
             window.isSupplier = r === 'supplier';
             window.currentSupplierName = userData.supplierName || null;
-            var roleText = window.isLogistics ? '物流公司' : (window.isSupplier ? '供应商' : '管理员');
+            var roleText = window.isLogistics ? '物流公司' : (window.isSupplier ? '供应商' : (window.isStaff ? '大丰收员工' : '管理员'));
             var ud = gid('currentUserDisplay');
             if (ud) ud.textContent = (user.email || 'User') + ' (' + roleText + ')';
             var lm = gid('loginModal');
             if (lm) { lm.style.display = 'none'; lm.classList.remove('sh'); }
             var le = gid('login-error');
             if (le) { le.style.display = 'none'; }
-            if (typeof window.showAdminView === 'function' && window.isAdmin) window.showAdminView();
+            if (typeof window.showAdminView === 'function' && (window.isAdmin || window.isStaff)) window.showAdminView();
             else if (typeof window.showLogisticsView === 'function' && window.isLogistics) window.showLogisticsView();
             else if (typeof window.showSupplierView === 'function' && window.isSupplier) window.showSupplierView();
             if (typeof window.toast === 'function') window.toast('欢迎 ' + (user.email || 'User'), 'ok');
@@ -346,6 +347,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
                     upd['csm_meta/site_initialized'] = true;
                     rootRef.update(upd).then(function() {
                       window.isAdmin = true;
+                      window.isStaff = false;
                       var ud2 = gid('currentUserDisplay');
                       if (ud2) ud2.textContent = (user.email || 'User') + ' (管理员)';
                       var lm2 = gid('loginModal');
@@ -369,6 +371,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
         window.currentUser = null;
         window.currentUserEmail = null;
         window.isAdmin = false;
+        window.isStaff = false;
         window.isLogistics = false;
         window.isSupplier = false;
         if (typeof window.showLoginModal === 'function') window.showLoginModal();
@@ -858,7 +861,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
 
   <div class="tc" id="tc-records">
     <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
-      <button class="btn" style="background:#cc0000;color:#fff;border-color:#cc0000" onclick="showClearModal('records')">🗑️ 清空记录</button>
+      <button type="button" id="btn-clear-records" class="btn" style="background:#cc0000;color:#fff;border-color:#cc0000" onclick="showClearModal('records')">🗑️ 清空记录</button>
     </div>
     <div class="tw"><table><thead><tr><th style="font-family:Arial;font-size:14px">序列号<br><span style="text-transform:capitalize">Seq No</span></th><th style="font-family:Arial;font-size:14px">集装箱<br><span style="text-transform:capitalize">Container</span></th><th style="font-family:Arial;font-size:14px">供应商<br><span style="text-transform:capitalize">Supplier</span></th><th style="font-family:Arial;font-size:14px">品名<br><span style="text-transform:capitalize">Product</span></th><th style="font-family:Arial;font-size:14px">门店<br><span style="text-transform:capitalize">Store</span></th><th style="font-family:Arial;font-size:14px">托盘 入库/剩余<br><span style="text-transform:capitalize">Pallets In/Rem</span></th><th style="font-family:Arial;font-size:14px">件数 入库/剩余<br><span style="text-transform:capitalize">Items In/Rem</span></th><th style="font-family:Arial;font-size:14px">入库时间<br><span style="text-transform:capitalize">In Date</span></th><th style="font-family:Arial;font-size:14px">出库时间<br><span style="text-transform:capitalize">Out Date</span></th><th style="font-family:Arial;font-size:14px">费用<br><span style="text-transform:capitalize">Fee</span></th><th style="font-family:Arial;font-size:14px">状态<br><span style="text-transform:capitalize">Status</span></th><th style="font-family:Arial;font-size:14px">操作<br><span style="text-transform:capitalize">Action</span></th></tr></thead><tbody id="tb-all"></tbody></table></div>
     <div class="es" id="es-all" style="display:none"><div class="em">📭</div><div>暂无记录 / No Records Yet</div></div>
@@ -895,7 +898,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
-      <button class="btn" style="background:#cc0000;color:#fff;border-color:#cc0000" onclick="showClearModal('checkout')">🗑️ 清空记录</button>
+      <button type="button" id="btn-clear-checkout" class="btn" style="background:#cc0000;color:#fff;border-color:#cc0000" onclick="showClearModal('checkout')">🗑️ 清空记录</button>
     </div>
     <div class="tw"><table><thead><tr><th style="font-family:Arial;font-size:14px">Seq No<br><span style="text-transform:capitalize;font-size:11px;color:#666">序列号</span></th><th style="font-family:Arial;font-size:14px">集装箱号<br><span style="text-transform:capitalize">Container</span></th><th style="font-family:Arial;font-size:14px">供应商<br><span style="text-transform:capitalize">Supplier</span></th><th style="font-family:Arial;font-size:14px">品名<br><span style="text-transform:capitalize">Product</span></th><th style="font-family:Arial;font-size:14px">周/日期<br><span style="text-transform:capitalize">Week/Date</span></th><th style="font-family:Arial;font-size:14px">托盘数<br><span style="text-transform:capitalize">Pallets</span></th><th style="font-family:Arial;font-size:14px">出库托盘<br><span style="text-transform:capitalize">Out Pallets</span></th><th style="font-family:Arial;font-size:14px">出库件数<br><span style="text-transform:capitalize">Out Items</span></th><th style="font-family:Arial;font-size:14px">剩余件数<br><span style="text-transform:capitalize">Rem Items</span></th><th style="font-family:Arial;font-size:14px">入库件数<br><span style="text-transform:capitalize">In Items</span></th><th style="font-family:Arial;font-size:14px">单价<br><span style="text-transform:capitalize">Price</span></th><th style="font-family:Arial;font-size:14px">金额<br><span style="text-transform:capitalize">Amount</span></th><th style="font-family:Arial;font-size:14px">5% VAT</th><th style="font-family:Arial;font-size:14px">合计<br><span style="text-transform:capitalize">Total</span></th><th style="font-family:Arial;font-size:14px">操作<br><span style="text-transform:capitalize">Action</span></th></tr></thead><tbody id="tb-checkout"></tbody></table></div>
     <div class="es" id="es-checkout" style="display:none"><div class="em">📭</div><div>暂无出库记录 / No Checkout Records</div></div>
@@ -1249,7 +1252,10 @@ tr:hover td{background:rgba(0,191,255,.03)}
         <span style="margin-left:8px">AED/托盘/周</span>
       </div>
       <button class="sett-add-btn" onclick="saveRates()" style="margin-top:10px;background:#0066cc">💾 保存费率</button>
-      <div style="margin-top:20px;padding-top:15px;border-top:1px solid #ddd">
+    </div>
+    <div id="settings-account-section">
+      <div class="sett-section">
+      <div style="margin-top:0;padding-top:15px;border-top:1px solid #ddd">
         <button onclick="openUserManagement()" class="sett-add-btn" style="background:#2196F3">👥 用户管理 / User Management</button>
       </div>
     </div>
@@ -1272,6 +1278,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
         <div class="sett-row">
           <select id="new-user-role" onchange="onUserRoleChange()" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:13px">
             <option value="admin">管理员</option>
+            <option value="staff">大丰收员工</option>
             <option value="logistics">物流公司</option>
             <option value="supplier">供应商</option>
           </select>
@@ -1296,6 +1303,7 @@ tr:hover td{background:rgba(0,191,255,.03)}
         </div>
         <div id="supplier-owner-migration-status" style="display:none;font-size:12px;margin-top:6px"></div>
       </div>
+    </div>
     </div>
     <div class="brow">
       <button class="btn btn-g" onclick="clSettings()">关闭 Close</button>

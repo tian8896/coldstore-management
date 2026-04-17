@@ -183,14 +183,17 @@ function attachDataListenersForRole() {
         refreshSalesUi();
       });
     }
-    return;
   }
   if (isSupplier) {
     if (supplierRef && currentUser) {
-      bindValueListener(supplierRef.orderByChild('ownerUid').equalTo(currentUser), function(snap) {
-        supplierOwnedSnapshot = snap.val() || {};
-        mergeSupplierScopedData();
-      });
+      try {
+        bindValueListener(supplierRef.orderByChild('ownerUid').equalTo(currentUser), function(snap) {
+          supplierOwnedSnapshot = snap.val() || {};
+          mergeSupplierScopedData();
+        });
+      } catch (eSupListen) {
+        console.error('csm supplier scoped listener', eSupListen);
+      }
     }
   }
   try {
@@ -2068,6 +2071,13 @@ function applySettDataFromPayload(val) {
 function saveSettingsLocalOnly() {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settData)); } catch (eL) {}
 }
+function afterUnifiedSettingsApplied() {
+  try { syncAllProductSelects(); } catch (e1) {}
+  try { refreshSupplierShipCompanyOptions(); } catch (e2) {}
+  try {
+    if (isSupplier && typeof renderSupplierTable === 'function') renderSupplierTable();
+  } catch (e3) {}
+}
 function onSettingsMetaSnap(snap) {
   var val = snap.val();
   if (val == null || typeof val !== 'object') {
@@ -2102,14 +2112,12 @@ function onSettingsMetaSnap(snap) {
         settingsMetaRef.set(normalizeSettingsPayload()).catch(function(e) { console.error('csm seed default settings', e); });
       }
     }
-    try { syncAllProductSelects(); } catch (eS1) {}
-    try { refreshSupplierShipCompanyOptions(); } catch (eS2) {}
+    afterUnifiedSettingsApplied();
     return;
   }
   applySettDataFromPayload(val);
   saveSettingsLocalOnly();
-  try { syncAllProductSelects(); } catch (eS3) {}
-  try { refreshSupplierShipCompanyOptions(); } catch (eS4) {}
+  afterUnifiedSettingsApplied();
 }
 function loadSettings() {
   try {

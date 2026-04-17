@@ -2911,6 +2911,73 @@ function csmSalesNextOrderNoForDate(ymdCompact) {
   });
   return prefix + ('000' + (maxN + 1)).slice(-3);
 }
+function csmSalesLinesRawToArr(raw) {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) return raw.slice();
+  if (typeof raw === 'object') {
+    return Object.keys(raw)
+      .filter(function(k) { return /^\d+$/.test(k); })
+      .sort(function(a, b) { return (+a) - (+b); })
+      .map(function(k) { return raw[k]; })
+      .filter(function(x) { return x && typeof x === 'object'; });
+  }
+  return [];
+}
+function csmSalesNormalizeLinesFromOrder(o) {
+  if (!o) return [];
+  var arr = [];
+  csmSalesLinesRawToArr(o.lines).forEach(function(L) {
+    if (!L || typeof L !== 'object') return;
+    var cn = String(L.containerNo || '').trim().toUpperCase();
+    var pr = canonicalProductName(String(L.productName || '').trim());
+    var q = parseFloat(L.quantity);
+    var u = parseFloat(L.unitPrice);
+    if (!cn || !pr || !(q > 0) || !(u >= 0)) return;
+    arr.push({ containerNo: cn, productName: pr, quantity: q, unitPrice: u });
+  });
+  if (!arr.length) {
+    var cn0 = String(o.containerNo || '').trim().toUpperCase();
+    var pr0 = canonicalProductName(String(o.productName || '').trim());
+    var q0 = parseFloat(o.quantity);
+    var u0 = parseFloat(o.unitPrice);
+    if (cn0 && pr0 && q0 > 0 && (u0 >= 0 || u0 === 0)) {
+      arr.push({ containerNo: cn0, productName: pr0, quantity: q0, unitPrice: u0 });
+    }
+  }
+  return arr;
+}
+function csmSalesLineKey(L) {
+  return (L.containerNo || '').toUpperCase() + '\x1e' + (L.productName || '');
+}
+function csmSalesLineQtyMap(lines) {
+  var map = {};
+  (lines || []).forEach(function(L) {
+    var k = csmSalesLineKey(L);
+    map[k] = (map[k] || 0) + (parseFloat(L.quantity) || 0);
+  });
+  return map;
+}
+function csmSalesPurchaseDeltaForLinesSave(existingOrder, newLines) {
+  var oldLines = existingOrder && !existingOrder.voided ? csmSalesNormalizeLinesFromOrder(existingOrder) : [];
+  var oldMap = csmSalesLineQtyMap(oldLines);
+  var newMap = csmSalesLineQtyMap(newLines);
+  var keys = {};
+  Object.keys(oldMap).forEach(function(k) { keys[k] = true; });
+  Object.keys(newMap).forEach(function(k) { keys[k] = true; });
+  var promises = [];
+  Object.keys(keys).forEach(function(k) {
+    var oq = oldMap[k] || 0;
+    var nq = newMap[k] || 0;
+    var d = oq - nq;
+    if (d === 0) return;
+    var sep = k.indexOf('\x1e');
+    var cn = sep >= 0 ? k.slice(0, sep) : '';
+    var pr = sep >= 0 ? k.slice(sep + 1) : '';
+    promises.push(csmSalesPurchaseApplyQtyDelta(cn, pr, d));
+  });
+  if (!promises.length) return Promise.resolve();
+  return Promise.all(promises);
+}
 function csmSalesFormatOrderCreated(iso) {
   if (!iso) return '\u2014';
   try {
@@ -2937,16 +3004,23 @@ function csmSalesComputeTotals(unitPrice, qty, vatMode) {
   return { total: totalE, net: netE, vat: vatE };
 }
 function csmSalesLineTotalForDisplay(o) {
-  var vatMode = (o && o.vatMode === 'included') ? 'included' : 'excluded';
-  var u = parseFloat(o && o.unitPrice);
-  var q = parseFloat(o && o.quantity);
-  if ((u >= 0 || u === 0) && q > 0) {
-    return csmSalesComputeTotals(u, q, vatMode).total;
-  }
-  return parseFloat(o && o.totalAmount) || 0;
+  return csmSalesLineNetVatTotal(o).total;
 }
 function csmSalesLineNetVatTotal(o) {
   var vatMode = (o && o.vatMode === 'included') ? 'included' : 'excluded';
+  var lines = csmSalesNormalizeLinesFromOrder(o);
+  if (lines.length) {
+    var net = 0;
+    var vat = 0;
+    var total = 0;
+    lines.forEach(function(L) {
+      var a = csmSalesComputeTotals(L.unitPrice, L.quantity, vatMode);
+      net += a.net;
+      vat += a.vat;
+      total += a.total;
+    });
+    return { net: csmSalesRound2(net), vat: csmSalesRound2(vat), total: csmSalesRound2(total) };
+  }
   var u = parseFloat(o && o.unitPrice);
   var q = parseFloat(o && o.quantity);
   if ((u >= 0 || u === 0) && q > 0) {
@@ -2955,16 +3029,24 @@ function csmSalesLineNetVatTotal(o) {
   var t = parseFloat(o && o.totalAmount) || 0;
   return { net: 0, vat: 0, total: t };
 }
+function csmSalesNetUnitAndVatFromLine(L, vatMode) {
+  var u = parseFloat(L && L.unitPrice) || 0;
+  var q = parseFloat(L && L.quantity) || 0;
+  if (q <= 0) return { netUnit: 0, vatAmt: 0 };
+  var a = csmSalesComputeTotals(u, q, vatMode);
+  return { netUnit: csmSalesRound2(a.net / q), vatAmt: a.vat };
+}
 function csmSalesVatModeCellLabel(o) {
   return (o && o.vatMode === 'included') ? 'Incl. 5% VAT' : 'Excl. +5% VAT';
 }
 function csmSalesNetUnitAndVat(o) {
   var vatMode = (o && o.vatMode === 'included') ? 'included' : 'excluded';
+  var lines = csmSalesNormalizeLinesFromOrder(o);
+  if (lines.length) return csmSalesNetUnitAndVatFromLine(lines[0], vatMode);
   var u = parseFloat(o && o.unitPrice) || 0;
   var q = parseFloat(o && o.quantity) || 0;
   if (q <= 0) return { netUnit: 0, vatAmt: 0 };
-  var a = csmSalesComputeTotals(u, q, vatMode);
-  return { netUnit: csmSalesRound2(a.net / q), vatAmt: a.vat };
+  return csmSalesNetUnitAndVatFromLine({ unitPrice: u, quantity: q }, vatMode);
 }
 function csmSalesLocalYmd(d) {
   var y = d.getFullYear();
@@ -2992,6 +3074,16 @@ function csmSalesOrderStatusCellHtml(o) {
   var st = String(o.orderStatus || '').toLowerCase();
   var label = st === 'draft' ? 'Draft' : st === 'submitted' ? 'Submitted' : st === 'confirmed' ? 'Confirmed' : String(o.orderStatus || '\u2014');
   return '<span style="font-family:var(--csm-font-en);font-weight:700;color:inherit">' + csmEscapeHtml(label) + '</span>';
+}
+function csmSalesOrderRowGidAttr(orderId) {
+  return 'g' + String(orderId || '').replace(/[^a-zA-Z0-9]/g, '_');
+}
+function csmSalesToggleOrderSubRows(gidAttr, btn) {
+  var esc = String(gidAttr || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  var rows = document.querySelectorAll('tr.csm-sales-ord-sub[data-so-gid="' + esc + '"]');
+  var open = btn.textContent === '-';
+  rows.forEach(function(r) { r.style.display = open ? 'none' : 'table-row'; });
+  btn.textContent = open ? '+' : '-';
 }
 function csmEscapeHtml(s) {
   return String(s == null ? '' : s)
@@ -3065,28 +3157,6 @@ function csmSalesPurchaseApplyQtyDelta(cn, product, deltaQty) {
     console.error(e);
     return Promise.reject(e);
   });
-}
-function csmSalesPurchaseDeltaForOrderSave(existing, cn, product, qty) {
-  var promises = [];
-  if (existing && !existing.voided) {
-    var oldC = (existing.containerNo || '').trim().toUpperCase();
-    var oldP = canonicalProductName((existing.productName || '').trim());
-    var oldQ = parseFloat(existing.quantity) || 0;
-    var newC = cn;
-    var newP = product;
-    var newQ = parseFloat(qty) || 0;
-    if (oldC !== newC || oldP !== newP) {
-      if (oldQ) promises.push(csmSalesPurchaseApplyQtyDelta(oldC, oldP, oldQ));
-      if (newQ) promises.push(csmSalesPurchaseApplyQtyDelta(newC, newP, -newQ));
-    } else {
-      var d = oldQ - newQ;
-      if (d !== 0) promises.push(csmSalesPurchaseApplyQtyDelta(newC, newP, d));
-    }
-  } else if (!existing) {
-    promises.push(csmSalesPurchaseApplyQtyDelta(cn, product, -qty));
-  }
-  if (!promises.length) return Promise.resolve();
-  return Promise.all(promises);
 }
 function salesBatchCancel() {
   if (!salesOrdersRef) { toast('Database not connected', 'err'); return; }
@@ -3309,7 +3379,9 @@ function renderSalesOrdersTable() {
   var sumTot = 0;
   rows.forEach(function(o) {
     if (o.voided) return;
-    sumQty += parseFloat(o.quantity) || 0;
+    csmSalesNormalizeLinesFromOrder(o).forEach(function(L) {
+      sumQty += parseFloat(L.quantity) || 0;
+    });
     var a = csmSalesLineNetVatTotal(o);
     sumNet += a.net;
     sumVat += a.vat;
@@ -3318,9 +3390,16 @@ function renderSalesOrdersTable() {
   var rowCountActive = rows.filter(function(o) { return !o.voided; }).length;
   updOrdSummary(rowCountActive, sumQty, sumNet, sumVat, sumTot);
   tb.innerHTML = pageRows.map(function(o) {
-    var vm = csmSalesVatModeCellLabel(o);
+    var lines = csmSalesNormalizeLinesFromOrder(o);
+    var L0 = lines[0] || {};
+    var vatMode = (o.vatMode === 'included') ? 'included' : 'excluded';
+    var nv0 = lines.length ? csmSalesNetUnitAndVatFromLine(L0, vatMode) : csmSalesNetUnitAndVat(o);
+    var up0 = parseFloat(L0.unitPrice);
+    if (!(up0 >= 0)) up0 = parseFloat(o.unitPrice) || 0;
+    var q0 = parseFloat(L0.quantity);
+    if (!(q0 > 0)) q0 = parseFloat(o.quantity) || 0;
     var lineTot = csmSalesLineTotalForDisplay(o);
-    var nv = csmSalesNetUnitAndVat(o);
+    var vm = csmSalesVatModeCellLabel(o);
     var voided = !!o.voided;
     var statusCell = csmSalesOrderStatusCellHtml(o);
     var actions = '';
@@ -3334,18 +3413,43 @@ function renderSalesOrdersTable() {
     } else {
       actions = '<span style="color:inherit;font-weight:700">Locked</span>';
     }
-    var trCls;
-    if (voided) {
-      trCls = ' class="csm-sales-tr-voided"';
-    } else {
+    var trClassName = voided ? 'csm-sales-tr-voided' : (function() {
       var stRow = String(o.orderStatus || '').toLowerCase();
-      if (stRow === 'draft') trCls = ' class="csm-sales-tr-draft"';
-      else if (stRow === 'submitted') trCls = ' class="csm-sales-tr-submitted"';
-      else trCls = ' class="csm-sales-tr-confirmed"';
-    }
+      if (stRow === 'draft') return 'csm-sales-tr-draft';
+      if (stRow === 'submitted') return 'csm-sales-tr-submitted';
+      return 'csm-sales-tr-confirmed';
+    })();
     var cbDis = voided ? ' disabled' : '';
-    return '<tr' + trCls + '><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb"' + cbDis + ' onchange="csmSalesOrderCbExclusive(this)" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + csmEscapeHtml(o.containerNo || '') + '</td><td>' + w1ProductHtml(o.productName) + '</td><td>' + csmEscapeHtml(String(o.quantity)) + '</td><td>' +
-      csmEscapeHtml((parseFloat(o.unitPrice) || 0).toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.vatAmt.toFixed(2)) + '</td><td>' + csmEscapeHtml(vm) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesPayLabel(o.paymentStatus, false) + '</td><td>' + statusCell + '</td><td>' + actions + '</td></tr>';
+    var gidAttr = csmSalesOrderRowGidAttr(o.id);
+    var expandBtn = lines.length > 1
+      ? '<button type="button" class="abtn" style="background:#f0f0f0;border:1px solid #ddd;padding:2px 6px;font-size:14px;margin-right:6px" onclick="csmSalesToggleOrderSubRows(\'' + gidAttr + '\',this)">+</button>'
+      : '';
+    var cnCell = expandBtn + csmEscapeHtml(L0.containerNo || o.containerNo || '') +
+      (lines.length > 1 ? '<span style="color:#888;font-size:11px;margin-left:4px">(' + lines.length + ')</span>' : '');
+    var prodCell = w1ProductHtml(L0.productName || o.productName || '');
+    var subHtml = '';
+    if (lines.length > 1) {
+      for (var li = 1; li < lines.length; li++) {
+        var L = lines[li];
+        var aL = csmSalesComputeTotals(L.unitPrice, L.quantity, vatMode);
+        var nvL = csmSalesNetUnitAndVatFromLine(L, vatMode);
+        subHtml += '<tr class="csm-sales-ord-sub ' + trClassName + '" data-so-gid="' + gidAttr + '" style="display:none;background:rgba(21,101,192,.05)">' +
+          '<td class="csm-sel-td"></td>' +
+          '<td colspan="3"></td>' +
+          '<td>' + csmEscapeHtml(L.containerNo) + '</td>' +
+          '<td>' + w1ProductHtml(L.productName) + '</td>' +
+          '<td>' + csmEscapeHtml(String(L.quantity)) + '</td>' +
+          '<td>' + csmEscapeHtml((parseFloat(L.unitPrice) || 0).toFixed(2)) + '</td>' +
+          '<td>' + csmEscapeHtml(nvL.netUnit.toFixed(2)) + '</td>' +
+          '<td>' + csmEscapeHtml(nvL.vatAmt.toFixed(2)) + '</td>' +
+          '<td>' + csmEscapeHtml(vm) + '</td>' +
+          '<td>' + aL.total.toFixed(2) + '</td>' +
+          '<td colspan="3"></td>' +
+          '</tr>';
+      }
+    }
+    return '<tr class="' + trClassName + '"><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb"' + cbDis + ' onchange="csmSalesOrderCbExclusive(this)" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + cnCell + '</td><td>' + prodCell + '</td><td>' + csmEscapeHtml(String(q0)) + '</td><td>' +
+      csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' + csmEscapeHtml(vm) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesPayLabel(o.paymentStatus, false) + '</td><td>' + statusCell + '</td><td>' + actions + '</td></tr>' + subHtml;
   }).join('');
   csmSalesBindOrdersPager(totalRows);
 }
@@ -3399,7 +3503,9 @@ function renderSalesFinanceTable() {
   var ft = 0;
   sorted.forEach(function(o) {
     if (o.voided) return;
-    fq += parseFloat(o.quantity) || 0;
+    csmSalesNormalizeLinesFromOrder(o).forEach(function(L) {
+      fq += parseFloat(L.quantity) || 0;
+    });
     var a = csmSalesLineNetVatTotal(o);
     fn += a.net;
     fv += a.vat;
@@ -3407,10 +3513,44 @@ function renderSalesFinanceTable() {
   });
   updFinSummary(sorted.length, fq, fn, fv, ft);
   tb.innerHTML = pageRows.map(function(o) {
-    var nv = csmSalesNetUnitAndVat(o);
-    return '<tr><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + csmEscapeHtml(o.containerNo || '') + '</td><td>' + w1ProductHtml(o.productName) + '</td><td>' + csmEscapeHtml(String(o.quantity)) + '</td><td>' +
-      csmEscapeHtml((parseFloat(o.unitPrice) || 0).toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.vatAmt.toFixed(2)) + '</td><td>' +
-      csmSalesLineTotalForDisplay(o).toFixed(2) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, true)) + '</td></tr>';
+    var lines = csmSalesNormalizeLinesFromOrder(o);
+    var L0 = lines[0] || {};
+    var vatMode = (o.vatMode === 'included') ? 'included' : 'excluded';
+    var nv0 = lines.length ? csmSalesNetUnitAndVatFromLine(L0, vatMode) : csmSalesNetUnitAndVat(o);
+    var up0 = parseFloat(L0.unitPrice);
+    if (!(up0 >= 0)) up0 = parseFloat(o.unitPrice) || 0;
+    var q0 = parseFloat(L0.quantity);
+    if (!(q0 > 0)) q0 = parseFloat(o.quantity) || 0;
+    var gidAttr = csmSalesOrderRowGidAttr(o.id);
+    var expandBtn = lines.length > 1
+      ? '<button type="button" class="abtn" style="background:#f0f0f0;border:1px solid #ddd;padding:2px 6px;font-size:14px;margin-right:6px" onclick="csmSalesToggleOrderSubRows(\'' + gidAttr + '\',this)">+</button>'
+      : '';
+    var cnCell = expandBtn + csmEscapeHtml(L0.containerNo || o.containerNo || '') +
+      (lines.length > 1 ? '<span style="color:#888;font-size:11px;margin-left:4px">(' + lines.length + ')</span>' : '');
+    var prodCell = w1ProductHtml(L0.productName || o.productName || '');
+    var subHtml = '';
+    if (lines.length > 1) {
+      for (var li = 1; li < lines.length; li++) {
+        var L = lines[li];
+        var aL = csmSalesComputeTotals(L.unitPrice, L.quantity, vatMode);
+        var nvL = csmSalesNetUnitAndVatFromLine(L, vatMode);
+        subHtml += '<tr class="csm-sales-ord-sub" data-so-gid="' + gidAttr + '" style="display:none;background:rgba(21,101,192,.05)">' +
+          '<td class="csm-sel-td"></td>' +
+          '<td colspan="3"></td>' +
+          '<td>' + csmEscapeHtml(L.containerNo) + '</td>' +
+          '<td>' + w1ProductHtml(L.productName) + '</td>' +
+          '<td>' + csmEscapeHtml(String(L.quantity)) + '</td>' +
+          '<td>' + csmEscapeHtml((parseFloat(L.unitPrice) || 0).toFixed(2)) + '</td>' +
+          '<td>' + csmEscapeHtml(nvL.netUnit.toFixed(2)) + '</td>' +
+          '<td>' + csmEscapeHtml(nvL.vatAmt.toFixed(2)) + '</td>' +
+          '<td>' + aL.total.toFixed(2) + '</td>' +
+          '<td colspan="1"></td>' +
+          '</tr>';
+      }
+    }
+    return '<tr><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + cnCell + '</td><td>' + prodCell + '</td><td>' + csmEscapeHtml(String(q0)) + '</td><td>' +
+      csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' +
+      csmSalesLineTotalForDisplay(o).toFixed(2) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, true)) + '</td></tr>' + subHtml;
   }).join('');
   csmSalesBindFinancePager(totalRows);
 }
@@ -3498,11 +3638,6 @@ function buildSalesOrderCnSelectHtml(selectedRaw) {
   }
   return html;
 }
-function refreshSalesOrderCnSelect(selectedCn) {
-  var el = gid('sales-order-cn');
-  if (!el) return;
-  el.innerHTML = buildSalesOrderCnSelectHtml(selectedCn || '');
-}
 function getDistinctPurchaseProductsForCn(cn) {
   var key = String(cn || '').trim().toUpperCase();
   var out = [];
@@ -3519,23 +3654,82 @@ function getDistinctPurchaseProductsForCn(cn) {
   });
   return out;
 }
-function salesOrderOnCnChange() {
-  var cn = (gid('sales-order-cn').value || '').trim().toUpperCase();
-  var productEl = gid('sales-order-product');
-  if (!productEl) return;
+function buildSalesOrderLineEditorRow(line) {
+  line = line || {};
+  var cn = line.containerNo || '';
+  var pr = line.productName || '';
+  var qty = line.quantity != null && line.quantity !== '' ? line.quantity : 1;
+  var up = line.unitPrice != null && line.unitPrice !== '' ? line.unitPrice : '';
+  return '<tr>' +
+    '<td style="padding:6px 8px;vertical-align:middle"><select class="sol-cn" onchange="salesOrderLineCnChanged(this)" style="width:100%;min-width:120px;padding:6px;border:1px solid #ccc;border-radius:4px;text-transform:uppercase;font-family:var(--csm-font-en);font-weight:700">' + buildSalesOrderCnSelectHtml(cn) + '</select></td>' +
+    '<td style="padding:6px 8px;vertical-align:middle"><select class="sol-pr csm-product-select" style="width:100%;min-width:120px;padding:6px;border:1px solid #ccc;border-radius:4px">' + buildProductSelectOptionsHtml(pr) + '</select></td>' +
+    '<td style="padding:6px 8px;vertical-align:middle;width:96px"><input type="number" class="sol-qty" min="0.01" step="any" value="' + csmEscapeHtml(String(qty)) + '" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></td>' +
+    '<td style="padding:6px 8px;vertical-align:middle;width:112px"><input type="number" class="sol-price" min="0" step="any" value="' + (up === '' ? '' : csmEscapeHtml(String(up))) + '" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></td>' +
+    '<td style="padding:6px 4px;vertical-align:middle;width:40px"><button type="button" class="abtn x" onclick="salesOrderRemoveLine(this)" title="Remove line">\u00d7</button></td>' +
+    '</tr>';
+}
+function salesOrderFillLinesBody(orderOrNull) {
+  var tb = gid('sales-order-lines-body');
+  if (!tb) return;
+  var lines = orderOrNull ? csmSalesNormalizeLinesFromOrder(orderOrNull) : [];
+  if (!lines.length) {
+    tb.innerHTML = buildSalesOrderLineEditorRow({});
+    return;
+  }
+  tb.innerHTML = lines.map(function(L) { return buildSalesOrderLineEditorRow(L); }).join('');
+}
+function salesOrderAddLine() {
+  var tb = gid('sales-order-lines-body');
+  if (!tb) return;
+  tb.insertAdjacentHTML('beforeend', buildSalesOrderLineEditorRow({}));
+}
+function salesOrderRemoveLine(btn) {
+  var tb = gid('sales-order-lines-body');
+  if (!tb) return;
+  if (tb.querySelectorAll('tr').length <= 1) { toast('At least one order line is required.', 'err'); return; }
+  var tr = btn.closest('tr');
+  if (tr) tr.remove();
+}
+function salesOrderLineCnChanged(sel) {
+  var tr = sel.closest('tr');
+  if (!tr) return;
+  var pr = tr.querySelector('.sol-pr');
+  if (!pr) return;
+  var cn = (sel.value || '').trim().toUpperCase();
   if (!cn) {
-    productEl.innerHTML = buildProductSelectOptionsHtml('');
+    pr.innerHTML = buildProductSelectOptionsHtml('');
     return;
   }
   var distinct = getDistinctPurchaseProductsForCn(cn);
   if (distinct.length === 1) {
-    productEl.innerHTML = buildProductSelectOptionsHtml(distinct[0]);
-  } else if (distinct.length > 1) {
-    productEl.innerHTML = buildProductSelectOptionsHtml('');
-    toast('该集装箱在采购中有多个品名，请手动选择品名', 'ok');
+    pr.innerHTML = buildProductSelectOptionsHtml(distinct[0]);
   } else {
-    productEl.innerHTML = buildProductSelectOptionsHtml('');
+    pr.innerHTML = buildProductSelectOptionsHtml('');
+    if (distinct.length > 1) toast('Multiple products for this container — pick product below.', 'ok');
   }
+}
+function salesOrderReadLinesFromDom() {
+  var tb = gid('sales-order-lines-body');
+  if (!tb) return { err: 'Missing line editor' };
+  var out = [];
+  var incomplete = false;
+  tb.querySelectorAll('tr').forEach(function(tr) {
+    var cnEl = tr.querySelector('.sol-cn');
+    var prEl = tr.querySelector('.sol-pr');
+    var qtyEl = tr.querySelector('.sol-qty');
+    var upEl = tr.querySelector('.sol-price');
+    var cn = (cnEl && cnEl.value || '').trim().toUpperCase();
+    var pr = canonicalProductName((prEl && prEl.value || '').trim());
+    var qty = parseFloat(qtyEl && qtyEl.value);
+    var up = parseFloat(upEl && upEl.value);
+    var any = cn || pr || (qty > 0) || (up >= 0);
+    if (!any) return;
+    if (!cn || !pr || !(qty > 0) || !(up >= 0)) incomplete = true;
+    else out.push({ containerNo: cn, productName: pr, quantity: qty, unitPrice: up });
+  });
+  if (incomplete) return { err: 'Each line needs container, product, qty and unit price.' };
+  if (!out.length) return { err: 'Add at least one complete line (container + product + qty + price).' };
+  return { lines: out };
 }
 function openSalesOrderModal(id) {
   var m = gid('sales-order-modal');
@@ -3543,10 +3737,6 @@ function openSalesOrderModal(id) {
   m.classList.add('sh');
   gid('sales-order-id').value = id || '';
   salesFillCustomerSelect(gid('sales-order-customer'));
-  var sop = gid('sales-order-product');
-  if (sop) sop.innerHTML = buildProductSelectOptionsHtml('');
-  gid('sales-order-qty').value = '1';
-  gid('sales-order-price').value = '';
   var rEx = document.getElementById('sales-vat-excluded');
   var rIn = document.getElementById('sales-vat-included');
   if (rEx) rEx.checked = true;
@@ -3559,17 +3749,15 @@ function openSalesOrderModal(id) {
     if (o.voided) { toast('\u8BA2\u5355\u5DF2\u4F5C\u5E9F\uFF0C\u4E0D\u53EF\u7F16\u8F91', 'err'); clSalesOrderModal(); return; }
     if (o.orderStatus !== 'draft') { toast('Only draft orders editable', 'err'); clSalesOrderModal(); return; }
     gid('sales-order-customer').value = o.customerId || '';
-    refreshSalesOrderCnSelect(o.containerNo || '');
-    if (sop) sop.innerHTML = buildProductSelectOptionsHtml(o.productName || '');
-    gid('sales-order-qty').value = String(o.quantity);
-    gid('sales-order-price').value = String(o.unitPrice);
+    salesOrderFillLinesBody(o);
     if (o.vatMode === 'included' && rIn) rIn.checked = true;
     else if (rEx) rEx.checked = true;
     gid('sales-order-payment').value = o.paymentStatus || 'cash_pending';
     if (onDisp) onDisp.textContent = o.orderNo || '\u2014';
     if (ctDisp) ctDisp.textContent = csmSalesFormatOrderCreated(o.createdAt);
   } else {
-    refreshSalesOrderCnSelect('');
+    gid('sales-order-customer').value = '';
+    salesOrderFillLinesBody(null);
     if (onDisp) onDisp.textContent = csmSalesNextOrderNoForDate(csmSalesLocalYmdCompact(new Date()));
     if (ctDisp) ctDisp.textContent = csmSalesFormatOrderCreated(new Date().toISOString()) + ' \uFF08\u9884\u89C8\uFF0C\u4EE5\u4FDD\u5B58\u65F6\u4E3A\u51C6\uFF09';
   }
@@ -3582,19 +3770,17 @@ function saveSalesOrderFromModal(submitAfter) {
   var customerId = gid('sales-order-customer').value;
   var cust = salesCustomers.find(function(c) { return c.id === customerId; });
   if (!cust) { toast('Select customer', 'err'); return; }
-  var cn = (gid('sales-order-cn').value || '').trim().toUpperCase();
-  if (!cn) {
-    toast(getPurchaseCnListSorted().length === 0 ? '暂无采购记录中的集装箱号，请先在 Warehouse1 采购中录入' : '请选择集装箱号 / Select container', 'err');
+  var rd = salesOrderReadLinesFromDom();
+  if (rd.err) { toast(rd.err, 'err'); return; }
+  var newLines = rd.lines;
+  if (getW1ProductsNormalized().length === 0) { toast('Add products in Settings → 品名管理 first', 'err'); return; }
+  if (getPurchaseCnListSorted().length === 0) {
+    toast('\u6682\u65E0\u91C7\u8D2D\u8BB0\u5F55\u4E2D\u7684\u96C6\u88C5\u7BB1\u53F7\uFF0C\u8BF7\u5148\u5728 Warehouse1 \u91C7\u8D2D\u4E2D\u5F55\u5165', 'err');
     return;
   }
-  if (getW1ProductsNormalized().length === 0) { toast('Add products in Settings → 品名管理 first', 'err'); return; }
-  var product = canonicalProductName((gid('sales-order-product').value || '').trim());
-  var qty = parseFloat(gid('sales-order-qty').value) || 0;
-  var unitPrice = parseFloat(gid('sales-order-price').value);
-  if (!cn || !product || qty <= 0 || !(unitPrice >= 0)) { toast('Check container, product, qty and unit price', 'err'); return; }
   var vatMode = document.getElementById('sales-vat-included') && document.getElementById('sales-vat-included').checked ? 'included' : 'excluded';
   var payment = gid('sales-order-payment').value || 'cash_pending';
-  var amounts = csmSalesComputeTotals(unitPrice, qty, vatMode);
+  var tmpTotals = csmSalesLineNetVatTotal({ vatMode: vatMode, lines: newLines });
   if (!id) id = 'so_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   var existing = salesOrders.find(function(x) { return x.id === id; });
   if (existing && existing.voided) { toast('\u8BA2\u5355\u5DF2\u4F5C\u5E9F\uFF0C\u4E0D\u53EF\u4FDD\u5B58', 'err'); return; }
@@ -3610,25 +3796,27 @@ function saveSalesOrderFromModal(submitAfter) {
     orderNoVal = csmSalesNextOrderNoForDate(ymdToday);
     createdVal = nowIso;
   }
+  var L0 = newLines[0];
   var rec = {
     orderNo: orderNoVal,
     customerId: customerId,
     customerName: cust.name || '',
-    containerNo: cn,
-    productName: product,
-    quantity: qty,
-    unitPrice: unitPrice,
+    containerNo: L0.containerNo,
+    productName: L0.productName,
+    quantity: L0.quantity,
+    unitPrice: L0.unitPrice,
+    lines: newLines,
     vatMode: vatMode,
     paymentStatus: payment,
     orderStatus: submitAfter ? 'submitted' : 'draft',
-    totalAmount: amounts.total,
-    netAmount: amounts.net,
-    vatAmount: amounts.vat,
+    totalAmount: tmpTotals.total,
+    netAmount: tmpTotals.net,
+    vatAmount: tmpTotals.vat,
     createdAt: createdVal,
     updatedAt: nowIso,
     voided: false
   };
-  csmSalesPurchaseDeltaForOrderSave(existing, cn, product, qty).then(function() {
+  csmSalesPurchaseDeltaForLinesSave(existing, newLines).then(function() {
     return salesOrdersRef.child(id).set(rec);
   }).then(function() {
     toast(submitAfter ? 'Submitted / \u5DF2\u63D0\u4EA4' : 'Order saved (draft)', 'ok');
@@ -3644,10 +3832,19 @@ function salesVoidDraftOrder(id) {
   var o = salesOrders.find(function(x) { return x.id === id; });
   if (!o || o.orderStatus !== 'draft' || o.voided || !salesOrdersRef) return;
   if (!confirm('\u4F5C\u5E9F\u540E\u8BA2\u5355\u5C06\u6807\u7EA2\u4FDD\u7559\uFF0C\u91C7\u8D2D\u6570\u91CF\u5C06\u8FD4\u56DE\uFF0C\u786E\u5B9A\uFF1F')) return;
-  var cn = (o.containerNo || '').trim().toUpperCase();
-  var prod = canonicalProductName((o.productName || '').trim());
-  var qret = parseFloat(o.quantity) || 0;
-  csmSalesPurchaseApplyQtyDelta(cn, prod, qret).then(function() {
+  var lines = csmSalesNormalizeLinesFromOrder(o);
+  var promises = [];
+  if (lines.length) {
+    lines.forEach(function(L) {
+      promises.push(csmSalesPurchaseApplyQtyDelta(L.containerNo, L.productName, L.quantity));
+    });
+  } else {
+    var cn = (o.containerNo || '').trim().toUpperCase();
+    var prod = canonicalProductName((o.productName || '').trim());
+    var qret = parseFloat(o.quantity) || 0;
+    promises.push(csmSalesPurchaseApplyQtyDelta(cn, prod, qret));
+  }
+  Promise.all(promises).then(function() {
     return salesOrdersRef.child(id).update({
       voided: true,
       voidedAt: new Date().toISOString(),
@@ -3682,3 +3879,7 @@ try { window.salesOrdersFilterChange = salesOrdersFilterChange; } catch (e) {}
 try { window.csmSalesFinanceGoPage = csmSalesFinanceGoPage; } catch (e) {}
 try { window.csmSalesFinanceSetPageSize = csmSalesFinanceSetPageSize; } catch (e) {}
 try { window.csmSalesOrderCbExclusive = csmSalesOrderCbExclusive; } catch (e) {}
+try { window.csmSalesToggleOrderSubRows = csmSalesToggleOrderSubRows; } catch (e) {}
+try { window.salesOrderAddLine = salesOrderAddLine; } catch (e) {}
+try { window.salesOrderRemoveLine = salesOrderRemoveLine; } catch (e) {}
+try { window.salesOrderLineCnChanged = salesOrderLineCnChanged; } catch (e) {}

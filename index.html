@@ -300,7 +300,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260417f" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260417g" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -1136,15 +1136,21 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 </div>
 
 <div class="mov" id="sales-order-modal">
-  <div class="mdl" style="width:560px;max-height:85vh;overflow-y:auto">
+  <div class="mdl" style="width:680px;max-height:85vh;overflow-y:auto">
     <h3>销售订单 Sales order</h3>
     <input type="hidden" id="sales-order-id">
     <div class="fg"><label>订单号 Order No.</label><div id="sales-order-order-no-display" style="padding:10px 12px;background:#f5f5f5;border:1px solid #ddd;border-radius:5px;font-weight:700">—</div></div>
     <div class="fg"><label>生成时间 Created at</label><div id="sales-order-created-display" style="padding:10px 12px;background:#f5f5f5;border:1px solid #ddd;border-radius:5px">—</div></div>
     <div class="fg"><label>Customer *</label><select id="sales-order-customer" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></select></div>
-    <div class="fg"><label>Container No. *</label><select id="sales-order-cn" onchange="salesOrderOnCnChange()" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:14px;text-transform:uppercase"><option value="">请选择集装箱号 / From purchase</option></select></div>
-    <div class="fg"><label>Product name *</label><select id="sales-order-product" class="csm-product-select" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:14px"></select></div>
-    <div class="fg"><label>Unit price (AED) *</label><input type="number" id="sales-order-price" min="0" step="any" style="width:100%;padding:12px 14px;border:1px solid #ccc;border-radius:6px;font-size:15px"></div>
+    <div class="fg"><label>Order lines * <span style="font-size:12px;color:#666;font-weight:700">(container + product + qty + unit price per line)</span></label>
+      <div style="overflow-x:auto;border:1px solid #ddd;border-radius:6px;margin-top:6px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:var(--csm-font-en);font-weight:700">
+          <thead><tr style="background:#f5f5f5"><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd">Container</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd">Product</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:96px">Qty</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:112px">Unit (AED)</th><th style="width:40px;border-bottom:1px solid #ddd"></th></tr></thead>
+          <tbody id="sales-order-lines-body"></tbody>
+        </table>
+      </div>
+      <button type="button" class="btn btn-s" onclick="salesOrderAddLine()" style="margin-top:8px">+ Add line</button>
+    </div>
     <div class="fg"><label>VAT on unit price</label>
       <div class="sales-vat-toggle-row" role="radiogroup" aria-label="VAT on unit price">
         <label class="sales-vat-option" for="sales-vat-excluded">
@@ -1159,7 +1165,6 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         </label>
       </div>
     </div>
-    <div class="fg"><label>Quantity *</label><input type="number" id="sales-order-qty" min="0.01" step="any" value="1" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></div>
     <div class="fg"><label>Payment status</label>
       <select id="sales-order-payment" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px">
         <option value="cash">Cash received 已付款</option>

@@ -2797,15 +2797,126 @@ function swSalesSub(view) {
   if (b2) { b2.classList.toggle('btn-s', salesSubView === 'customers'); b2.classList.toggle('btn-g', salesSubView !== 'customers'); }
   if (b3) { b3.classList.toggle('btn-s', salesSubView === 'orders'); b3.classList.toggle('btn-g', salesSubView !== 'orders'); }
 }
+function csmSalesGetSelectedOrderIds() {
+  var out = [];
+  document.querySelectorAll('#tb-sales-orders .csm-sales-row-cb:checked').forEach(function(cb) {
+    var id = cb.getAttribute('data-sales-order-id');
+    if (id) out.push(id);
+  });
+  return out;
+}
+function csmSalesOrderCbExclusive(el) {
+  if (!el || !el.checked) return;
+  document.querySelectorAll('#tb-sales-orders .csm-sales-row-cb').forEach(function(cb) {
+    if (cb !== el && !cb.disabled) cb.checked = false;
+  });
+}
+function csmSalesRequireAtMostOneSelection(ids) {
+  if (ids.length > 1) {
+    toast('\u64A4\u9500\u3001\u63D0\u4EA4\u3001\u786E\u8BA4\u6BCF\u6B21\u6700\u591A\u52FE\u9009\u4E00\u6761\u8BA2\u5355', 'err');
+    return false;
+  }
+  return true;
+}
+function csmSalesPurchaseApplyQtyDelta(cn, product, deltaQty) {
+  cn = (cn || '').trim().toUpperCase();
+  product = canonicalProductName((product || '').trim());
+  deltaQty = parseFloat(deltaQty) || 0;
+  if (!purchaseRef || !cn || !product || deltaQty === 0) return Promise.resolve();
+  var matches = purchaseRecs.filter(function(p) {
+    return (p.cn || '').toUpperCase() === cn && canonicalProductName((p.product || '').trim()) === product;
+  });
+  if (!matches.length) {
+    console.warn('csmSalesPurchaseApplyQtyDelta: no purchase row for', cn, product);
+    return Promise.resolve();
+  }
+  var p = matches[0];
+  var newQty = (parseFloat(p.qty) || 0) + deltaQty;
+  if (newQty < 0) newQty = 0;
+  return purchaseRef.child(p.id).update({ qty: newQty }).catch(function(e) {
+    console.error(e);
+    return Promise.reject(e);
+  });
+}
+function csmSalesPurchaseDeltaForOrderSave(existing, cn, product, qty) {
+  var promises = [];
+  if (existing && !existing.voided) {
+    var oldC = (existing.containerNo || '').trim().toUpperCase();
+    var oldP = canonicalProductName((existing.productName || '').trim());
+    var oldQ = parseFloat(existing.quantity) || 0;
+    var newC = cn;
+    var newP = product;
+    var newQ = parseFloat(qty) || 0;
+    if (oldC !== newC || oldP !== newP) {
+      if (oldQ) promises.push(csmSalesPurchaseApplyQtyDelta(oldC, oldP, oldQ));
+      if (newQ) promises.push(csmSalesPurchaseApplyQtyDelta(newC, newP, -newQ));
+    } else {
+      var d = oldQ - newQ;
+      if (d !== 0) promises.push(csmSalesPurchaseApplyQtyDelta(newC, newP, d));
+    }
+  } else if (!existing) {
+    promises.push(csmSalesPurchaseApplyQtyDelta(cn, product, -qty));
+  }
+  if (!promises.length) return Promise.resolve();
+  return Promise.all(promises);
+}
+function salesBatchCancel() {
+  if (!salesOrdersRef) { toast('Database not connected', 'err'); return; }
+  var ids = csmSalesGetSelectedOrderIds();
+  if (!ids.length) { toast('\u8BF7\u52FE\u9009\u8BA2\u5355', 'err'); return; }
+  if (!csmSalesRequireAtMostOneSelection(ids)) return;
+  var tasks = [];
+  ids.forEach(function(id) {
+    var o = salesOrders.find(function(x) { return x.id === id; });
+    if (!o || o.voided || o.orderStatus !== 'submitted') return;
+    tasks.push(salesOrdersRef.child(id).update({ orderStatus: 'draft', updatedAt: new Date().toISOString() }));
+  });
+  if (!tasks.length) { toast('\u65E0\u53EF\u64A4\u9500\u7684\u5DF2\u63D0\u4EA4\u8BA2\u5355', 'err'); return; }
+  Promise.all(tasks).then(function() { toast('Cancelled / \u5DF2\u64A4\u9500\u81F3\u8349\u7A3F', 'ok'); }).catch(function(e) { toast(e.message || String(e), 'err'); });
+}
+function salesBatchSubmit() {
+  if (!salesOrdersRef) { toast('Database not connected', 'err'); return; }
+  var ids = csmSalesGetSelectedOrderIds();
+  if (!ids.length) { toast('\u8BF7\u52FE\u9009\u8BA2\u5355', 'err'); return; }
+  if (!csmSalesRequireAtMostOneSelection(ids)) return;
+  var tasks = [];
+  ids.forEach(function(id) {
+    var o = salesOrders.find(function(x) { return x.id === id; });
+    if (!o || o.voided || o.orderStatus !== 'draft') return;
+    tasks.push(salesOrdersRef.child(id).update({ orderStatus: 'submitted', updatedAt: new Date().toISOString() }));
+  });
+  if (!tasks.length) { toast('\u65E0\u53EF\u63D0\u4EA4\u7684\u8349\u7A3F\u8BA2\u5355', 'err'); return; }
+  Promise.all(tasks).then(function() { toast('Submitted / \u5DF2\u63D0\u4EA4', 'ok'); }).catch(function(e) { toast(e.message || String(e), 'err'); });
+}
+function salesBatchConfirm() {
+  if (!isAdmin) return;
+  if (!salesOrdersRef) { toast('Database not connected', 'err'); return; }
+  var ids = csmSalesGetSelectedOrderIds();
+  if (!ids.length) { toast('\u8BF7\u52FE\u9009\u8BA2\u5355', 'err'); return; }
+  if (!csmSalesRequireAtMostOneSelection(ids)) return;
+  var nowIso = new Date().toISOString();
+  var tasks = [];
+  ids.forEach(function(id) {
+    var o = salesOrders.find(function(x) { return x.id === id; });
+    if (!o || o.voided || o.orderStatus !== 'submitted') return;
+    tasks.push(salesOrdersRef.child(id).update({
+      orderStatus: 'confirmed',
+      confirmedAt: nowIso,
+      updatedAt: nowIso
+    }));
+  });
+  if (!tasks.length) { toast('\u65E0\u53EF\u786E\u8BA4\u7684\u5DF2\u63D0\u4EA4\u8BA2\u5355', 'err'); return; }
+  Promise.all(tasks).then(function() { toast('Confirmed', 'ok'); }).catch(function(e) { toast(e.message || String(e), 'err'); });
+}
 function renderSalesDashCards() {
   var el1 = gid('sales-dash-today');
   var el2 = gid('sales-dash-confirmed');
   var el3 = gid('sales-dash-unpaid');
   if (!el1) return;
   var today = csmSalesLocalYmd(new Date());
-  var nToday = salesOrders.filter(function(o) { return (o.createdAt || '').slice(0, 10) === today; }).length;
+  var nToday = salesOrders.filter(function(o) { return !o.voided && (o.createdAt || '').slice(0, 10) === today; }).length;
   el1.textContent = String(nToday);
-  var conf = salesOrders.filter(function(o) { return o.orderStatus === 'confirmed'; });
+  var conf = salesOrders.filter(function(o) { return o.orderStatus === 'confirmed' && !o.voided; });
   var sumConf = conf.reduce(function(s, o) { return s + csmSalesLineTotalForDisplay(o); }, 0);
   if (el2) el2.textContent = sumConf.toFixed(2);
   var unpaid = conf.filter(function(o) { return o.paymentStatus === 'credit' || o.paymentStatus === 'cash_pending'; });
@@ -2834,7 +2945,7 @@ function renderSalesOrdersTable() {
   var rows = salesOrders.filter(function(o) { return !st || o.orderStatus === st; });
   function updOrdSummary(n, sq, sn, sv, stt) {
     if (!sumEl) return;
-    sumEl.innerHTML = '<strong>本页合计（当前筛选列表）</strong> · <strong>Filtered list</strong><br>' +
+    sumEl.innerHTML = '<strong>本页合计（当前筛选列表，不含作废）</strong> · <strong>Filtered list (excl. void)</strong><br>' +
       '行数 Rows: <strong>' + n + '</strong>　|　数量 Qty: <strong>' + csmSalesRound2(sq) + '</strong><br>' +
       '未税净额 Net AED: <strong>' + csmSalesRound2(sn).toFixed(2) + '</strong>　|　VAT AED: <strong>' + csmSalesRound2(sv).toFixed(2) + '</strong>　|　<strong>含税合计 Total AED: ' + csmSalesRound2(stt).toFixed(2) + '</strong>';
   }
@@ -2848,32 +2959,36 @@ function renderSalesOrdersTable() {
   var sumVat = 0;
   var sumTot = 0;
   rows.forEach(function(o) {
+    if (o.voided) return;
     sumQty += parseFloat(o.quantity) || 0;
     var a = csmSalesLineNetVatTotal(o);
     sumNet += a.net;
     sumVat += a.vat;
     sumTot += a.total;
   });
-  updOrdSummary(rows.length, sumQty, sumNet, sumVat, sumTot);
+  var rowCountActive = rows.filter(function(o) { return !o.voided; }).length;
+  updOrdSummary(rowCountActive, sumQty, sumNet, sumVat, sumTot);
   tb.innerHTML = rows.map(function(o) {
     var vm = csmSalesVatModeCellLabel(o);
     var lineTot = csmSalesLineTotalForDisplay(o);
     var nv = csmSalesNetUnitAndVat(o);
+    var voided = !!o.voided;
+    var statusCell = voided ? '<span style="color:#b71c1c">void / \u4F5C\u5E9F</span>' : csmEscapeHtml(o.orderStatus || '');
     var actions = '';
-    if (o.orderStatus === 'draft') {
+    if (voided && o.orderStatus === 'draft') {
+      actions = '<span style="color:#b71c1c">\u5DF2\u4F5C\u5E9F</span>';
+    } else if (o.orderStatus === 'draft') {
       actions = '<button class="abtn" onclick="openSalesOrderModal(\'' + o.id + '\')">Edit</button> ' +
-        '<button class="abtn" onclick="salesSubmitOrder(\'' + o.id + '\')">Submit</button> ' +
         '<button class="abtn x" onclick="salesDeleteOrder(\'' + o.id + '\')">Del</button>';
     } else if (o.orderStatus === 'submitted') {
       actions = '<button class="abtn" onclick="salesUndoSubmit(\'' + o.id + '\')">Withdraw</button>';
-      if (isAdmin) {
-        actions += ' <button class="abtn" style="background:#2e7d32;color:#fff;border:none" onclick="salesConfirmOrder(\'' + o.id + '\')">Confirm</button>';
-      }
     } else {
       actions = '<span style="color:#888">Locked</span>';
     }
-    return '<tr><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + csmEscapeHtml(o.containerNo || '') + '</td><td>' + w1ProductHtml(o.productName) + '</td><td>' + csmEscapeHtml(String(o.quantity)) + '</td><td>' +
-      csmEscapeHtml((parseFloat(o.unitPrice) || 0).toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.vatAmt.toFixed(2)) + '</td><td>' + csmEscapeHtml(vm) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesPayLabel(o.paymentStatus, false) + '</td><td>' + csmEscapeHtml(o.orderStatus || '') + '</td><td>' + actions + '</td></tr>';
+    var trCls = voided ? ' class="csm-sales-tr-voided"' : '';
+    var cbDis = voided ? ' disabled' : '';
+    return '<tr' + trCls + '><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb"' + cbDis + ' onchange="csmSalesOrderCbExclusive(this)" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + csmEscapeHtml(o.containerNo || '') + '</td><td>' + w1ProductHtml(o.productName) + '</td><td>' + csmEscapeHtml(String(o.quantity)) + '</td><td>' +
+      csmEscapeHtml((parseFloat(o.unitPrice) || 0).toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.vatAmt.toFixed(2)) + '</td><td>' + csmEscapeHtml(vm) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesPayLabel(o.paymentStatus, false) + '</td><td>' + statusCell + '</td><td>' + actions + '</td></tr>';
   }).join('');
 }
 function renderSalesFinanceTable() {
@@ -2883,7 +2998,7 @@ function renderSalesFinanceTable() {
   var elUn = gid('sales-fin-unpaid');
   var sumFinEl = gid('sales-finance-list-summary');
   if (!tb) return;
-  var conf = salesOrders.filter(function(o) { return o.orderStatus === 'confirmed'; });
+  var conf = salesOrders.filter(function(o) { return o.orderStatus === 'confirmed' && !o.voided; });
   if (elLines) elLines.textContent = String(conf.length);
   var sum = conf.reduce(function(s, o) { return s + csmSalesLineTotalForDisplay(o); }, 0);
   var sumUn = conf.filter(function(o) { return o.paymentStatus === 'credit' || o.paymentStatus === 'cash_pending'; })
@@ -2914,6 +3029,7 @@ function renderSalesFinanceTable() {
   var fv = 0;
   var ft = 0;
   sorted.forEach(function(o) {
+    if (o.voided) return;
     fq += parseFloat(o.quantity) || 0;
     var a = csmSalesLineNetVatTotal(o);
     fn += a.net;
@@ -3070,6 +3186,7 @@ function openSalesOrderModal(id) {
   if (id) {
     var o = salesOrders.find(function(x) { return x.id === id; });
     if (!o) { clSalesOrderModal(); return; }
+    if (o.voided) { toast('\u8BA2\u5355\u5DF2\u4F5C\u5E9F\uFF0C\u4E0D\u53EF\u7F16\u8F91', 'err'); clSalesOrderModal(); return; }
     if (o.orderStatus !== 'draft') { toast('Only draft orders editable', 'err'); clSalesOrderModal(); return; }
     gid('sales-order-customer').value = o.customerId || '';
     refreshSalesOrderCnSelect(o.containerNo || '');
@@ -3088,7 +3205,8 @@ function openSalesOrderModal(id) {
   }
 }
 function clSalesOrderModal() { var m = gid('sales-order-modal'); if (m) m.classList.remove('sh'); }
-function saveSalesOrderFromModal() {
+function saveSalesOrderFromModal(submitAfter) {
+  submitAfter = !!submitAfter;
   if (!salesOrdersRef) { toast('Database not connected', 'err'); return; }
   var id = (gid('sales-order-id').value || '').trim();
   var customerId = gid('sales-order-customer').value;
@@ -3109,6 +3227,7 @@ function saveSalesOrderFromModal() {
   var amounts = csmSalesComputeTotals(unitPrice, qty, vatMode);
   if (!id) id = 'so_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   var existing = salesOrders.find(function(x) { return x.id === id; });
+  if (existing && existing.voided) { toast('\u8BA2\u5355\u5DF2\u4F5C\u5E9F\uFF0C\u4E0D\u53EF\u4FDD\u5B58', 'err'); return; }
   if (existing && existing.orderStatus !== 'draft') { toast('Not editable', 'err'); return; }
   var nowIso = new Date().toISOString();
   var ymdToday = csmSalesLocalYmdCompact(new Date());
@@ -3131,46 +3250,43 @@ function saveSalesOrderFromModal() {
     unitPrice: unitPrice,
     vatMode: vatMode,
     paymentStatus: payment,
-    orderStatus: 'draft',
+    orderStatus: submitAfter ? 'submitted' : 'draft',
     totalAmount: amounts.total,
     netAmount: amounts.net,
     vatAmount: amounts.vat,
     createdAt: createdVal,
-    updatedAt: nowIso
+    updatedAt: nowIso,
+    voided: false
   };
-  salesOrdersRef.child(id).set(rec).then(function() {
-    toast('Order saved (draft)', 'ok');
+  csmSalesPurchaseDeltaForOrderSave(existing, cn, product, qty).then(function() {
+    return salesOrdersRef.child(id).set(rec);
+  }).then(function() {
+    toast(submitAfter ? 'Submitted / \u5DF2\u63D0\u4EA4' : 'Order saved (draft)', 'ok');
     clSalesOrderModal();
   }).catch(function(e) { toast('Save failed: ' + (e.message || e), 'err'); });
 }
-function salesSubmitOrder(id) {
-  var o = salesOrders.find(function(x) { return x.id === id; });
-  if (!o || o.orderStatus !== 'draft' || !salesOrdersRef) return;
-  salesOrdersRef.child(id).update({ orderStatus: 'submitted', updatedAt: new Date().toISOString() }).then(function() { toast('Submitted', 'ok'); }).catch(function(e) { toast(e.message, 'err'); });
-}
 function salesUndoSubmit(id) {
   var o = salesOrders.find(function(x) { return x.id === id; });
-  if (!o || o.orderStatus !== 'submitted' || !salesOrdersRef) return;
+  if (!o || o.voided || o.orderStatus !== 'submitted' || !salesOrdersRef) return;
   salesOrdersRef.child(id).update({ orderStatus: 'draft', updatedAt: new Date().toISOString() }).then(function() { toast('Withdrawn', 'ok'); }).catch(function(e) { toast(e.message, 'err'); });
 }
-function salesConfirmOrder(id) {
-  if (!isAdmin) {
-    toast('仅管理员可确认销售订单', 'err');
-    return;
-  }
+function salesVoidDraftOrder(id) {
   var o = salesOrders.find(function(x) { return x.id === id; });
-  if (!o || o.orderStatus !== 'submitted' || !salesOrdersRef) return;
-  salesOrdersRef.child(id).update({
-    orderStatus: 'confirmed',
-    confirmedAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }).then(function() { toast('Confirmed', 'ok'); }).catch(function(e) { toast(e.message, 'err'); });
+  if (!o || o.orderStatus !== 'draft' || o.voided || !salesOrdersRef) return;
+  if (!confirm('\u4F5C\u5E9F\u540E\u8BA2\u5355\u5C06\u6807\u7EA2\u4FDD\u7559\uFF0C\u91C7\u8D2D\u6570\u91CF\u5C06\u8FD4\u56DE\uFF0C\u786E\u5B9A\uFF1F')) return;
+  var cn = (o.containerNo || '').trim().toUpperCase();
+  var prod = canonicalProductName((o.productName || '').trim());
+  var qret = parseFloat(o.quantity) || 0;
+  csmSalesPurchaseApplyQtyDelta(cn, prod, qret).then(function() {
+    return salesOrdersRef.child(id).update({
+      voided: true,
+      voidedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  }).then(function() { toast('\u5DF2\u4F5C\u5E9F', 'ok'); }).catch(function(e) { toast(e.message || String(e), 'err'); });
 }
 function salesDeleteOrder(id) {
-  var o = salesOrders.find(function(x) { return x.id === id; });
-  if (!o || o.orderStatus !== 'draft' || !salesOrdersRef) return;
-  if (!confirm('Delete draft order?')) return;
-  salesOrdersRef.child(id).remove().then(function() { toast('Deleted', 'ok'); }).catch(function(e) { toast(e.message, 'err'); });
+  salesVoidDraftOrder(id);
 }
 window.__csmMainScriptRan=1;
 try { window.initApp = initApp; } catch (e) {}
@@ -3187,3 +3303,7 @@ try { window.migrateSupplierRecordOwners = migrateSupplierRecordOwners; } catch 
 try { window.sendLoginPasswordReset = sendLoginPasswordReset; } catch (e) {}
 try { window.sendUserPasswordResetEmail = sendUserPasswordResetEmail; } catch (e) {}
 try { window.toggleNewUserPassword = toggleNewUserPassword; } catch (e) {}
+try { window.salesBatchCancel = salesBatchCancel; } catch (e) {}
+try { window.salesBatchSubmit = salesBatchSubmit; } catch (e) {}
+try { window.salesBatchConfirm = salesBatchConfirm; } catch (e) {}
+try { window.csmSalesOrderCbExclusive = csmSalesOrderCbExclusive; } catch (e) {}

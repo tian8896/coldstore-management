@@ -1075,7 +1075,7 @@ function renderSupplierTable() {
       '<td style="text-align:center">' + getSupplierQtyTotal(r) + '</td>' +
       '<td>' + etdHtml + etaHtml + '</td>' +
       '<td style="font-family:Arial;text-transform:capitalize">' + fmtTitleCase(r.shipname) + '</td>' +
-      '<td style="font-family:Arial;text-transform:capitalize">' + fmtTitleCase(r.shipCompany) + '</td>' +
+      '<td style="font-family:Arial;text-transform:capitalize">' + w1EscHtml(resolveShipCompanyDisplayName(r.shipCompany)) + '</td>' +
       '<td>' + (r.bl || '-') + '</td>' +
       '<td>' + statusLabel + '</td>' +
       '<td>' + actionBtns + '</td>' +
@@ -2063,6 +2063,7 @@ function delPurchaseGroup(cn) {  if (!confirm('确认删除集装箱 ' + cn + ' 
 // ============================================================
 var SETTINGS_KEY = 'csm_settings_v1';
 var settData = { suppliers: [], products: [], shipCompanies: [] };
+var hasCloudSettingsSnapshot = false;
 function normalizeSettingsPayload() {
   function clean(arr) {
     return (Array.isArray(arr) ? arr : []).map(function(x) { return String(x || '').trim(); }).filter(function(z) { return !!z; });
@@ -2108,6 +2109,7 @@ function pullUnifiedSettingsOnce() {
   return settingsMetaRef.once('value').then(function(snap) {
     var val = snap.val();
     if (val != null && typeof val === 'object') {
+      hasCloudSettingsSnapshot = true;
       applySettDataFromPayload(val);
       saveSettingsLocalOnly();
       afterUnifiedSettingsApplied();
@@ -2119,6 +2121,7 @@ function pullUnifiedSettingsOnce() {
 function onSettingsMetaSnap(snap) {
   var val = snap.val();
   if (val == null || typeof val !== 'object') {
+    hasCloudSettingsSnapshot = false;
     try {
       var stored = localStorage.getItem(SETTINGS_KEY);
       if (stored) {
@@ -2153,11 +2156,13 @@ function onSettingsMetaSnap(snap) {
     afterUnifiedSettingsApplied();
     return;
   }
+  hasCloudSettingsSnapshot = true;
   applySettDataFromPayload(val);
   saveSettingsLocalOnly();
   afterUnifiedSettingsApplied();
 }
 function loadSettings() {
+  if (hasCloudSettingsSnapshot) return;
   try {
     var stored = localStorage.getItem(SETTINGS_KEY);
     if (stored) {
@@ -2203,6 +2208,16 @@ function resolveProductDisplayName(raw) {
   if (!s) return '-';
   try { loadSettings(); } catch (eR) {}
   var list = getW1ProductsNormalized();
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].toLowerCase() === s.toLowerCase()) return list[i];
+  }
+  return fmtTitleCase(s);
+}
+function resolveShipCompanyDisplayName(raw) {
+  var s = String(raw == null ? '' : raw).trim();
+  if (!s) return '-';
+  try { loadSettings(); } catch (eShip) {}
+  var list = coerceSettingsStringList(settData.shipCompanies);
   for (var i = 0; i < list.length; i++) {
     if (list[i].toLowerCase() === s.toLowerCase()) return list[i];
   }

@@ -200,7 +200,9 @@ function attachDataListenersForRole() {
     if (settingsMetaRef && firebase.auth && firebase.auth().currentUser) {
       bindValueListener(settingsMetaRef, onSettingsMetaSnap);
     }
-  } catch (eSettListen) {}
+  } catch (eSettListen) {
+    console.error('csm settings listener bind failed', eSettListen);
+  }
 }
 function createPurchaseRecordFromSupplierRec(rec, id, item) {
   var sourceItem = item || (typeof normalizeSupplierRecItems === 'function' ? normalizeSupplierRecItems(rec)[0] : null) || {
@@ -597,7 +599,7 @@ function showAdminView() {  var lv = gid('logisticsView');  var sv = gid('suppli
 // 显示清关公司视图
 function showLogisticsView() {  var shell = gid('adminPortalShell');  if (shell) { shell.style.display = 'none'; shell.setAttribute('aria-hidden', 'true'); }  resetMainSuiteForNonAdmin();  var sv = gid('supplierView');  if (sv) sv.style.display = 'none';  var rights = document.querySelectorAll('.right');  if (rights[2]) rights[2].style.display = 'none';  var lv2 = gid('logisticsView');  if (lv2) lv2.style.display = 'block';  var ui2 = gid('userInfo');  if (ui2) ui2.style.display = 'none';  var h1a = gid('headerTitle') || document.querySelector('header h1');  if (h1a) h1a.textContent = '物流公司系统 / Logistics System';  var hs = gid('headerSubtitle');  if (hs) hs.textContent = 'Logistics fee tracking';  var lname = gid('logisticsUserName');  if (lname) lname.textContent = currentUserEmail || currentUser;  updateSettingsButton();  renderLogisticsTable();}
 // 显示供应商视图
-function showSupplierView() {  var shell2 = gid('adminPortalShell');  if (shell2) { shell2.style.display = 'none'; shell2.setAttribute('aria-hidden', 'true'); }  resetMainSuiteForNonAdmin();  var lv3 = gid('logisticsView');  if (lv3) lv3.style.display = 'none';  var rights2 = document.querySelectorAll('.right');  if (rights2[2]) rights2[2].style.display = 'none';  var sv2 = gid('supplierView');  if (sv2) sv2.style.display = 'block';  var ui3 = gid('userInfo');  if (ui3) ui3.style.display = 'none';  var h1b = gid('headerTitle') || document.querySelector('header h1');  if (h1b) h1b.textContent = '🏭 供应商采购系统 / Supplier Portal';  var hs2 = gid('headerSubtitle');  if (hs2) hs2.textContent = 'Supplier purchase portal';  var sname = gid('supplierUserName');  if (sname) sname.textContent = currentUserEmail || currentUser;  updateSettingsButton();  renderSupplierTable();}
+function showSupplierView() {  var shell2 = gid('adminPortalShell');  if (shell2) { shell2.style.display = 'none'; shell2.setAttribute('aria-hidden', 'true'); }  resetMainSuiteForNonAdmin();  var lv3 = gid('logisticsView');  if (lv3) lv3.style.display = 'none';  var rights2 = document.querySelectorAll('.right');  if (rights2[2]) rights2[2].style.display = 'none';  var sv2 = gid('supplierView');  if (sv2) sv2.style.display = 'block';  var ui3 = gid('userInfo');  if (ui3) ui3.style.display = 'none';  var h1b = gid('headerTitle') || document.querySelector('header h1');  if (h1b) h1b.textContent = '🏭 供应商采购系统 / Supplier Portal';  var hs2 = gid('headerSubtitle');  if (hs2) hs2.textContent = 'Supplier purchase portal';  var sname = gid('supplierUserName');  if (sname) sname.textContent = currentUserEmail || currentUser;  updateSettingsButton();  try { renderSupplierTable(); } catch (eSv0) {}  pullUnifiedSettingsOnce().then(function() { try { renderSupplierTable(); } catch (eSv1) {} }, function(err) { console.error('csm pull settings (supplier view)', err); try { renderSupplierTable(); } catch (eSv2) {} });}
 // 清空供应商搜索
 function clearSupplierSearch() {  if (gid('supplier-search-date-start')) gid('supplier-search-date-start').value = '';  if (gid('supplier-search-date-end')) gid('supplier-search-date-end').value = '';  if (gid('supplier-search-cn')) gid('supplier-search-cn').value = '';  renderSupplierTable();}
 // 切换用户角色时显示/隐藏供应商名称字段
@@ -720,7 +722,7 @@ function collectSupplierFormItems() {
   });
   return { items: items, error: error };
 }
-function openSupplierForm() {
+function openSupplierFormBody() {
   var now = new Date();
   var y = now.getFullYear();
   var mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -740,6 +742,12 @@ function openSupplierForm() {
   gid('supplier-eta').value = '';
   gid('supplier-modal-title').textContent = '📦 添加采购记录 / Add Purchase Record';
   gid('supplierModal').classList.add('sh');
+}
+function openSupplierForm() {
+  pullUnifiedSettingsOnce().then(
+    function() { openSupplierFormBody(); },
+    function(err) { console.error('csm pull settings (open supplier form)', err); openSupplierFormBody(); }
+  );
 }
 function clSupplierModal() {
   gid('supplierModal').classList.remove('sh');
@@ -963,19 +971,25 @@ function editSupplierRec(id) {
   if (isSupplier && !supplierRecOwnedByCurrentUser(rec)) { toast('无权编辑该记录', 'err'); return; }
   if (rec.status === 'submitted') { toast('⚠️ 已提交状态，请先撤销提交', 'err'); return; }
   if (rec.status === 'confirmed') { toast('⚠️ 已确认状态，无法编辑', 'err'); return; }
-  gid('supplier-id').value = id;
-  gid('supplier-cn').value = rec.cn || '';
-  gid('supplier-date').value = rec.purchaseDate || '';
-  gid('supplier-time').value = rec.purchaseTime || '';
-  gid('supplier-supplier').value = rec.supplier || '';
-  resetSupplierItemRows(normalizeSupplierRecItems(rec));
-  gid('supplier-shipname').value = rec.shipname || '';
-  refreshSupplierShipCompanyOptions(rec.shipCompany || '');
-  gid('supplier-bl').value = rec.bl || '';
-  gid('supplier-etd').value = rec.etd || '';
-  gid('supplier-eta').value = rec.eta || '';
-  gid('supplier-modal-title').textContent = '✏️ 编辑采购记录 / Edit Purchase Record';
-  gid('supplierModal').classList.add('sh');
+  function fillEditSupplierModal() {
+    gid('supplier-id').value = id;
+    gid('supplier-cn').value = rec.cn || '';
+    gid('supplier-date').value = rec.purchaseDate || '';
+    gid('supplier-time').value = rec.purchaseTime || '';
+    gid('supplier-supplier').value = rec.supplier || '';
+    resetSupplierItemRows(normalizeSupplierRecItems(rec));
+    gid('supplier-shipname').value = rec.shipname || '';
+    refreshSupplierShipCompanyOptions(rec.shipCompany || '');
+    gid('supplier-bl').value = rec.bl || '';
+    gid('supplier-etd').value = rec.etd || '';
+    gid('supplier-eta').value = rec.eta || '';
+    gid('supplier-modal-title').textContent = '✏️ 编辑采购记录 / Edit Purchase Record';
+    gid('supplierModal').classList.add('sh');
+  }
+  pullUnifiedSettingsOnce().then(
+    function() { fillEditSupplierModal(); },
+    function(err) { console.error('csm pull settings (edit supplier)', err); fillEditSupplierModal(); }
+  );
 }
 function filterSupplierTable() {
   renderSupplierTable();
@@ -2059,14 +2073,23 @@ function normalizeSettingsPayload() {
     shipCompanies: clean(settData.shipCompanies)
   };
 }
+function coerceSettingsStringList(v) {
+  if (Array.isArray(v)) {
+    return v.map(function(x) { return String(x || '').trim(); }).filter(function(z) { return !!z; });
+  }
+  if (v && typeof v === 'object') {
+    return Object.keys(v)
+      .sort(function(a, b) { return (Number(a) || 0) - (Number(b) || 0); })
+      .map(function(k) { return String(v[k] == null ? '' : v[k]).trim(); })
+      .filter(function(z) { return !!z; });
+  }
+  return [];
+}
 function applySettDataFromPayload(val) {
   val = val || {};
-  settData.suppliers = Array.isArray(val.suppliers) ? val.suppliers.slice() : [];
-  settData.products = Array.isArray(val.products) ? val.products.slice() : [];
-  settData.shipCompanies = Array.isArray(val.shipCompanies) ? val.shipCompanies.slice() : [];
-  if (!Array.isArray(settData.suppliers)) settData.suppliers = [];
-  if (!Array.isArray(settData.products)) settData.products = [];
-  if (!Array.isArray(settData.shipCompanies)) settData.shipCompanies = [];
+  settData.suppliers = coerceSettingsStringList(val.suppliers);
+  settData.products = coerceSettingsStringList(val.products);
+  settData.shipCompanies = coerceSettingsStringList(val.shipCompanies);
 }
 function saveSettingsLocalOnly() {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settData)); } catch (eL) {}
@@ -2077,6 +2100,21 @@ function afterUnifiedSettingsApplied() {
   try {
     if (isSupplier && typeof renderSupplierTable === 'function') renderSupplierTable();
   } catch (e3) {}
+}
+function pullUnifiedSettingsOnce() {
+  if (!settingsMetaRef || !firebase.auth || !firebase.auth().currentUser) {
+    return Promise.resolve();
+  }
+  return settingsMetaRef.once('value').then(function(snap) {
+    var val = snap.val();
+    if (val != null && typeof val === 'object') {
+      applySettDataFromPayload(val);
+      saveSettingsLocalOnly();
+      afterUnifiedSettingsApplied();
+    }
+  }).catch(function(e) {
+    console.error('csm_meta/settings once', e);
+  });
 }
 function onSettingsMetaSnap(snap) {
   var val = snap.val();

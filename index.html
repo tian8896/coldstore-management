@@ -997,21 +997,19 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       </tr></thead><tbody id="tb-sales-customers"></tbody></table></div>
     </div>
     <div id="sales-panel-orders" style="display:none">
-      <div class="brow" style="margin-bottom:12px;flex-wrap:wrap;gap:10px;align-items:center">
+      <div class="brow" style="margin-bottom:12px;flex-wrap:wrap;gap:10px;align-items:center" id="sales-orders-toolbar">
         <button type="button" class="btn btn-s" onclick="openSalesOrderModal('')">+ 创建订单 New order</button>
-        <label style="font-size:13px;color:#666">状态 Status</label>
+        <button type="button" class="btn btn-g" onclick="salesBatchCancel()">Cancel</button>
+        <button type="button" class="btn btn-p" onclick="salesBatchSubmit()">Submit</button>
+        <button type="button" class="btn btn-s" onclick="salesBatchConfirm()">Confirm</button>
+        <label style="font-size:13px;color:#666;margin-left:4px">状态 Status</label>
         <select id="sales-order-filter" onchange="renderSalesOrdersTable()" style="padding:6px 10px;border:1px solid #ccc;border-radius:4px">
           <option value="">全部 All</option>
           <option value="draft">Draft</option>
           <option value="submitted">Submitted</option>
           <option value="confirmed">Confirmed</option>
         </select>
-      </div>
-      <div class="brow" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;align-items:center" id="sales-orders-toolbar">
-        <button type="button" class="btn btn-g" onclick="salesBatchCancel()">Cancel</button>
-        <button type="button" class="btn btn-p" onclick="salesBatchSubmit()">Submit</button>
-        <button type="button" class="btn btn-s" onclick="salesBatchConfirm()">Confirm</button>
-        <span style="font-size:12px;color:#666">每次最多勾选一条 · At most one row for Cancel / Submit / Confirm</span>
+        <span style="flex-basis:100%;font-size:12px;color:#666;margin-top:2px">每次最多勾选一条 · At most one row for Cancel / Submit / Confirm</span>
       </div>
       <div class="tw"><table><thead><tr>
         <th class="csm-sel-th" title="选择">选</th>

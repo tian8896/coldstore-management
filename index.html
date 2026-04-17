@@ -58,6 +58,18 @@ th.csm-sel-th,td.csm-sel-td{width:44px;min-width:44px;max-width:44px;text-align:
 .csm-sales-row-cb{width:16px;height:16px;cursor:pointer;accent-color:var(--ac);margin:0}
 tr.csm-sales-tr-voided td{background:#fff0f0!important;color:#b71c1c!important}
 tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
+.tw-sales-dense tr.csm-sales-tr-draft td{color:#1565c0!important}
+.tw-sales-dense tr.csm-sales-tr-draft:hover td{background:rgba(21,101,192,.07)!important;color:#1565c0!important}
+.tw-sales-dense tr.csm-sales-tr-submitted td{color:#2e7d32!important}
+.tw-sales-dense tr.csm-sales-tr-submitted:hover td{background:rgba(46,125,50,.08)!important;color:#2e7d32!important}
+.tw-sales-dense tr.csm-sales-tr-confirmed td{color:#757575!important}
+.tw-sales-dense tr.csm-sales-tr-confirmed:hover td{background:rgba(117,117,117,.08)!important;color:#757575!important}
+.tw-sales-dense tr.csm-sales-tr-draft td .abtn{color:#1565c0!important;border-color:rgba(21,101,192,.45)!important}
+.tw-sales-dense tr.csm-sales-tr-draft td .abtn:hover{color:#0d47a1!important;border-color:#1565c0!important}
+.tw-sales-dense tr.csm-sales-tr-submitted td .abtn{color:#2e7d32!important;border-color:rgba(46,125,50,.45)!important}
+.tw-sales-dense tr.csm-sales-tr-submitted td .abtn:hover{color:#1b5e20!important;border-color:#2e7d32!important}
+.tw-sales-dense tr.csm-sales-tr-confirmed td .abtn{color:#616161!important;border-color:rgba(97,97,97,.4)!important}
+.tw-sales-dense tr.csm-sales-tr-confirmed td .abtn:hover{color:#424242!important;border-color:#757575!important}
 /* Sales orders & finance: denser table rows for more records per screen */
 .tw-sales-dense table{font-size:13px}
 .tw-sales-dense th{padding:6px 10px;font-size:12px;line-height:1.2}
@@ -288,7 +300,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260417c" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260417f" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {

@@ -257,7 +257,7 @@ dbRef.parent.update(batch).then(function() {      console.log('Backfill complete
 // 为已有出库记录补充 seq（根据出库日期生成）
 function backfillCheckoutSeq() {  if (!dbRef || !seqCounterRef) return;  var recsWithoutSeq = recs.filter(function(r) { return r.type === 'checkout' && !r.seq; });  if (recsWithoutSeq.length === 0) return;  console.log('Backfilling checkout seq for', recsWithoutSeq.length, 'records');  recsWithoutSeq.sort(function(a, b) { return new Date(a.dep || 0) - new Date(b.dep || 0); });  seqCounterRef.once('value').then(function(snap) {    var counters = Object.assign({}, snap.val() || {});    var batch = {};    recsWithoutSeq.forEach(function(r) {      var d = r.dep ? new Date(r.dep) : new Date();      var y = d.getFullYear();      var m = ('0' + (d.getMonth() + 1)).slice(-2);      var dd = ('0' + (d.getDate())).slice(-2);      var key = '' + y + m + dd;      counters[key] = (counters[key] || 0) + 1;      var seq = key + ('00' + counters[key]).slice(-3);      batch['csm_seq_counter/' + key] = counters[key];      batch['csm_records_v3/' + r.id + '/seq'] = seq;    });    dbRef.parent.update(batch).then(function() {      console.log('Checkout backfill complete');    }).catch(function(e) {      console.error('Checkout backfill error:', e);    });  });}
 // 为已有采购记录补充 seq（根据采购日期生成）
-function backfillPurchaseSeq() {  if (!purchaseRef || !seqCounterRef) return;  var recsWithoutSeq = purchaseRecs.filter(function(r) { return !r.seq; });  if (recsWithoutSeq.length === 0) return;  console.log('Backfilling purchase seq for', recsWithoutSeq.length, 'records');  recsWithoutSeq.sort(function(a, b) { return new Date(a.purchaseDate || 0) - new Date(b.purchaseDate || 0); });  seqCounterRef.once('value').then(function(snap) {    var counters = Object.assign({}, snap.val() || {});    var batch = {};    recsWithoutSeq.forEach(function(r) {      var d = r.purchaseDate ? new Date(r.purchaseDate + 'T00:00:00') : new Date();      var y = d.getFullYear();      var m = ('0' + (d.getMonth() + 1)).slice(-2);      var dd = ('0' + (d.getDate())).slice(-2);      var key = '' + y + m + dd;      counters[key] = (counters[key] || 0) + 1;      var seq = key + ('00' + counters[key]).slice(-3);      batch['csm_seq_counter/' + key] = counters[key];      batch['csm_purchase/' + r.id + '/seq'] = seq;    });    dbRef.parent.update(batch).then(function() {      console.log('Purchase backfill complete');    }).catch(function(e) {      console.error('Purchase backfill error:', e);    });  });}
+function backfillPurchaseSeq() {  if (!purchaseRef || !seqCounterRef) return;  var recsWithoutSeq = purchaseRecs.filter(function(r) { return !r.seq; });  if (recsWithoutSeq.length === 0) return;  console.log('Backfilling purchase seq for', recsWithoutSeq.length, 'records');  recsWithoutSeq.sort(csmPurchaseRowCompareAsc);  seqCounterRef.once('value').then(function(snap) {    var counters = Object.assign({}, snap.val() || {});    var batch = {};    recsWithoutSeq.forEach(function(r) {      var d = r.purchaseDate ? new Date(r.purchaseDate + 'T00:00:00') : new Date();      var y = d.getFullYear();      var m = ('0' + (d.getMonth() + 1)).slice(-2);      var dd = ('0' + (d.getDate())).slice(-2);      var key = '' + y + m + dd;      counters[key] = (counters[key] || 0) + 1;      var seq = key + ('00' + counters[key]).slice(-3);      batch['csm_seq_counter/' + key] = counters[key];      batch['csm_purchase/' + r.id + '/seq'] = seq;    });    dbRef.parent.update(batch).then(function() {      console.log('Purchase backfill complete');    }).catch(function(e) {      console.error('Purchase backfill error:', e);    });  });}
 // ============================================================
 // INIT
 // ============================================================
@@ -990,6 +990,44 @@ function editSupplierRec(id) {
     function(err) { console.error('csm pull settings (edit supplier)', err); fillEditSupplierModal(); }
   );
 }
+function csmPurchaseNormalizeTimePart(t) {
+  t = String(t || '').trim();
+  if (!t) return '';
+  var m = t.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!m) return '';
+  var hh = ('0' + parseInt(m[1], 10)).slice(-2);
+  var mm = ('0' + parseInt(m[2], 10)).slice(-2);
+  var ss = m[3] != null ? ('0' + parseInt(m[3], 10)).slice(-2) : '00';
+  return hh + ':' + mm + ':' + ss;
+}
+function csmPurchaseRowSortKey(r) {
+  var d = r && r.purchaseDate ? String(r.purchaseDate).trim() : '';
+  var tRaw = r && r.purchaseTime ? String(r.purchaseTime).trim() : '';
+  var ts = 0;
+  if (d) {
+    var tNorm = csmPurchaseNormalizeTimePart(tRaw);
+    var part = tNorm ? ('T' + tNorm) : 'T23:59:59.999';
+    var dd = new Date(d + part);
+    ts = dd.getTime();
+    if (isNaN(ts)) {
+      dd = new Date(d + 'T12:00:00');
+      ts = dd.getTime();
+    }
+    if (isNaN(ts)) ts = 0;
+  }
+  return { ts: ts, seq: String((r && r.seq) || ''), id: String((r && r.id) || '') };
+}
+function csmPurchaseRowCompareDesc(a, b) {
+  var ka = csmPurchaseRowSortKey(a);
+  var kb = csmPurchaseRowSortKey(b);
+  if (kb.ts !== ka.ts) return kb.ts - ka.ts;
+  var c = String(kb.seq).localeCompare(String(ka.seq), undefined, { numeric: true });
+  if (c !== 0) return c;
+  return String(kb.id).localeCompare(String(ka.id), undefined, { numeric: true });
+}
+function csmPurchaseRowCompareAsc(a, b) {
+  return csmPurchaseRowCompareDesc(b, a);
+}
 function filterSupplierTable() {
   renderSupplierTable();
 }
@@ -1005,9 +1043,7 @@ function renderSupplierTable() {
     if (searchCn && (r.cn || '').indexOf(searchCn) === -1) return false;
     return true;
   });
-  filtered.sort(function(a, b) {
-    return new Date(b.purchaseDate) - new Date(a.purchaseDate);
-  });
+  filtered.sort(csmPurchaseRowCompareDesc);
   var tb = gid('tb-supplier');
   var emptyMsg = gid('es-supplier');
   if (filtered.length === 0) {
@@ -1116,6 +1152,7 @@ function openSupplierCNDetail(id) {
     if (!linked.length) {
       linked = purchaseRecs.filter(function(p) { return p.cn === rec.cn; });
     }
+    linked = linked.slice().sort(csmPurchaseRowCompareDesc);
   }
   var supplierItems = normalizeSupplierRecItems(rec);
   var status = rec.status || 'draft';
@@ -1469,6 +1506,8 @@ function showPurchaseCnDetail(cn) {
   var purchaseItems = purchaseRecs.filter(function(r) {
     return r.cn === cn;
   }).sort(function(a, b) {
+    var byDt = csmPurchaseRowCompareDesc(a, b);
+    if (byDt !== 0) return byDt;
     return String(a.product || '').localeCompare(String(b.product || ''));
   });
   var breakdown = getContainerColdFeeBreakdown(cn);
@@ -1502,7 +1541,7 @@ function showPurchaseCnDetail(cn) {
       html += '<tr>' +
         '<td style="padding:6px;border:1px solid #ddd;font-family:Arial;text-transform:capitalize">' + w1ProductHtml(item.product) + '</td>' +
         '<td style="padding:6px;border:1px solid #ddd;text-align:center">' + (item.qty || 0) + '</td>' +
-        '<td style="padding:6px;border:1px solid #ddd">' + (item.purchaseDate ? fdt(item.purchaseDate + 'T00:00:00') : '-') + '</td>' +
+        '<td style="padding:6px;border:1px solid #ddd">' + (item.purchaseDate ? fdt(item.purchaseDate + 'T00:00:00') : '-') + (item.purchaseTime ? ' <span style="font-size:11px;color:#666">' + csmEscapeHtml(String(item.purchaseTime)) + '</span>' : '') + '</td>' +
       '</tr>';
     });
     html += '</table></div>';
@@ -2037,8 +2076,8 @@ var filteredRecs = purchaseRecs.filter(function(r) {    var matchDate = !searchD
 var adoptedSupplierIds = {};  purchaseRecs.forEach(function(r) { if (r.sourceSupplierRecId) adoptedSupplierIds[r.sourceSupplierRecId] = true; });  var supplierOnlyRecs = supplierRecs.filter(function(r) {    if (!r.id || !r.cn) return false;    if (adoptedSupplierIds[r.id]) return false;     if ((isAdmin || isStaff) && r.status !== 'submitted' && r.status !== 'confirmed') return false;
 // 已在 warehouse1 中，不再重复显示    
 var matchDate = !searchDate || (r.purchaseDate || '').indexOf(searchDate) !== -1;    var matchCn = !searchCn || (r.cn || '').indexOf(searchCn) !== -1;    var matchSupplier = !searchSupplier || (r.supplier || '').toUpperCase().indexOf(searchSupplier) !== -1;    return matchDate && matchCn && matchSupplier;  });  if (filteredRecs.length === 0 && supplierOnlyRecs.length === 0) { tb.innerHTML = ''; es.style.display = 'block'; return; }  es.style.display = 'none';  
-// 按集装箱号分组  
-var cnGroups = {};  filteredRecs.forEach(function(r) {    var key = r.cn || '_empty_';    if (!cnGroups[key]) cnGroups[key] = [];    cnGroups[key].push(r);  });  var html = '';  Object.keys(cnGroups).sort().forEach(function(cn) {    var rawCn = cn;    var items = cnGroups[cn];    var groupId = 'group-' + cn.replace(/[^a-zA-Z0-9]/g, '');    var firstItem = items[0];    var totalItems = items.length;    var totalAmount = items.reduce(function(s, r) { return s + ((r.demurrage||0)+(r.customs||0)+(r.coldFee||0)+(r.attestation||0)+(r.repack||0)+(r.waste||0)+(r.other||0)); }, 0);    var purchaseDate = firstItem.purchaseDate ? fdt(firstItem.purchaseDate+'T00:00:00') : '-';    
+// 按集装箱号分组；组内与箱组顺序均为时间新→旧  
+var cnGroups = {};  filteredRecs.forEach(function(r) {    var key = r.cn || '_empty_';    if (!cnGroups[key]) cnGroups[key] = [];    cnGroups[key].push(r);  });  Object.keys(cnGroups).forEach(function(k) { cnGroups[k].sort(csmPurchaseRowCompareDesc); });  var cnListSorted = Object.keys(cnGroups).sort(function(cnA, cnB) { return csmPurchaseRowCompareDesc(cnGroups[cnA][0], cnGroups[cnB][0]); });  var html = '';  cnListSorted.forEach(function(cn) {    var rawCn = cn;    var items = cnGroups[cn];    var groupId = 'group-' + cn.replace(/[^a-zA-Z0-9]/g, '');    var firstItem = items[0];    var totalItems = items.length;    var totalAmount = items.reduce(function(s, r) { return s + ((r.demurrage||0)+(r.customs||0)+(r.coldFee||0)+(r.attestation||0)+(r.repack||0)+(r.waste||0)+(r.other||0)); }, 0);    var purchaseDate = firstItem.purchaseDate ? fdt(firstItem.purchaseDate+'T00:00:00') : '-';    
 // 按集装箱汇总所有冷库的冷库费；只有全部出库完成后才在采购页显示总和    
 var coldFeeSummary = getContainerColdFeeSummary(rawCn);    var coldFeeDisplay = '-';    if (coldFeeSummary.hasInRec && coldFeeSummary.allCheckedOut) {      coldFeeDisplay = '<strong style="color:#0066cc;background:#e8f4ff;padding:2px 6px;border-radius:3px;font-size:14px">' + coldFeeSummary.totalFee.toFixed(2) + '</strong>';    }    if (cn === '_empty_') cn = '-';    
 // 主行：集装箱号 + 展开按钮    
@@ -2047,8 +2086,8 @@ var expandBtn = totalItems > 1 ?      '<button type="button" class="abtn" style=
 items.forEach(function(r) {      var total = (r.demurrage||0)+(r.customs||0)+(r.coldFee||0)+(r.attestation||0)+(r.repack||0)+(r.waste||0)+(r.other||0);      html += '<tr class="purchase-sub-row ' + groupId + '" style="display:none;background:#fff">' +        '<td style="font-size:13px;color:#0066cc">' + (r.seq || '-') + '</td>' +        '<td style="padding-left:40px;color:#666;font-family:Arial;text-transform:capitalize">└ '+w1ProductHtml(r.product)+'</td>' +        '<td style="font-family:Arial;color:#666">'+fmtSupplierName(r.supplier)+'</td><td style="font-family:Arial;text-transform:capitalize">'+w1ProductHtml(r.product)+'</td><td>-</td><td>'+(r.qty||0)+'</td>' +        '<td>'+(r.demurrage||0)+'</td><td>'+(r.customs||0)+'</td><td>-</td>' +        '<td>'+(r.attestation||0)+'</td><td>'+(r.repack||0)+'</td><td>'+(r.waste||0)+'</td><td>'+(r.other||0)+'</td>' +        '<td><strong style="color:#0066cc">'+total.toFixed(2)+'</strong></td>' +        '<td><button type="button" class="abtn" onclick="openEditPurchase(\''+r.id+'\')">✏️</button><button type="button" class="abtn x" onclick="delPurchase(\''+r.id+'\')">🗑</button></td></tr>';    });  });  
 // 显示供应商专属记录（在 warehouse1 采购列表中没有的）  
 if (supplierOnlyRecs.length > 0) {    
-// 按采购日期排序    
-supplierOnlyRecs.sort(function(a, b) { return new Date(b.purchaseDate) - new Date(a.purchaseDate); });    supplierOnlyRecs.forEach(function(r) {      var status = r.status || 'draft';      var supplierLabel = '<span style="background:#fff3e0;color:#e65100;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">供应商</span>';      var statusBadge = status === 'submitted' ? '<span style="background:#fff8e1;color:#f57f17;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">已提交</span>' : '<span style="background:#e8f5e9;color:#2e7d32;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">已确认</span>';      var cnClickFn = "openSupplierCNDetail('" + r.id + "')";      var actionBtn = isAdmin ? (status === 'submitted' ? '<button type="button" class="abtn" style="background:#2e7d32;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">✅ 确认采用</button>' : '<button type="button" class="abtn" style="background:#0066cc;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">📥 采用</button>') : '<span style="color:#888;font-size:12px">' + (status === 'submitted' ? '待管理员确认' : '待管理员采用') + '</span>';      html += '<tr style="background:#fffbf5">' +        '<td style="font-size:13px;color:#ff9900">' + (r.seq || '-') + '</td>' +        '<td><a href="javascript:void(0)" onclick="' + cnClickFn + '" style="color:#ff9900;font-weight:bold;text-decoration:underline">' + (r.cn || '-') + '</a>' + supplierLabel + statusBadge + '</td>' +        '<td style="font-family:Arial;color:#666">' + fmtSupplierName(r.supplier) + '</td>' +        '<td style="font-family:Arial;text-transform:capitalize">' + w1ProductHtml(r.product) + '</td>' +        '<td>' + (r.purchaseDate ? fdt(r.purchaseDate+'T00:00:00') : '-') + '</td>' +        '<td style="font-family:Arial">' + (r.qty || 0) + '</td>' +        '<td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>' +        '<td style="color:#f57f17;font-weight:bold">' + (status === 'submitted' ? '待管理员确认' : '待采用') + '</td>' +        '<td>' + actionBtn + '</td>' +      '</tr>';    });  }  tb.innerHTML = html;}
+// 按采购日期时间新→旧（与主表一致）    
+supplierOnlyRecs.sort(csmPurchaseRowCompareDesc);    supplierOnlyRecs.forEach(function(r) {      var status = r.status || 'draft';      var supplierLabel = '<span style="background:#fff3e0;color:#e65100;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">供应商</span>';      var statusBadge = status === 'submitted' ? '<span style="background:#fff8e1;color:#f57f17;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">已提交</span>' : '<span style="background:#e8f5e9;color:#2e7d32;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">已确认</span>';      var cnClickFn = "openSupplierCNDetail('" + r.id + "')";      var actionBtn = isAdmin ? (status === 'submitted' ? '<button type="button" class="abtn" style="background:#2e7d32;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">✅ 确认采用</button>' : '<button type="button" class="abtn" style="background:#0066cc;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">📥 采用</button>') : '<span style="color:#888;font-size:12px">' + (status === 'submitted' ? '待管理员确认' : '待管理员采用') + '</span>';      html += '<tr style="background:#fffbf5">' +        '<td style="font-size:13px;color:#ff9900">' + (r.seq || '-') + '</td>' +        '<td><a href="javascript:void(0)" onclick="' + cnClickFn + '" style="color:#ff9900;font-weight:bold;text-decoration:underline">' + (r.cn || '-') + '</a>' + supplierLabel + statusBadge + '</td>' +        '<td style="font-family:Arial;color:#666">' + fmtSupplierName(r.supplier) + '</td>' +        '<td style="font-family:Arial;text-transform:capitalize">' + w1ProductHtml(r.product) + '</td>' +        '<td>' + (r.purchaseDate ? fdt(r.purchaseDate+'T00:00:00') : '-') + '</td>' +        '<td style="font-family:Arial">' + (r.qty || 0) + '</td>' +        '<td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>' +        '<td style="color:#f57f17;font-weight:bold">' + (status === 'submitted' ? '待管理员确认' : '待采用') + '</td>' +        '<td>' + actionBtn + '</td>' +      '</tr>';    });  }  tb.innerHTML = html;}
 // 按集装箱号查找供应商记录并弹出详情
 function openSupplierCNDetailByCN(cn) {  var rec = supplierRecs.find(function(r) { return r.cn === cn; });  if (!rec) return;  openSupplierCNDetail(rec.id);}
 // 按集装箱号编辑供应商记录
@@ -2948,15 +2987,11 @@ function csmSalesPayLabel(code, forFinance) {
 }
 function csmSalesOrderStatusCellHtml(o) {
   if (!o || o.voided) {
-    return '<span style="color:#b71c1c;font-family:var(--csm-font-en);font-weight:700">void / \u4F5C\u5E9F</span>';
+    return '<span style="font-family:var(--csm-font-en);font-weight:700;color:inherit">void / \u4F5C\u5E9F</span>';
   }
   var st = String(o.orderStatus || '').toLowerCase();
   var label = st === 'draft' ? 'Draft' : st === 'submitted' ? 'Submitted' : st === 'confirmed' ? 'Confirmed' : String(o.orderStatus || '\u2014');
-  var color = '#757575';
-  if (st === 'draft') color = '#1565c0';
-  else if (st === 'submitted') color = '#2e7d32';
-  else if (st === 'confirmed') color = '#757575';
-  return '<span style="color:' + color + ';font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(label) + '</span>';
+  return '<span style="font-family:var(--csm-font-en);font-weight:700;color:inherit">' + csmEscapeHtml(label) + '</span>';
 }
 function csmEscapeHtml(s) {
   return String(s == null ? '' : s)
@@ -3290,16 +3325,24 @@ function renderSalesOrdersTable() {
     var statusCell = csmSalesOrderStatusCellHtml(o);
     var actions = '';
     if (voided && o.orderStatus === 'draft') {
-      actions = '<span style="color:#b71c1c">\u5DF2\u4F5C\u5E9F</span>';
+      actions = '<span style="color:inherit;font-weight:700">\u5DF2\u4F5C\u5E9F</span>';
     } else if (o.orderStatus === 'draft') {
       actions = '<button class="abtn" onclick="openSalesOrderModal(\'' + o.id + '\')">Edit</button> ' +
         '<button class="abtn x" onclick="salesDeleteOrder(\'' + o.id + '\')">Del</button>';
     } else if (o.orderStatus === 'submitted') {
       actions = '<button class="abtn" onclick="salesUndoSubmit(\'' + o.id + '\')">Withdraw</button>';
     } else {
-      actions = '<span style="color:#888">Locked</span>';
+      actions = '<span style="color:inherit;font-weight:700">Locked</span>';
     }
-    var trCls = voided ? ' class="csm-sales-tr-voided"' : '';
+    var trCls;
+    if (voided) {
+      trCls = ' class="csm-sales-tr-voided"';
+    } else {
+      var stRow = String(o.orderStatus || '').toLowerCase();
+      if (stRow === 'draft') trCls = ' class="csm-sales-tr-draft"';
+      else if (stRow === 'submitted') trCls = ' class="csm-sales-tr-submitted"';
+      else trCls = ' class="csm-sales-tr-confirmed"';
+    }
     var cbDis = voided ? ' disabled' : '';
     return '<tr' + trCls + '><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb"' + cbDis + ' onchange="csmSalesOrderCbExclusive(this)" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + csmEscapeHtml(o.containerNo || '') + '</td><td>' + w1ProductHtml(o.productName) + '</td><td>' + csmEscapeHtml(String(o.quantity)) + '</td><td>' +
       csmEscapeHtml((parseFloat(o.unitPrice) || 0).toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv.vatAmt.toFixed(2)) + '</td><td>' + csmEscapeHtml(vm) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesPayLabel(o.paymentStatus, false) + '</td><td>' + statusCell + '</td><td>' + actions + '</td></tr>';

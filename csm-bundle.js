@@ -3,7 +3,7 @@
 // ============================================================
 const SK = 'csm_warehouse1';const LOCAL_STORAGE_KEY = 'csm_records_v3';
 // Firebase 配置
-var firebaseConfig = {  apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',  authDomain: 'superharves-cold-store.firebaseapp.com',  databaseURL: 'https://superharves-cold-store-default-rtdb.firebaseio.com',  projectId: 'superharves-cold-store',  storageBucket: 'superharves-cold-store.firebasestorage.app',  messagingSenderId: '379038228954',  appId: '1:379038228954:web:e64fa3be3f2f49b3aae0e3'};var dbRef = null;var legacyDbRef = null;var purchaseRef = null;var salesCustomersRef = null;var salesOrdersRef = null;var auth = null;var primaryRecsVal = {};var legacyRecsVal = {};
+var firebaseConfig = {  apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',  authDomain: 'superharves-cold-store.firebaseapp.com',  databaseURL: 'https://superharves-cold-store-default-rtdb.firebaseio.com',  projectId: 'superharves-cold-store',  storageBucket: 'superharves-cold-store.firebasestorage.app',  messagingSenderId: '379038228954',  appId: '1:379038228954:web:e64fa3be3f2f49b3aae0e3'};var dbRef = null;var legacyDbRef = null;var purchaseRef = null;var salesCustomersRef = null;var salesOrdersRef = null;var settingsMetaRef = null;var auth = null;var primaryRecsVal = {};var legacyRecsVal = {};
 var salesCustomers = [];var salesOrders = [];var salesSubView = 'dash';
 // 冷库费率（可配置，默认值）
 // HK Store (store 1): 38 AED/托盘/周 + 5% VAT
@@ -48,7 +48,28 @@ function updateStaffRestrictedVisibility() {
   if (bc) bc.style.display = isStaff ? 'none' : '';
   var acc = gid('settings-account-section');
   if (acc) acc.style.display = canManageAccounts() ? '' : 'none';
-} 
+  syncUnifiedSettingsFormEditability();
+}
+function syncUnifiedSettingsFormEditability() {
+  var editable = !!(isAdmin || isStaff);
+  [
+    { inputId: 'sett-supplier-input' },
+    { inputId: 'sett-product-input' },
+    { inputId: 'sett-shipcompany-input' }
+  ].forEach(function(cfg) {
+    var inp = gid(cfg.inputId);
+    if (inp) {
+      inp.disabled = !editable;
+      inp.style.opacity = editable ? '1' : '0.88';
+    }
+    var row = inp && inp.parentElement;
+    if (row && row.classList && row.classList.contains('sett-row')) {
+      var btn = row.querySelector('button.sett-add-btn');
+      if (btn) btn.style.display = editable ? '' : 'none';
+    }
+  });
+}
+
 // 管理员主界面：Warehouse1 / Warehouse2 / 公司财务 一键切换
 var currentMainSuite = 'w1'; 
 // 供应商自己的名称（用于在采购记录中识别）
@@ -172,6 +193,11 @@ function attachDataListenersForRole() {
       });
     }
   }
+  try {
+    if (settingsMetaRef && firebase.auth && firebase.auth().currentUser) {
+      bindValueListener(settingsMetaRef, onSettingsMetaSnap);
+    }
+  } catch (eSettListen) {}
 }
 function createPurchaseRecordFromSupplierRec(rec, id, item) {
   var sourceItem = item || (typeof normalizeSupplierRecItems === 'function' ? normalizeSupplierRecItems(rec)[0] : null) || {
@@ -232,7 +258,7 @@ function backfillPurchaseSeq() {  if (!purchaseRef || !seqCounterRef) return;  v
 // ============================================================
 (function () {  function csmBoot() {    initFirebase();    setDefTimes();    loadSettings();    try { syncAllProductSelects(); } catch (eBootSync) {}  }  if (document.readyState === 'loading') {    window.addEventListener('DOMContentLoaded', csmBoot);  } else {    csmBoot();  }})();function initFirebase() {  if (typeof firebase !== 'undefined' && firebase.initializeApp) {    initApp();    return;  }  var ver = '10.14.1';  var bases = ['https://cdn.jsdelivr.net/npm/firebase@' + ver + '/', 'https://www.gstatic.com/firebasejs/' + ver + '/'];  function loadScriptsSequential(urls, i, onOk, onFail) {    if (i >= urls.length) { onOk(); return; }    var s = document.createElement('script');    s.src = urls[i];    s.onload = function() { loadScriptsSequential(urls, i + 1, onOk, onFail); };    s.onerror = function() { onFail(); };    document.head.appendChild(s);  }  function tryBase(bi) {    if (bi >= bases.length) {      toast('❌ Firebase 无法加载，请换网络或稍后再试', 'err');      showLoginModal();      return;    }    var b = bases[bi];    var urls = [b + 'firebase-app-compat.js', b + 'firebase-database-compat.js', b + 'firebase-auth-compat.js'];    loadScriptsSequential(urls, 0, function() { initApp(); }, function() { tryBase(bi + 1); });  }  tryBase(0);}function initApp() {  if (window.__csmInitDone) return;  window.__csmInitDone = true;  
 // 加载保存的费率  
-loadRates();  try {    if (!firebase.apps || !firebase.apps.length) { firebase.initializeApp(firebaseConfig); }    auth = firebase.auth();    try { window.csmAuth = auth; } catch (e1) {}    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function () {});    dbRef = firebase.database().ref(SK);    purchaseRef = firebase.database().ref('csm_purchase');    supplierRef = firebase.database().ref('csm_supplier_recs');    salesCustomersRef = firebase.database().ref('csm_sales_w1/customers');    salesOrdersRef = firebase.database().ref('csm_sales_w1/orders');    legacyDbRef = (SK !== LOCAL_STORAGE_KEY) ? firebase.database().ref(LOCAL_STORAGE_KEY) : null;    
+loadRates();  try {    if (!firebase.apps || !firebase.apps.length) { firebase.initializeApp(firebaseConfig); }    auth = firebase.auth();    try { window.csmAuth = auth; } catch (e1) {}    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function () {});    dbRef = firebase.database().ref(SK);    purchaseRef = firebase.database().ref('csm_purchase');    supplierRef = firebase.database().ref('csm_supplier_recs');    salesCustomersRef = firebase.database().ref('csm_sales_w1/customers');    salesOrdersRef = firebase.database().ref('csm_sales_w1/orders');    legacyDbRef = (SK !== LOCAL_STORAGE_KEY) ? firebase.database().ref(LOCAL_STORAGE_KEY) : null;    settingsMetaRef = firebase.database().ref('csm_meta/settings');    
 // 初始化序号计数器引用（必须在这里做，避免 onAuthStateChanged 同步触发时 seqCounterRef 为 null）
 seqCounterRef = dbRef.parent.child('csm_seq_counter');    
 // Firebase Auth 状态监听    
@@ -2020,6 +2046,71 @@ function delPurchaseGroup(cn) {  if (!confirm('确认删除集装箱 ' + cn + ' 
 // ============================================================
 var SETTINGS_KEY = 'csm_settings_v1';
 var settData = { suppliers: [], products: [], shipCompanies: [] };
+function normalizeSettingsPayload() {
+  function clean(arr) {
+    return (Array.isArray(arr) ? arr : []).map(function(x) { return String(x || '').trim(); }).filter(function(z) { return !!z; });
+  }
+  return {
+    suppliers: clean(settData.suppliers),
+    products: clean(settData.products),
+    shipCompanies: clean(settData.shipCompanies)
+  };
+}
+function applySettDataFromPayload(val) {
+  val = val || {};
+  settData.suppliers = Array.isArray(val.suppliers) ? val.suppliers.slice() : [];
+  settData.products = Array.isArray(val.products) ? val.products.slice() : [];
+  settData.shipCompanies = Array.isArray(val.shipCompanies) ? val.shipCompanies.slice() : [];
+  if (!Array.isArray(settData.suppliers)) settData.suppliers = [];
+  if (!Array.isArray(settData.products)) settData.products = [];
+  if (!Array.isArray(settData.shipCompanies)) settData.shipCompanies = [];
+}
+function saveSettingsLocalOnly() {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settData)); } catch (eL) {}
+}
+function onSettingsMetaSnap(snap) {
+  var val = snap.val();
+  if (val == null || typeof val !== 'object') {
+    try {
+      var stored = localStorage.getItem(SETTINGS_KEY);
+      if (stored) {
+        settData = JSON.parse(stored);
+        if (!Array.isArray(settData.suppliers)) settData.suppliers = [];
+        if (!Array.isArray(settData.products)) settData.products = [];
+        if (!Array.isArray(settData.shipCompanies)) settData.shipCompanies = [];
+      } else {
+        settData = {
+          suppliers: ['ABC Trading', 'XYZ Imports', 'Fresh Farm Co'],
+          products: ['Carrots', 'Potatoes', 'Onions', 'Tomatoes'],
+          shipCompanies: ['MAERSK', 'MSC', 'CMA CGM']
+        };
+        saveSettingsLocalOnly();
+      }
+    } catch (e0) {
+      settData = { suppliers: [], products: [], shipCompanies: [] };
+    }
+    if ((isAdmin || isStaff) && settingsMetaRef && firebase.auth && firebase.auth().currentUser) {
+      var pl = normalizeSettingsPayload();
+      if (pl.suppliers.length || pl.products.length || pl.shipCompanies.length) {
+        settingsMetaRef.set(pl).catch(function(e) { console.error('csm seed settings', e); });
+      } else {
+        settData = {
+          suppliers: ['ABC Trading', 'XYZ Imports', 'Fresh Farm Co'],
+          products: ['Carrots', 'Potatoes', 'Onions', 'Tomatoes'],
+          shipCompanies: ['MAERSK', 'MSC', 'CMA CGM']
+        };
+        settingsMetaRef.set(normalizeSettingsPayload()).catch(function(e) { console.error('csm seed default settings', e); });
+      }
+    }
+    try { syncAllProductSelects(); } catch (eS1) {}
+    try { refreshSupplierShipCompanyOptions(); } catch (eS2) {}
+    return;
+  }
+  applySettDataFromPayload(val);
+  saveSettingsLocalOnly();
+  try { syncAllProductSelects(); } catch (eS3) {}
+  try { refreshSupplierShipCompanyOptions(); } catch (eS4) {}
+}
 function loadSettings() {
   try {
     var stored = localStorage.getItem(SETTINGS_KEY);
@@ -2034,15 +2125,18 @@ function loadSettings() {
         products: ['Carrots', 'Potatoes', 'Onions', 'Tomatoes'],
         shipCompanies: ['MAERSK', 'MSC', 'CMA CGM']
       };
-      saveSettings();
+      saveSettingsLocalOnly();
     }
   } catch(e) {
     settData = { suppliers: [], products: [], shipCompanies: [] };
   }
 }
 function saveSettings() {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settData));
+  saveSettingsLocalOnly();
   try { syncAllProductSelects(); } catch (eSync) {}
+  if (settingsMetaRef && firebase.auth && firebase.auth().currentUser && (isAdmin || isStaff)) {
+    settingsMetaRef.set(normalizeSettingsPayload()).catch(function(e) { console.error('csm settings cloud sync', e); });
+  }
 }
 function getW1ProductsNormalized() {
   try { loadSettings(); } catch (e0) {}
@@ -2430,6 +2524,10 @@ function migrateSupplierRecordOwners() {
   });
 }
 function addSettItem(type) {
+  if (!isAdmin && !isStaff) {
+    toast('仅管理员或大丰收员工可修改品名/供应商/船公司列表', 'err');
+    return;
+  }
   var inputId = 'sett-' + type + '-input';
   var val = (gid(inputId).value || '').trim();
   if (!val) return;
@@ -2448,6 +2546,10 @@ function addSettItem(type) {
   toast('✅ 已添加: ' + val, 'ok');
 }
 function delSettItem(type, val) {
+  if (!isAdmin && !isStaff) {
+    toast('仅管理员或大丰收员工可修改品名/供应商/船公司列表', 'err');
+    return;
+  }
   var typeLabel = type === 'supplier' ? '供应商' : (type === 'product' ? '品名' : '船公司');
   if (!confirm('确认删除 ' + typeLabel + ': ' + val + ' ？')) return;
   if (type === 'supplier') {
@@ -2471,7 +2573,8 @@ function renderSettList(type) {
     return;
   }
   el.innerHTML = items.map(function(item) {
-    return '<span class="sett-tag">' + item + ' <span class="del" onclick="delSettItem(\'' + type + '\',\'' + item.replace(/'/g, "\\'") + '\')">✕</span></span>';
+    var delHtml = (isAdmin || isStaff) ? (' <span class="del" onclick="delSettItem(\'' + type + '\',\'' + item.replace(/'/g, "\\'") + '\')">✕</span>') : '';
+    return '<span class="sett-tag">' + item + delHtml + '</span>';
   }).join('');
 }
 // ============================================================

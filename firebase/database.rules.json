@@ -5,7 +5,13 @@
 
     "csm_meta": {
       ".read": "auth != null",
-      ".write": "auth != null && root.child('csm_users').child(auth.uid).child('role').val() == 'admin'"
+      "site_initialized": {
+        ".write": "auth != null && ((!data.exists() && newData.val() == true) || (data.exists() && root.child('csm_users').child(auth.uid).child('role').val() == 'admin'))"
+      },
+      "settings": {
+        ".read": "auth != null",
+        ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff')"
+      }
     },
 
     "csm_users": {

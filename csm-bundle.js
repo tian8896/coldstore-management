@@ -419,11 +419,6 @@ function htmlPurchaseItemsBodySingleRow() {
   return '<tr class="purchase-item-row">' +
     '<td style="padding:4px;border:1px solid #ddd">' + htmlPurchaseItemProductSelect(0, '') + '</td>' +
     '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-qty" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
-    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-demurrage" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
-    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-customs" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
-    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-coldfee" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
-    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-attestation" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
-    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-repack" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
     '<td style="padding:4px;border:1px solid #ddd;text-align:center"><button type="button" class="abtn x" onclick="removePurchaseItem(this)" style="color:#ff4444;font-size:16px">×</button></td>' +
     '</tr>';
 }
@@ -2301,11 +2296,11 @@ function addPurchase() {
     if (!product) return;
     var item = {
       qty: parseFloat(row.querySelector('.item-qty').value) || 0,
-      demurrage: parseFloat(row.querySelector('.item-demurrage').value) || 0,
-      customs: parseFloat(row.querySelector('.item-customs').value) || 0,
-      coldFee: parseFloat(row.querySelector('.item-coldfee').value) || 0,
-      attestation: parseFloat(row.querySelector('.item-attestation').value) || 0,
-      repack: parseFloat(row.querySelector('.item-repack').value) || 0
+      demurrage: 0,
+      customs: 0,
+      coldFee: 0,
+      attestation: 0,
+      repack: 0
     };
     var id = Date.now().toString(36) + Math.random().toString(36).substr(2, 5) + idx;
     var rec = {
@@ -2362,7 +2357,7 @@ function addPurchase() {
   toast('✅ 已添加 ' + items.length + ' 条采购记录', 'ok');
 }
 // 添加品名行
-function addPurchaseItem() {  purchaseItemRowCounter++;  var rowId = purchaseItemRowCounter;  var newRow = document.createElement('tr');  newRow.className = 'purchase-item-row';  newRow.innerHTML =    '<td style="padding:4px;border:1px solid #ddd">' + htmlPurchaseItemProductSelect(rowId, '') + '</td>' +    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-qty" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-demurrage" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-customs" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-coldfee" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-attestation" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-repack" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +    '<td style="padding:4px;border:1px solid #ddd;text-align:center"><button type="button" class="abtn x" onclick="removePurchaseItem(this)" style="color:#ff4444;font-size:16px">×</button></td>';  document.getElementById('purchaseItemsBody').appendChild(newRow);}
+function addPurchaseItem() {  purchaseItemRowCounter++;  var rowId = purchaseItemRowCounter;  var newRow = document.createElement('tr');  newRow.className = 'purchase-item-row';  newRow.innerHTML =    '<td style="padding:4px;border:1px solid #ddd">' + htmlPurchaseItemProductSelect(rowId, '') + '</td>' +    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-qty" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +    '<td style="padding:4px;border:1px solid #ddd;text-align:center"><button type="button" class="abtn x" onclick="removePurchaseItem(this)" style="color:#ff4444;font-size:16px">×</button></td>';  document.getElementById('purchaseItemsBody').appendChild(newRow);}
 // 删除品名行
 function removePurchaseItem(btn) {  var rows = document.querySelectorAll('.purchase-item-row');  if (rows.length > 1) {    btn.closest('tr').remove();  } else {    toast('至少保留一行品名', 'err');  }}function delPurchase(id) {  if (!confirm('确认删除这条采购记录？ / Confirm delete?')) return;  if (purchaseRef) {    purchaseRef.child(id).remove();  }}function filterPurchase() { renderPurchase(); }function resetPurchaseSearch() {  gid('search-purchase-date').value = '';  gid('search-purchase-cn').value = '';  gid('search-purchase-supplier').value = '';  renderPurchase();}
 function getPurchaseRemainingItems(pr) {  if (!pr || !recs || !recs.length) return { rem: 0, hasInbound: false };  var cn = String(pr.cn || '').trim().toUpperCase();  var p = canonicalProductName(pr.product || '');  var sum = 0;  var found = false;  recs.forEach(function(ir) {    if (ir.type) return;    if (String(ir.cn || '').trim().toUpperCase() !== cn) return;    if (canonicalProductName(ir.product || '') !== p) return;    found = true;    sum += Math.max(0, (ir.items || 0) - (ir.items_out || 0));  });  return { rem: sum, hasInbound: found };}function htmlPurchaseRemainingOne(pr) {  var x = getPurchaseRemainingItems(pr);  if (!x.hasInbound) return '<span style="color:#999">–</span>';  return '<span style="color:#ff9900;font-weight:bold">' + x.rem + '</span>';}function htmlPurchaseRemainingGroup(items) {  var parts = items.map(function(pr) { return getPurchaseRemainingItems(pr); });  var anyIn = parts.some(function(p) { return p.hasInbound; });  if (!anyIn) return '<span style="color:#999">–</span>';  var sum = parts.reduce(function(s, p) { return s + p.rem; }, 0);  return '<span style="color:#ff9900;font-weight:bold">' + sum + '</span>';}

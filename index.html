@@ -305,7 +305,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260419k" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260419l" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -1268,12 +1268,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
             <thead style="background:#f5f5f5">
               <tr>
                 <th style="padding:6px;text-align:left;font-size:12px;border:1px solid #ddd;font-family:var(--csm-font-en);font-weight:700">品名 Product *</th>
-                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px;font-family:var(--csm-font-en);font-weight:700">数量 Qty</th>
-                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px;font-family:var(--csm-font-en);font-weight:700">停柜费</th>
-                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px;font-family:var(--csm-font-en);font-weight:700">清关费</th>
-                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px;font-family:var(--csm-font-en);font-weight:700">冷库费</th>
-                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px;font-family:var(--csm-font-en);font-weight:700">认证费</th>
-                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px;font-family:var(--csm-font-en);font-weight:700">翻包费</th>
+                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:110px;font-family:var(--csm-font-en);font-weight:700">数量 Qty</th>
                 <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:60px;font-family:var(--csm-font-en);font-weight:700">操作</th>
               </tr>
             </thead>
@@ -1285,11 +1280,6 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
                   </select>
                 </td>
                 <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-qty" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center;font-family:var(--csm-font-en);font-weight:700"></td>
-                <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-demurrage" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center;font-family:var(--csm-font-en);font-weight:700"></td>
-                <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-customs" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center;font-family:var(--csm-font-en);font-weight:700"></td>
-                <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-coldfee" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center;font-family:var(--csm-font-en);font-weight:700"></td>
-                <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-attestation" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center;font-family:var(--csm-font-en);font-weight:700"></td>
-                <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-repack" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center;font-family:var(--csm-font-en);font-weight:700"></td>
                 <td style="padding:4px;border:1px solid #ddd;text-align:center"><button type="button" class="abtn x" onclick="removePurchaseItem(this)" style="color:#ff4444;font-size:16px">×</button></td>
               </tr>
             </tbody>

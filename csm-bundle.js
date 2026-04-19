@@ -3508,7 +3508,7 @@ function csmSalesServiceCellHtml(name, qty) {
   if (!nm && !(qty > 0)) return '<span style="color:#999">—</span>';
   return '<div style="font-family:var(--csm-font-en);font-weight:700;line-height:1.35">' +
     '<div>' + csmEscapeHtml(nm || '—') + '</div>' +
-    '<div style="font-size:11px;color:#666">Boxes: ' + csmEscapeHtml(String(qty || 0)) + '</div>' +
+    '<div style="font-size:11px;color:#666">Qty: ' + csmEscapeHtml(String(qty || 0)) + ' \u00b7</div>' +
     '</div>';
 }
 function csmSalesLineWorkerTruckValidForSubmit(L) {

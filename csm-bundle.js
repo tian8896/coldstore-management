@@ -3,8 +3,8 @@
 // ============================================================
 const SK = 'csm_warehouse1';const LOCAL_STORAGE_KEY = 'csm_records_v3';
 // Firebase 配置
-var firebaseConfig = {  apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',  authDomain: 'superharves-cold-store.firebaseapp.com',  databaseURL: 'https://superharves-cold-store-default-rtdb.firebaseio.com',  projectId: 'superharves-cold-store',  storageBucket: 'superharves-cold-store.firebasestorage.app',  messagingSenderId: '379038228954',  appId: '1:379038228954:web:e64fa3be3f2f49b3aae0e3'};var dbRef = null;var legacyDbRef = null;var purchaseRef = null;var salesCustomersRef = null;var salesOrdersRef = null;var settingsMetaRef = null;var auth = null;var primaryRecsVal = {};var legacyRecsVal = {};
-var salesCustomers = [];var salesOrders = [];var salesSubView = 'dash';var salesOrdersPage = 1;var salesOrdersPageSize = 20;var salesFinancePage = 1;var salesFinancePageSize = 20;
+var firebaseConfig = {  apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',  authDomain: 'superharves-cold-store.firebaseapp.com',  databaseURL: 'https://superharves-cold-store-default-rtdb.firebaseio.com',  projectId: 'superharves-cold-store',  storageBucket: 'superharves-cold-store.firebasestorage.app',  messagingSenderId: '379038228954',  appId: '1:379038228954:web:e64fa3be3f2f49b3aae0e3'};var dbRef = null;var legacyDbRef = null;var purchaseRef = null;var salesCustomersRef = null;var salesPaymentReceiversRef = null;var salesOrdersRef = null;var settingsMetaRef = null;var auth = null;var primaryRecsVal = {};var legacyRecsVal = {};
+var salesCustomers = [];var salesPaymentReceivers = [];var salesOrders = [];var salesSubView = 'dash';var salesOrdersPage = 1;var salesOrdersPageSize = 20;var salesFinancePage = 1;var salesFinancePageSize = 20;
 // 冷库费率（可配置，默认值）
 // HK Store (store 1): 38 AED/托盘/周 + 5% VAT
 // Primer / Super / Cold Store 4 (store 2–4): 60 AED/托盘/周 + 5% VAT
@@ -178,6 +178,12 @@ function attachDataListenersForRole() {
         salesCustomers = csmSalesObjToArr(snap.val(), false);
         refreshSalesUi();
       });
+      if (salesPaymentReceiversRef) {
+        bindValueListener(salesPaymentReceiversRef, function(snap) {
+          salesPaymentReceivers = csmSalesObjToArr(snap.val(), false);
+          refreshSalesUi();
+        });
+      }
       bindValueListener(salesOrdersRef, function(snap) {
         salesOrders = csmSalesObjToArr(snap.val(), true);
         refreshSalesUi();
@@ -263,7 +269,7 @@ function backfillPurchaseSeq() {  if (!purchaseRef || !seqCounterRef) return;  v
 // ============================================================
 (function () {  function csmBoot() {    initFirebase();    setDefTimes();    loadSettings();    try { syncAllProductSelects(); } catch (eBootSync) {}  }  if (document.readyState === 'loading') {    window.addEventListener('DOMContentLoaded', csmBoot);  } else {    csmBoot();  }})();function initFirebase() {  if (typeof firebase !== 'undefined' && firebase.initializeApp) {    initApp();    return;  }  var ver = '10.14.1';  var bases = ['https://cdn.jsdelivr.net/npm/firebase@' + ver + '/', 'https://www.gstatic.com/firebasejs/' + ver + '/'];  function loadScriptsSequential(urls, i, onOk, onFail) {    if (i >= urls.length) { onOk(); return; }    var s = document.createElement('script');    s.src = urls[i];    s.onload = function() { loadScriptsSequential(urls, i + 1, onOk, onFail); };    s.onerror = function() { onFail(); };    document.head.appendChild(s);  }  function tryBase(bi) {    if (bi >= bases.length) {      toast('❌ Firebase 无法加载，请换网络或稍后再试', 'err');      showLoginModal();      return;    }    var b = bases[bi];    var urls = [b + 'firebase-app-compat.js', b + 'firebase-database-compat.js', b + 'firebase-auth-compat.js'];    loadScriptsSequential(urls, 0, function() { initApp(); }, function() { tryBase(bi + 1); });  }  tryBase(0);}function initApp() {  if (window.__csmInitDone) return;  window.__csmInitDone = true;  
 // 加载保存的费率  
-loadRates();  try {    if (!firebase.apps || !firebase.apps.length) { firebase.initializeApp(firebaseConfig); }    auth = firebase.auth();    try { window.csmAuth = auth; } catch (e1) {}    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function () {});    dbRef = firebase.database().ref(SK);    purchaseRef = firebase.database().ref('csm_purchase');    supplierRef = firebase.database().ref('csm_supplier_recs');    salesCustomersRef = firebase.database().ref('csm_sales_w1/customers');    salesOrdersRef = firebase.database().ref('csm_sales_w1/orders');    legacyDbRef = (SK !== LOCAL_STORAGE_KEY) ? firebase.database().ref(LOCAL_STORAGE_KEY) : null;    settingsMetaRef = firebase.database().ref('csm_meta/settings');    
+loadRates();  try {    if (!firebase.apps || !firebase.apps.length) { firebase.initializeApp(firebaseConfig); }    auth = firebase.auth();    try { window.csmAuth = auth; } catch (e1) {}    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function () {});    dbRef = firebase.database().ref(SK);    purchaseRef = firebase.database().ref('csm_purchase');    supplierRef = firebase.database().ref('csm_supplier_recs');    salesCustomersRef = firebase.database().ref('csm_sales_w1/customers');    salesPaymentReceiversRef = firebase.database().ref('csm_sales_w1/payment_receivers');    salesOrdersRef = firebase.database().ref('csm_sales_w1/orders');    legacyDbRef = (SK !== LOCAL_STORAGE_KEY) ? firebase.database().ref(LOCAL_STORAGE_KEY) : null;    settingsMetaRef = firebase.database().ref('csm_meta/settings');    
 // 初始化序号计数器引用（必须在这里做，避免 onAuthStateChanged 同步触发时 seqCounterRef 为 null）
 seqCounterRef = dbRef.parent.child('csm_seq_counter');    
 // Firebase Auth 状态监听    
@@ -3036,8 +3042,16 @@ function csmSalesNetUnitAndVatFromLine(L, vatMode) {
   var a = csmSalesComputeTotals(u, q, vatMode);
   return { netUnit: csmSalesRound2(a.net / q), vatAmt: a.vat };
 }
-function csmSalesVatModeCellLabel(o) {
-  return (o && o.vatMode === 'included') ? 'Incl. 5% VAT' : 'Excl. +5% VAT';
+function csmSalesOrderReceiverDisplay(o) {
+  if (!o) return '';
+  var nm = (o.paymentReceiverName || '').trim();
+  if (nm) return nm;
+  var rid = o.paymentReceiverId;
+  if (rid) {
+    var pr = salesPaymentReceivers.find(function(x) { return x.id === rid; });
+    if (pr) return (pr.name || '').trim();
+  }
+  return '';
 }
 function csmSalesNetUnitAndVat(o) {
   var vatMode = (o && o.vatMode === 'included') ? 'included' : 'excluded';
@@ -3101,6 +3115,16 @@ function refreshSalesUi() {
   renderSalesCustomersTable();
   renderSalesOrdersTable();
   renderSalesFinanceTable();
+  var soModal = gid('sales-order-modal');
+  var prSel = gid('sales-order-payment-receiver');
+  if (soModal && prSel && soModal.classList.contains('sh')) {
+    var cur = prSel.value;
+    salesFillPaymentReceiverSelect(prSel, cur);
+  }
+  var prM = gid('sales-payment-receivers-modal');
+  if (prM && prM.classList.contains('sh')) {
+    renderSalesPaymentReceiversManageTable();
+  }
 }
 function swSalesSub(view) {
   salesSubView = view || 'dash';
@@ -3399,7 +3423,6 @@ function renderSalesOrdersTable() {
     var q0 = parseFloat(L0.quantity);
     if (!(q0 > 0)) q0 = parseFloat(o.quantity) || 0;
     var lineTot = csmSalesLineTotalForDisplay(o);
-    var vm = csmSalesVatModeCellLabel(o);
     var voided = !!o.voided;
     var statusCell = csmSalesOrderStatusCellHtml(o);
     var actions = '';
@@ -3442,14 +3465,13 @@ function renderSalesOrdersTable() {
           '<td>' + csmEscapeHtml((parseFloat(L.unitPrice) || 0).toFixed(2)) + '</td>' +
           '<td>' + csmEscapeHtml(nvL.netUnit.toFixed(2)) + '</td>' +
           '<td>' + csmEscapeHtml(nvL.vatAmt.toFixed(2)) + '</td>' +
-          '<td>' + csmEscapeHtml(vm) + '</td>' +
           '<td>' + aL.total.toFixed(2) + '</td>' +
-          '<td colspan="3"></td>' +
+          '<td colspan="4"></td>' +
           '</tr>';
       }
     }
     return '<tr class="' + trClassName + '"><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb"' + cbDis + ' onchange="csmSalesOrderCbExclusive(this)" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + cnCell + '</td><td>' + prodCell + '</td><td>' + csmEscapeHtml(String(q0)) + '</td><td>' +
-      csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' + csmEscapeHtml(vm) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesPayLabel(o.paymentStatus, false) + '</td><td>' + statusCell + '</td><td>' + actions + '</td></tr>' + subHtml;
+      csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesPayLabel(o.paymentStatus, false) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + statusCell + '</td><td>' + actions + '</td></tr>' + subHtml;
   }).join('');
   csmSalesBindOrdersPager(totalRows);
 }
@@ -3476,7 +3498,7 @@ function renderSalesFinanceTable() {
     if (ft) ft.textContent = csmSalesRound2(stt).toFixed(2);
   }
   if (!conf.length) {
-    tb.innerHTML = '<tr><td colspan="12" style="text-align:center;color:#888">No confirmed orders</td></tr>';
+    tb.innerHTML = '<tr><td colspan="13" style="text-align:center;color:#888">No confirmed orders</td></tr>';
     updFinSummary(0, 0, 0, 0, 0);
     csmSalesBindFinancePager(0);
     return;
@@ -3544,13 +3566,13 @@ function renderSalesFinanceTable() {
           '<td>' + csmEscapeHtml(nvL.netUnit.toFixed(2)) + '</td>' +
           '<td>' + csmEscapeHtml(nvL.vatAmt.toFixed(2)) + '</td>' +
           '<td>' + aL.total.toFixed(2) + '</td>' +
-          '<td colspan="1"></td>' +
+          '<td></td><td></td>' +
           '</tr>';
       }
     }
     return '<tr><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + cnCell + '</td><td>' + prodCell + '</td><td>' + csmEscapeHtml(String(q0)) + '</td><td>' +
       csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' +
-      csmSalesLineTotalForDisplay(o).toFixed(2) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, true)) + '</td></tr>' + subHtml;
+      csmSalesLineTotalForDisplay(o).toFixed(2) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, true)) + '</td></tr>' + subHtml;
   }).join('');
   csmSalesBindFinancePager(totalRows);
 }
@@ -3608,6 +3630,61 @@ function salesFillCustomerSelect(sel) {
     var vid = String(c.id || '').replace(/"/g, '');
     return '<option value="' + vid + '">' + csmEscapeHtml(c.name) + '</option>';
   }).join('');
+}
+function salesFillPaymentReceiverSelect(sel, selectedId) {
+  if (!sel) return;
+  var sid = selectedId != null ? String(selectedId) : '';
+  sel.innerHTML = '<option value="">\u2014</option>' + salesPaymentReceivers.map(function(p) {
+    var vid = String(p.id || '').replace(/"/g, '');
+    return '<option value="' + vid + '">' + csmEscapeHtml(p.name || vid) + '</option>';
+  }).join('');
+  if (sid) {
+    sel.value = sid;
+    if (sel.value !== sid) {
+      sel.innerHTML += '<option value="' + String(sid).replace(/"/g, '') + '" selected>' + csmEscapeHtml(sid) + '</option>';
+    }
+  }
+}
+function renderSalesPaymentReceiversManageTable() {
+  var tb = gid('tb-sales-payment-receivers');
+  if (!tb) return;
+  if (!salesPaymentReceivers.length) {
+    tb.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#888;font-family:var(--csm-font-en);font-weight:700">No receivers yet — add a name above.</td></tr>';
+    return;
+  }
+  tb.innerHTML = salesPaymentReceivers.map(function(p) {
+    return '<tr><td style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(p.name || '') + '</td><td><button type="button" class="abtn x" data-sales-prid="' + csmAttrEscape(p.id) + '" onclick="deleteSalesPaymentReceiver(this.getAttribute(\'data-sales-prid\'))">Del</button></td></tr>';
+  }).join('');
+}
+function openSalesPaymentReceiversModal() {
+  var m = gid('sales-payment-receivers-modal');
+  if (!m) return;
+  renderSalesPaymentReceiversManageTable();
+  m.classList.add('sh');
+  var inp = gid('sales-pr-new-name');
+  if (inp) try { inp.focus(); } catch (eF) {}
+}
+function clSalesPaymentReceiversModal() {
+  var m = gid('sales-payment-receivers-modal');
+  if (m) m.classList.remove('sh');
+}
+function addSalesPaymentReceiver() {
+  if (!salesPaymentReceiversRef) { toast('Database not connected', 'err'); return; }
+  var inp = gid('sales-pr-new-name');
+  var name = inp ? (inp.value || '').trim() : '';
+  if (!name) { toast('Enter a name', 'err'); return; }
+  var id = 'spr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  salesPaymentReceiversRef.child(id).set({ name: name, createdAt: new Date().toISOString() }).then(function() {
+    if (inp) inp.value = '';
+    toast('Added', 'ok');
+  }).catch(function(e) { toast('Save failed: ' + (e.message || e), 'err'); });
+}
+function deleteSalesPaymentReceiver(id) {
+  if (!id || !salesPaymentReceiversRef) return;
+  var used = salesOrders.some(function(o) { return !o.voided && String(o.paymentReceiverId || '') === String(id); });
+  if (used) { toast('Receiver is used on an order', 'err'); return; }
+  if (!confirm('Delete this payment receiver?')) return;
+  salesPaymentReceiversRef.child(id).remove().then(function() { toast('Deleted', 'ok'); }).catch(function() { toast('Delete failed', 'err'); });
 }
 function getPurchaseCnListSorted() {
   var seen = {};
@@ -3743,6 +3820,7 @@ function openSalesOrderModal(id) {
   gid('sales-order-payment').value = 'cash_pending';
   var onDisp = gid('sales-order-order-no-display');
   var ctDisp = gid('sales-order-created-display');
+  var prSel = gid('sales-order-payment-receiver');
   if (id) {
     var o = salesOrders.find(function(x) { return x.id === id; });
     if (!o) { clSalesOrderModal(); return; }
@@ -3755,14 +3833,20 @@ function openSalesOrderModal(id) {
     gid('sales-order-payment').value = o.paymentStatus || 'cash_pending';
     if (onDisp) onDisp.textContent = o.orderNo || '\u2014';
     if (ctDisp) ctDisp.textContent = csmSalesFormatOrderCreated(o.createdAt);
+    if (prSel) salesFillPaymentReceiverSelect(prSel, o.paymentReceiverId || '');
   } else {
     gid('sales-order-customer').value = '';
     salesOrderFillLinesBody(null);
     if (onDisp) onDisp.textContent = csmSalesNextOrderNoForDate(csmSalesLocalYmdCompact(new Date()));
     if (ctDisp) ctDisp.textContent = csmSalesFormatOrderCreated(new Date().toISOString()) + ' \uFF08\u9884\u89C8\uFF0C\u4EE5\u4FDD\u5B58\u65F6\u4E3A\u51C6\uFF09';
+    if (prSel) salesFillPaymentReceiverSelect(prSel, '');
   }
 }
-function clSalesOrderModal() { var m = gid('sales-order-modal'); if (m) m.classList.remove('sh'); }
+function clSalesOrderModal() {
+  clSalesPaymentReceiversModal();
+  var m = gid('sales-order-modal');
+  if (m) m.classList.remove('sh');
+}
 function saveSalesOrderFromModal(submitAfter) {
   submitAfter = !!submitAfter;
   if (!salesOrdersRef) { toast('Database not connected', 'err'); return; }
@@ -3780,9 +3864,16 @@ function saveSalesOrderFromModal(submitAfter) {
   }
   var vatMode = document.getElementById('sales-vat-included') && document.getElementById('sales-vat-included').checked ? 'included' : 'excluded';
   var payment = gid('sales-order-payment').value || 'cash_pending';
+  var prEl = gid('sales-order-payment-receiver');
+  var prId = prEl ? String(prEl.value || '').trim() : '';
   var tmpTotals = csmSalesLineNetVatTotal({ vatMode: vatMode, lines: newLines });
   if (!id) id = 'so_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   var existing = salesOrders.find(function(x) { return x.id === id; });
+  var prEnt = prId ? salesPaymentReceivers.find(function(x) { return x.id === prId; }) : null;
+  var prName = prEnt ? (prEnt.name || '').trim() : '';
+  if (!prName && prId && existing && String(existing.paymentReceiverId || '') === prId) {
+    prName = (existing.paymentReceiverName || '').trim();
+  }
   if (existing && existing.voided) { toast('\u8BA2\u5355\u5DF2\u4F5C\u5E9F\uFF0C\u4E0D\u53EF\u4FDD\u5B58', 'err'); return; }
   if (existing && existing.orderStatus !== 'draft') { toast('Not editable', 'err'); return; }
   var nowIso = new Date().toISOString();
@@ -3808,6 +3899,8 @@ function saveSalesOrderFromModal(submitAfter) {
     lines: newLines,
     vatMode: vatMode,
     paymentStatus: payment,
+    paymentReceiverId: prId || '',
+    paymentReceiverName: prName,
     orderStatus: submitAfter ? 'submitted' : 'draft',
     totalAmount: tmpTotals.total,
     netAmount: tmpTotals.net,
@@ -3883,3 +3976,7 @@ try { window.csmSalesToggleOrderSubRows = csmSalesToggleOrderSubRows; } catch (e
 try { window.salesOrderAddLine = salesOrderAddLine; } catch (e) {}
 try { window.salesOrderRemoveLine = salesOrderRemoveLine; } catch (e) {}
 try { window.salesOrderLineCnChanged = salesOrderLineCnChanged; } catch (e) {}
+try { window.openSalesPaymentReceiversModal = openSalesPaymentReceiversModal; } catch (e) {}
+try { window.clSalesPaymentReceiversModal = clSalesPaymentReceiversModal; } catch (e) {}
+try { window.addSalesPaymentReceiver = addSalesPaymentReceiver; } catch (e) {}
+try { window.deleteSalesPaymentReceiver = deleteSalesPaymentReceiver; } catch (e) {}

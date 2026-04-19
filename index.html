@@ -90,6 +90,8 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 .abtn.x:hover{border-color:var(--rd);color:var(--rd)}
 .mov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
 .mov.sh{display:flex}
+/* Stacked above sales-order-modal when both open (Manage receivers) */
+#sales-payment-receivers-modal.sh{z-index:1100}
 .mdl{background:var(--bg3);border:1px solid var(--ac);border-radius:8px;padding:26px;width:460px;max-width:92vw;box-shadow:0 0 40px var(--ac15);animation:mi .2s ease}
 @keyframes mi{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
 .mdl h3{color:var(--ac);font-size:15px;letter-spacing:2px;margin-bottom:18px;text-transform:uppercase}
@@ -1038,15 +1040,14 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <th class="csm-sel-th" title="选择">选</th>
         <th>Order No.<br><span style="font-size:11px;color:#888">订单号</span></th>
         <th>Created<br><span style="font-size:11px;color:#888">生成时间</span></th>
-        <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net unit (AED)</th><th>5%VAT (AED)</th><th>5% VAT</th><th>Total (AED)</th><th>Payment</th><th>Status</th><th>Actions</th>
+        <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net unit (AED)</th><th>5%VAT (AED)</th><th>Total (AED)</th><th>Payment</th><th>Receiver</th><th>Status</th><th>Actions</th>
       </tr></thead><tbody id="tb-sales-orders"></tbody><tfoot><tr>
         <td colspan="6"></td>
         <td id="sales-orders-foot-qty" style="text-align:right;font-variant-numeric:tabular-nums">0</td>
         <td colspan="2"></td>
         <td id="sales-orders-foot-vat" style="text-align:right;font-variant-numeric:tabular-nums">0.00</td>
-        <td></td>
         <td id="sales-orders-foot-total" style="text-align:right;font-variant-numeric:tabular-nums">0.00</td>
-        <td colspan="3"></td>
+        <td colspan="4"></td>
       </tr></tfoot></table></div>
       <div id="sales-orders-pager" class="csm-sales-pager" role="navigation" aria-label="Orders pagination">
         <span id="sales-orders-pager-range"></span>
@@ -1074,14 +1075,14 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <th class="csm-sel-th" title="选择">选</th>
       <th>Order No.<br><span style="font-size:11px;color:#888">订单号</span></th>
       <th>Created<br><span style="font-size:11px;color:#888">生成时间</span></th>
-      <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net unit (AED)</th><th>5%VAT (AED)</th><th>Total (AED)</th><th>Payment (fin.)</th>
+      <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net unit (AED)</th><th>5%VAT (AED)</th><th>Total (AED)</th><th>Receiver</th><th>Payment (fin.)</th>
     </tr></thead><tbody id="tb-sales-finance"></tbody><tfoot><tr>
         <td colspan="6"></td>
         <td id="sales-finance-foot-qty" style="text-align:right;font-variant-numeric:tabular-nums">0</td>
         <td colspan="2"></td>
         <td id="sales-finance-foot-vat" style="text-align:right;font-variant-numeric:tabular-nums">0.00</td>
         <td id="sales-finance-foot-total" style="text-align:right;font-variant-numeric:tabular-nums">0.00</td>
-        <td></td>
+        <td></td><td></td>
       </tr></tfoot></table></div>
     <div id="sales-finance-pager" class="csm-sales-pager" role="navigation" aria-label="Finance orders pagination">
       <span id="sales-finance-pager-range"></span>
@@ -1172,11 +1173,36 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <option value="credit">Credit 赊账未付</option>
       </select>
     </div>
+    <div class="fg"><label>Payment receiver</label>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select id="sales-order-payment-receiver" style="flex:1;min-width:200px;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+          <option value="">—</option>
+        </select>
+        <button type="button" class="btn btn-s" onclick="openSalesPaymentReceiversModal()" title="Add or remove people" style="font-family:var(--csm-font-en);font-weight:700">Manage receivers</button>
+      </div>
+    </div>
     <div class="brow" style="flex-wrap:wrap;gap:8px;margin-top:4px">
       <button type="button" class="btn btn-s" onclick="saveSalesOrderFromModal(false)">Save draft</button>
       <button type="button" class="btn btn-p" onclick="saveSalesOrderFromModal(true)">Submit 提交</button>
       <button type="button" class="btn btn-g" onclick="clSalesOrderModal()">Cancel</button>
     </div>
+  </div>
+</div>
+
+<div class="mov" id="sales-payment-receivers-modal">
+  <div class="mdl" style="width:480px;max-height:85vh;overflow-y:auto">
+    <h3>Payment receivers</h3>
+    <p style="font-size:12px;color:#666;margin:0 0 12px;font-family:var(--csm-font-en);font-weight:700">Choose who can receive payment on sales orders. Add or remove names below.</p>
+    <div class="brow" style="margin-bottom:10px;align-items:flex-end;gap:8px;flex-wrap:wrap">
+      <div class="fg" style="flex:1;min-width:180px;margin-bottom:0"><label>Name *</label>
+        <input type="text" id="sales-pr-new-name" placeholder="Full name" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();addSalesPaymentReceiver();}" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+      </div>
+      <button type="button" class="btn btn-s" onclick="addSalesPaymentReceiver()" style="font-family:var(--csm-font-en);font-weight:700">Add</button>
+    </div>
+    <div class="tw"><table><thead><tr>
+      <th style="font-family:var(--csm-font-en);font-weight:700">Name</th><th style="width:100px;font-family:var(--csm-font-en);font-weight:700">Action</th>
+    </tr></thead><tbody id="tb-sales-payment-receivers"></tbody></table></div>
+    <div class="brow"><button type="button" class="btn btn-g" onclick="clSalesPaymentReceiversModal()" style="font-family:var(--csm-font-en);font-weight:700">Close</button></div>
   </div>
 </div>
 

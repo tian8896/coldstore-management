@@ -1559,7 +1559,7 @@ var inRecs = recs.filter(function(r) { return r.store === currentColdStore && !r
 // 计算已产生的实际费用（从出库记录表）    
 var actualFee = calcActualFee(r);    
 // 判断是否已全部出库    
-var isFullyCheckedOut = remaining_pallets === 0 && r.dep;    var status = r.dep ? '<span class="bdg bdg-d">已出库</span>' : '<span class="bdg bdg-a">在库</span>';    
+var isFullyCheckedOut = remaining_pallets === 0 && r.dep;    var status = r.dep ? '<span class="bdg bdg-d">Checked Out</span>' : '<span class="bdg bdg-a">In Stock</span>';    
 // 管理员才显示修改按钮    
 var editBtn = (isAdmin || isStaff) ? '<button class="abtn" onclick="showEditRecord(\'' + r.id + '\')" style="margin-left:4px">✏️</button>' : '';    
 // 费用显示逻辑：    

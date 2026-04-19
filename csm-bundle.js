@@ -101,6 +101,7 @@ function rebuildMergedRecs() {
     return row;
   });
   renderAll();
+  if (typeof renderPurchase === 'function' && (isAdmin || isStaff || isLogistics)) renderPurchase();
   backfillSeq();
 }
 function updatePurchaseRecsFromData(data) {
@@ -2073,7 +2074,9 @@ toast('✅ 已添加 ' + items.length + ' 条采购记录', 'ok');
 // 添加品名行
 function addPurchaseItem() {  purchaseItemRowCounter++;  var rowId = purchaseItemRowCounter;  var newRow = document.createElement('tr');  newRow.className = 'purchase-item-row';  newRow.innerHTML =    '<td style="padding:4px;border:1px solid #ddd">' + htmlPurchaseItemProductSelect(rowId, '') + '</td>' +    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-qty" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-demurrage" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-customs" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-coldfee" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-attestation" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-repack" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +    '<td style="padding:4px;border:1px solid #ddd;text-align:center"><button type="button" class="abtn x" onclick="removePurchaseItem(this)" style="color:#ff4444;font-size:16px">×</button></td>';  document.getElementById('purchaseItemsBody').appendChild(newRow);}
 // 删除品名行
-function removePurchaseItem(btn) {  var rows = document.querySelectorAll('.purchase-item-row');  if (rows.length > 1) {    btn.closest('tr').remove();  } else {    toast('至少保留一行品名', 'err');  }}function delPurchase(id) {  if (!confirm('确认删除这条采购记录？ / Confirm delete?')) return;  if (purchaseRef) {    purchaseRef.child(id).remove();  }}function filterPurchase() { renderPurchase(); }function resetPurchaseSearch() {  gid('search-purchase-date').value = '';  gid('search-purchase-cn').value = '';  gid('search-purchase-supplier').value = '';  renderPurchase();}function renderPurchase() { console.log("purchaseRecs:", purchaseRecs);  var tb = gid('tb-purchase');  var es = gid('es-purchase');  if (!tb || !es) return;  
+function removePurchaseItem(btn) {  var rows = document.querySelectorAll('.purchase-item-row');  if (rows.length > 1) {    btn.closest('tr').remove();  } else {    toast('至少保留一行品名', 'err');  }}function delPurchase(id) {  if (!confirm('确认删除这条采购记录？ / Confirm delete?')) return;  if (purchaseRef) {    purchaseRef.child(id).remove();  }}function filterPurchase() { renderPurchase(); }function resetPurchaseSearch() {  gid('search-purchase-date').value = '';  gid('search-purchase-cn').value = '';  gid('search-purchase-supplier').value = '';  renderPurchase();}
+function getPurchaseRemainingItems(pr) {  if (!pr || !recs || !recs.length) return { rem: 0, hasInbound: false };  var cn = String(pr.cn || '').trim().toUpperCase();  var p = canonicalProductName(pr.product || '');  var sum = 0;  var found = false;  recs.forEach(function(ir) {    if (ir.type) return;    if (String(ir.cn || '').trim().toUpperCase() !== cn) return;    if (canonicalProductName(ir.product || '') !== p) return;    found = true;    sum += Math.max(0, (ir.items || 0) - (ir.items_out || 0));  });  return { rem: sum, hasInbound: found };}function htmlPurchaseRemainingOne(pr) {  var x = getPurchaseRemainingItems(pr);  if (!x.hasInbound) return '<span style="color:#999">–</span>';  return '<span style="color:#ff9900;font-weight:bold">' + x.rem + '</span>';}function htmlPurchaseRemainingGroup(items) {  var parts = items.map(function(pr) { return getPurchaseRemainingItems(pr); });  var anyIn = parts.some(function(p) { return p.hasInbound; });  if (!anyIn) return '<span style="color:#999">–</span>';  var sum = parts.reduce(function(s, p) { return s + p.rem; }, 0);  return '<span style="color:#ff9900;font-weight:bold">' + sum + '</span>';}
+function renderPurchase() { console.log("purchaseRecs:", purchaseRecs);  var tb = gid('tb-purchase');  var es = gid('es-purchase');  if (!tb || !es) return;  
 // 获取搜索条件  
 var searchDate = (gid('search-purchase-date').value || '').trim();  var searchCn = (gid('search-purchase-cn').value || '').trim().toUpperCase();  var searchSupplier = (gid('search-purchase-supplier').value || '').trim().toUpperCase();  
 // 过滤 warehouse1 采购记录  
@@ -2087,13 +2090,13 @@ var cnGroups = {};  filteredRecs.forEach(function(r) {    var key = r.cn || '_em
 // 按集装箱汇总所有冷库的冷库费；只有全部出库完成后才在采购页显示总和    
 var coldFeeSummary = getContainerColdFeeSummary(rawCn);    var coldFeeDisplay = '-';    if (coldFeeSummary.hasInRec && coldFeeSummary.allCheckedOut) {      coldFeeDisplay = '<strong style="color:#0066cc;background:#e8f4ff;padding:2px 6px;border-radius:3px;font-size:14px">' + coldFeeSummary.totalFee.toFixed(2) + '</strong>';    }    if (cn === '_empty_') cn = '-';    
 // 主行：集装箱号 + 展开按钮    
-var expandBtn = totalItems > 1 ?      '<button type="button" class="abtn" style="background:#f0f0f0;border:1px solid #ddd;padding:2px 6px;font-size:14px" onclick="togglePurchaseGroup(\'' + groupId + '\',this)">+</button>' : '';    var firstQty = firstItem.qty || '-';    var firstSeq = firstItem.seq || '-';    html += '<tr style="background:#f9f9f9;font-weight:bold" id="pur-main-' + groupId + '">' +      '<td style="font-size:13px;color:#0066cc">' + firstSeq + '</td>' +      '<td>' + expandBtn + ' <button type="button" class="abtn" style="background:#fff3e0;border-color:#ff9800;color:#e65100;padding:2px 6px;font-size:11px" onclick="showPurchaseCnDetail(\'' + rawCn + '\')">详情</button> <button type="button" class="abtn" style="background:#e8f4ff;border-color:#00bfff;color:#00bfff;padding:2px 6px;font-size:11px" onclick="quickCheckIn(\'' + firstItem.id + '\')">📥</button> ' + cn + ' <span style="color:#999;font-size:11px">(' + totalItems + '品名)</span></td>' +      '<td style="font-family:Arial">'+fmtSupplierName(firstItem.supplier)+'</td><td style="font-family:Arial;text-transform:capitalize">'+w1ProductHtml(firstItem.product)+'</td><td>'+purchaseDate+'</td><td style="font-family:Arial">'+firstQty+'</td><td style="font-family:Arial">'+(firstItem.demurrage||0)+'</td><td style="font-family:Arial">'+(firstItem.customs||0)+'</td><td style="font-family:Arial">'+(coldFeeDisplay||'-')+'</td><td style="font-family:Arial">'+(firstItem.attestation||0)+'</td><td style="font-family:Arial">'+(firstItem.repack||0)+'</td><td style="font-family:Arial">'+(firstItem.waste||0)+'</td><td style="font-family:Arial">'+(firstItem.other||0)+'</td>' +      '<td><strong style="color:#0066cc">'+totalAmount.toFixed(2)+'</strong></td>' +      '<td><button type="button" class="abtn" onclick="openEditPurchase(\''+firstItem.id+'\')">✏️</button><button type="button" class="abtn x" onclick="delPurchaseGroup(\'' + cn + '\')">🗑</button></td></tr>';    
+var expandBtn = totalItems > 1 ?      '<button type="button" class="abtn" style="background:#f0f0f0;border:1px solid #ddd;padding:2px 6px;font-size:14px" onclick="togglePurchaseGroup(\'' + groupId + '\',this)">+</button>' : '';    var firstQty = firstItem.qty || '-';    var firstSeq = firstItem.seq || '-';    html += '<tr style="background:#f9f9f9;font-weight:bold" id="pur-main-' + groupId + '">' +      '<td style="color:#0066cc">' + firstSeq + '</td>' +      '<td>' + expandBtn + ' <button type="button" class="abtn" style="background:#fff3e0;border-color:#ff9800;color:#e65100;padding:2px 6px;font-size:11px" onclick="showPurchaseCnDetail(\'' + rawCn + '\')">详情</button> <button type="button" class="abtn" style="background:#e8f4ff;border-color:#00bfff;color:#00bfff;padding:2px 6px;font-size:11px" onclick="quickCheckIn(\'' + firstItem.id + '\')">📥</button> ' + cn + ' <span style="color:#999;font-size:11px">(' + totalItems + '品名)</span></td>' +      '<td style="font-family:Arial">'+fmtSupplierName(firstItem.supplier)+'</td><td style="font-family:Arial;text-transform:capitalize">'+w1ProductHtml(firstItem.product)+'</td><td>'+purchaseDate+'</td><td style="font-family:Arial">'+firstQty+'</td><td style="font-family:Arial">'+htmlPurchaseRemainingGroup(items)+'</td><td style="font-family:Arial">'+(firstItem.demurrage||0)+'</td><td style="font-family:Arial">'+(firstItem.customs||0)+'</td><td style="font-family:Arial">'+(coldFeeDisplay||'-')+'</td><td style="font-family:Arial">'+(firstItem.attestation||0)+'</td><td style="font-family:Arial">'+(firstItem.repack||0)+'</td><td style="font-family:Arial">'+(firstItem.waste||0)+'</td><td style="font-family:Arial">'+(firstItem.other||0)+'</td>' +      '<td><strong style="color:#0066cc">'+totalAmount.toFixed(2)+'</strong></td>' +      '<td><button type="button" class="abtn" onclick="openEditPurchase(\''+firstItem.id+'\')">✏️</button><button type="button" class="abtn x" onclick="delPurchaseGroup(\'' + cn + '\')">🗑</button></td></tr>';    
 // 子行：每个品名    
-items.forEach(function(r) {      var total = (r.demurrage||0)+(r.customs||0)+(r.coldFee||0)+(r.attestation||0)+(r.repack||0)+(r.waste||0)+(r.other||0);      html += '<tr class="purchase-sub-row ' + groupId + '" style="display:none;background:#fff">' +        '<td style="font-size:13px;color:#0066cc">' + (r.seq || '-') + '</td>' +        '<td style="padding-left:40px;color:#666;font-family:Arial;text-transform:capitalize">└ '+w1ProductHtml(r.product)+'</td>' +        '<td style="font-family:Arial;color:#666">'+fmtSupplierName(r.supplier)+'</td><td style="font-family:Arial;text-transform:capitalize">'+w1ProductHtml(r.product)+'</td><td>-</td><td>'+(r.qty||0)+'</td>' +        '<td>'+(r.demurrage||0)+'</td><td>'+(r.customs||0)+'</td><td>-</td>' +        '<td>'+(r.attestation||0)+'</td><td>'+(r.repack||0)+'</td><td>'+(r.waste||0)+'</td><td>'+(r.other||0)+'</td>' +        '<td><strong style="color:#0066cc">'+total.toFixed(2)+'</strong></td>' +        '<td><button type="button" class="abtn" onclick="openEditPurchase(\''+r.id+'\')">✏️</button><button type="button" class="abtn x" onclick="delPurchase(\''+r.id+'\')">🗑</button></td></tr>';    });  });  
+items.forEach(function(r) {      var total = (r.demurrage||0)+(r.customs||0)+(r.coldFee||0)+(r.attestation||0)+(r.repack||0)+(r.waste||0)+(r.other||0);      html += '<tr class="purchase-sub-row ' + groupId + '" style="display:none;background:#fff">' +        '<td style="color:#0066cc">' + (r.seq || '-') + '</td>' +        '<td style="padding-left:40px;color:#666;font-family:Arial;text-transform:capitalize">└ '+w1ProductHtml(r.product)+'</td>' +        '<td style="font-family:Arial;color:#666">'+fmtSupplierName(r.supplier)+'</td><td style="font-family:Arial;text-transform:capitalize">'+w1ProductHtml(r.product)+'</td><td>-</td><td>'+(r.qty||0)+'</td><td style="font-family:Arial">'+htmlPurchaseRemainingOne(r)+'</td>' +        '<td>'+(r.demurrage||0)+'</td><td>'+(r.customs||0)+'</td><td>-</td>' +        '<td>'+(r.attestation||0)+'</td><td>'+(r.repack||0)+'</td><td>'+(r.waste||0)+'</td><td>'+(r.other||0)+'</td>' +        '<td><strong style="color:#0066cc">'+total.toFixed(2)+'</strong></td>' +        '<td><button type="button" class="abtn" onclick="openEditPurchase(\''+r.id+'\')">✏️</button><button type="button" class="abtn x" onclick="delPurchase(\''+r.id+'\')">🗑</button></td></tr>';    });  });  
 // 显示供应商专属记录（在 warehouse1 采购列表中没有的）  
 if (supplierOnlyRecs.length > 0) {    
 // 按采购日期时间新→旧（与主表一致）    
-supplierOnlyRecs.sort(csmPurchaseRowCompareDesc);    supplierOnlyRecs.forEach(function(r) {      var status = r.status || 'draft';      var supplierLabel = '<span style="background:#fff3e0;color:#e65100;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">供应商</span>';      var statusBadge = status === 'submitted' ? '<span style="background:#fff8e1;color:#f57f17;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">已提交</span>' : '<span style="background:#e8f5e9;color:#2e7d32;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">已确认</span>';      var cnClickFn = "openSupplierCNDetail('" + r.id + "')";      var actionBtn = isAdmin ? (status === 'submitted' ? '<button type="button" class="abtn" style="background:#2e7d32;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">✅ 确认采用</button>' : '<button type="button" class="abtn" style="background:#0066cc;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">📥 采用</button>') : '<span style="color:#888;font-size:12px">' + (status === 'submitted' ? '待管理员确认' : '待管理员采用') + '</span>';      html += '<tr style="background:#fffbf5">' +        '<td style="font-size:13px;color:#ff9900">' + (r.seq || '-') + '</td>' +        '<td><a href="javascript:void(0)" onclick="' + cnClickFn + '" style="color:#ff9900;font-weight:bold;text-decoration:underline">' + (r.cn || '-') + '</a>' + supplierLabel + statusBadge + '</td>' +        '<td style="font-family:Arial;color:#666">' + fmtSupplierName(r.supplier) + '</td>' +        '<td style="font-family:Arial;text-transform:capitalize">' + w1ProductHtml(r.product) + '</td>' +        '<td>' + (r.purchaseDate ? fdt(r.purchaseDate+'T00:00:00') : '-') + '</td>' +        '<td style="font-family:Arial">' + (r.qty || 0) + '</td>' +        '<td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>' +        '<td style="color:#f57f17;font-weight:bold">' + (status === 'submitted' ? '待管理员确认' : '待采用') + '</td>' +        '<td>' + actionBtn + '</td>' +      '</tr>';    });  }  tb.innerHTML = html;}
+supplierOnlyRecs.sort(csmPurchaseRowCompareDesc);    supplierOnlyRecs.forEach(function(r) {      var status = r.status || 'draft';      var supplierLabel = '<span style="background:#fff3e0;color:#e65100;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">供应商</span>';      var statusBadge = status === 'submitted' ? '<span style="background:#fff8e1;color:#f57f17;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">已提交</span>' : '<span style="background:#e8f5e9;color:#2e7d32;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">已确认</span>';      var cnClickFn = "openSupplierCNDetail('" + r.id + "')";      var actionBtn = isAdmin ? (status === 'submitted' ? '<button type="button" class="abtn" style="background:#2e7d32;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">✅ 确认采用</button>' : '<button type="button" class="abtn" style="background:#0066cc;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">📥 采用</button>') : '<span style="color:#888;font-size:12px">' + (status === 'submitted' ? '待管理员确认' : '待管理员采用') + '</span>';      html += '<tr style="background:#fffbf5">' +        '<td style="color:#ff9900">' + (r.seq || '-') + '</td>' +        '<td><a href="javascript:void(0)" onclick="' + cnClickFn + '" style="color:#ff9900;font-weight:bold;text-decoration:underline">' + (r.cn || '-') + '</a>' + supplierLabel + statusBadge + '</td>' +        '<td style="font-family:Arial;color:#666">' + fmtSupplierName(r.supplier) + '</td>' +        '<td style="font-family:Arial;text-transform:capitalize">' + w1ProductHtml(r.product) + '</td>' +        '<td>' + (r.purchaseDate ? fdt(r.purchaseDate+'T00:00:00') : '-') + '</td>' +        '<td style="font-family:Arial">' + (r.qty || 0) + '</td><td style="font-family:Arial">' + htmlPurchaseRemainingOne(r) + '</td>' +        '<td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>' +        '<td style="color:#f57f17;font-weight:bold">' + (status === 'submitted' ? '待管理员确认' : '待采用') + '</td>' +        '<td>' + actionBtn + '</td>' +      '</tr>';    });  }  tb.innerHTML = html;}
 // 按集装箱号查找供应商记录并弹出详情
 function openSupplierCNDetailByCN(cn) {  var rec = supplierRecs.find(function(r) { return r.cn === cn; });  if (!rec) return;  openSupplierCNDetail(rec.id);}
 // 按集装箱号编辑供应商记录
@@ -3119,6 +3122,40 @@ function csmEscapeHtml(s) {
 function csmAttrEscape(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 }
+function csmSalesCustomerNameFull(c) {
+  if (!c) return '';
+  var f = (c.nameFull != null && String(c.nameFull).trim()) ? String(c.nameFull).trim() : '';
+  if (f) return f;
+  return String(c.name || '').trim();
+}
+function csmSalesCustomerShortName(c) {
+  if (!c) return '';
+  return String(c.shortName || '').trim();
+}
+function csmSalesCustomerSearchBlob(c) {
+  return [csmSalesCustomerNameFull(c), csmSalesCustomerShortName(c), c.name, c.phone, c.email, c.address]
+    .map(function(x) { return String(x || '').toLowerCase(); }).join(' ');
+}
+function csmSalesCustomerMatchesQuery(c, q) {
+  q = String(q || '').trim().toLowerCase();
+  if (!q) return true;
+  var blob = csmSalesCustomerSearchBlob(c);
+  if (blob.indexOf(q) >= 0) return true;
+  var parts = q.split(/\s+/).filter(Boolean);
+  return parts.every(function(p) { return blob.indexOf(p) >= 0; });
+}
+function csmSalesCustomerListLabel(c) {
+  var f = csmSalesCustomerNameFull(c);
+  var s = csmSalesCustomerShortName(c);
+  if (s && f) return s + ' — ' + f;
+  return f || s || '';
+}
+function csmSalesCustomerOrderSnapshotName(c) {
+  var f = csmSalesCustomerNameFull(c);
+  var s = csmSalesCustomerShortName(c);
+  if (s && f) return f + ' (' + s + ')';
+  return f || s || '';
+}
 function refreshSalesUi() {
   if (!isAdmin && !isStaff) return;
   renderSalesDashCards();
@@ -3130,6 +3167,10 @@ function refreshSalesUi() {
   if (soModal && prSel && soModal.classList.contains('sh')) {
     var cur = prSel.value;
     salesFillPaymentReceiverSelect(prSel, cur);
+  }
+  if (soModal && soModal.classList.contains('sh')) {
+    var cid = gid('sales-order-customer-id');
+    if (cid && cid.value) salesOrderCustomerComboSet(cid.value);
   }
   var prM = gid('sales-payment-receivers-modal');
   if (prM && prM.classList.contains('sh')) {
@@ -3259,13 +3300,14 @@ function renderSalesCustomersTable() {
   var tb = gid('tb-sales-customers');
   if (!tb) return;
   if (!salesCustomers.length) {
-    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888">No customers yet</td></tr>';
+    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888">No customers yet</td></tr>';
     return;
   }
   tb.innerHTML = salesCustomers.map(function(c) {
-    return '<tr><td>' + csmEscapeHtml(c.name) + '</td><td>' + csmEscapeHtml(c.address) + '</td><td>' + csmEscapeHtml(c.vatNumber) + '</td><td>' + csmEscapeHtml(c.phone) + '</td><td>' + csmEscapeHtml(c.email) + '</td><td>' +
-      '<button class="abtn" onclick="openSalesCustomerModal(\'' + c.id + '\')">Edit</button> ' +
-      '<button class="abtn x" onclick="deleteSalesCustomer(\'' + c.id + '\')">Del</button></td></tr>';
+    var sid = String(c.id || '').replace(/'/g, '\\\'');
+    return '<tr><td style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(csmSalesCustomerShortName(c) || '\u2014') + '</td><td style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(csmSalesCustomerNameFull(c)) + '</td><td>' + csmEscapeHtml(c.address) + '</td><td>' + csmEscapeHtml(c.vatNumber) + '</td><td>' + csmEscapeHtml(c.phone) + '</td><td>' + csmEscapeHtml(c.email) + '</td><td>' +
+      '<button class="abtn" onclick="openSalesCustomerModal(\'' + sid + '\')">Edit</button> ' +
+      '<button class="abtn x" onclick="deleteSalesCustomer(\'' + sid + '\')">Del</button></td></tr>';
   }).join('');
 }
 function csmSalesEnsurePagerSizes() {
@@ -3593,7 +3635,8 @@ function openSalesCustomerModal(id) {
   if (!m) return;
   m.classList.add('sh');
   gid('sales-customer-id').value = id || '';
-  gid('sales-customer-name').value = '';
+  gid('sales-customer-name-full').value = '';
+  gid('sales-customer-short').value = '';
   gid('sales-customer-address').value = '';
   gid('sales-customer-vat').value = '';
   gid('sales-customer-phone').value = '';
@@ -3601,7 +3644,8 @@ function openSalesCustomerModal(id) {
   if (id) {
     var c = salesCustomers.find(function(x) { return x.id === id; });
     if (c) {
-      gid('sales-customer-name').value = c.name || '';
+      gid('sales-customer-name-full').value = csmSalesCustomerNameFull(c);
+      gid('sales-customer-short').value = csmSalesCustomerShortName(c);
       gid('sales-customer-address').value = c.address || '';
       gid('sales-customer-vat').value = c.vatNumber || '';
       gid('sales-customer-phone').value = c.phone || '';
@@ -3613,11 +3657,15 @@ function clSalesCustomerModal() { var m = gid('sales-customer-modal'); if (m) m.
 function saveSalesCustomerFromModal() {
   if (!salesCustomersRef) { toast('Database not connected', 'err'); return; }
   var id = (gid('sales-customer-id').value || '').trim();
-  var name = (gid('sales-customer-name').value || '').trim();
-  if (!name) { toast('Customer name required', 'err'); return; }
+  var nameFull = (gid('sales-customer-name-full').value || '').trim();
+  var shortName = (gid('sales-customer-short').value || '').trim();
+  if (!nameFull) { toast('Full name required', 'err'); return; }
   if (!id) id = 'sc_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  var displayName = shortName || nameFull;
   var rec = {
-    name: name,
+    nameFull: nameFull,
+    shortName: shortName,
+    name: displayName,
     address: (gid('sales-customer-address').value || '').trim(),
     vatNumber: (gid('sales-customer-vat').value || '').trim(),
     phone: (gid('sales-customer-phone').value || '').trim(),
@@ -3636,12 +3684,84 @@ function deleteSalesCustomer(id) {
   if (!confirm('Delete this customer?')) return;
   salesCustomersRef.child(id).remove().then(function() { toast('Deleted', 'ok'); }).catch(function() { toast('Delete failed', 'err'); });
 }
-function salesFillCustomerSelect(sel) {
-  if (!sel) return;
-  sel.innerHTML = '<option value="">Select customer</option>' + salesCustomers.map(function(c) {
-    var vid = String(c.id || '').replace(/"/g, '');
-    return '<option value="' + vid + '">' + csmEscapeHtml(c.name) + '</option>';
+function salesOrderCustomerComboPrepare() {
+  var hid = gid('sales-order-customer-id');
+  var inp = gid('sales-order-customer-search');
+  var dd = gid('sales-order-customer-dd');
+  if (hid) hid.value = '';
+  if (inp) inp.value = '';
+  if (dd) {
+    dd.style.display = 'none';
+    dd.innerHTML = '';
+  }
+}
+function salesOrderCustomerComboSet(customerId) {
+  var hid = gid('sales-order-customer-id');
+  var inp = gid('sales-order-customer-search');
+  var dd = gid('sales-order-customer-dd');
+  if (!hid || !inp) return;
+  if (!customerId) {
+    salesOrderCustomerComboPrepare();
+    return;
+  }
+  var c = salesCustomers.find(function(x) { return x.id === customerId; });
+  hid.value = customerId;
+  if (c) {
+    inp.value = csmSalesCustomerListLabel(c);
+  } else {
+    inp.value = String(customerId);
+  }
+  if (dd) {
+    dd.style.display = 'none';
+    dd.innerHTML = '';
+  }
+}
+function salesOrderCustomerComboRenderList(filterEl) {
+  var dd = gid('sales-order-customer-dd');
+  if (!dd) return;
+  var q = filterEl ? String(filterEl.value || '').trim() : '';
+  var list = salesCustomers.filter(function(c) { return csmSalesCustomerMatchesQuery(c, q); });
+  list.sort(function(a, b) {
+    return String(csmSalesCustomerListLabel(a)).localeCompare(String(csmSalesCustomerListLabel(b)));
+  });
+  var maxN = q ? 100 : 60;
+  if (list.length > maxN) list = list.slice(0, maxN);
+  if (!list.length) {
+    dd.innerHTML = '<div style="padding:10px;color:#888;font-size:13px;font-family:var(--csm-font-en);font-weight:700">No match</div>';
+    dd.style.display = 'block';
+    return;
+  }
+  dd.innerHTML = list.map(function(c) {
+    return '<button type="button" class="csm-sales-cust-item" data-cid="' + csmAttrEscape(c.id) + '" onmousedown="event.preventDefault();salesOrderCustomerComboPick(this.getAttribute(\'data-cid\'))">' + csmEscapeHtml(csmSalesCustomerListLabel(c)) + '</button>';
   }).join('');
+  dd.style.display = 'block';
+}
+function salesOrderCustomerComboOnInput(el) {
+  var hid = gid('sales-order-customer-id');
+  if (hid) hid.value = '';
+  salesOrderCustomerComboRenderList(el);
+}
+function salesOrderCustomerComboOnFocus(el) {
+  salesOrderCustomerComboRenderList(el);
+}
+function salesOrderCustomerComboOnBlurSoon() {
+  setTimeout(function() {
+    var dd = gid('sales-order-customer-dd');
+    if (dd) dd.style.display = 'none';
+  }, 200);
+}
+function salesOrderCustomerComboPick(cid) {
+  if (!cid) return;
+  var c = salesCustomers.find(function(x) { return x.id === cid; });
+  var hid = gid('sales-order-customer-id');
+  var inp = gid('sales-order-customer-search');
+  var dd = gid('sales-order-customer-dd');
+  if (hid) hid.value = cid;
+  if (inp && c) inp.value = csmSalesCustomerListLabel(c);
+  if (dd) {
+    dd.style.display = 'none';
+    dd.innerHTML = '';
+  }
 }
 function salesFillPaymentReceiverSelect(sel, selectedId) {
   if (!sel) return;
@@ -3910,7 +4030,7 @@ function openSalesOrderModal(id) {
   if (!m) return;
   m.classList.add('sh');
   gid('sales-order-id').value = id || '';
-  salesFillCustomerSelect(gid('sales-order-customer'));
+  salesOrderCustomerComboPrepare();
   gid('sales-order-payment').value = 'cash_pending';
   var onDisp = gid('sales-order-order-no-display');
   var ctDisp = gid('sales-order-created-display');
@@ -3920,14 +4040,14 @@ function openSalesOrderModal(id) {
     if (!o) { clSalesOrderModal(); return; }
     if (o.voided) { toast('\u8BA2\u5355\u5DF2\u4F5C\u5E9F\uFF0C\u4E0D\u53EF\u7F16\u8F91', 'err'); clSalesOrderModal(); return; }
     if (o.orderStatus !== 'draft') { toast('Only draft orders editable', 'err'); clSalesOrderModal(); return; }
-    gid('sales-order-customer').value = o.customerId || '';
+    salesOrderCustomerComboSet(o.customerId || '');
     salesOrderFillLinesBody(o);
     gid('sales-order-payment').value = o.paymentStatus || 'cash_pending';
     if (onDisp) onDisp.textContent = o.orderNo || '\u2014';
     if (ctDisp) ctDisp.textContent = csmSalesFormatOrderCreated(o.createdAt);
     if (prSel) salesFillPaymentReceiverSelect(prSel, o.paymentReceiverId || '');
   } else {
-    gid('sales-order-customer').value = '';
+    salesOrderCustomerComboPrepare();
     salesOrderFillLinesBody(null);
     if (onDisp) onDisp.textContent = csmSalesNextOrderNoForDate(csmSalesLocalYmdCompact(new Date()));
     if (ctDisp) ctDisp.textContent = csmSalesFormatOrderCreated(new Date().toISOString()) + ' \uFF08\u9884\u89C8\uFF0C\u4EE5\u4FDD\u5B58\u65F6\u4E3A\u51C6\uFF09';
@@ -3943,7 +4063,7 @@ function saveSalesOrderFromModal(submitAfter) {
   submitAfter = !!submitAfter;
   if (!salesOrdersRef) { toast('Database not connected', 'err'); return; }
   var id = (gid('sales-order-id').value || '').trim();
-  var customerId = gid('sales-order-customer').value;
+  var customerId = (gid('sales-order-customer-id') && gid('sales-order-customer-id').value || '').trim();
   var cust = salesCustomers.find(function(c) { return c.id === customerId; });
   if (!cust) { toast('Select customer', 'err'); return; }
   var rd = salesOrderReadLinesFromDom();
@@ -3983,7 +4103,7 @@ function saveSalesOrderFromModal(submitAfter) {
   var rec = {
     orderNo: orderNoVal,
     customerId: customerId,
-    customerName: cust.name || '',
+    customerName: csmSalesCustomerOrderSnapshotName(cust),
     containerNo: L0.containerNo,
     productName: L0.productName,
     quantity: L0.quantity,
@@ -4069,6 +4189,10 @@ try { window.salesOrderAddLine = salesOrderAddLine; } catch (e) {}
 try { window.salesOrderRemoveLine = salesOrderRemoveLine; } catch (e) {}
 try { window.salesOrderLineCnChanged = salesOrderLineCnChanged; } catch (e) {}
 try { window.salesOrderLinePriceSync = salesOrderLinePriceSync; } catch (e) {}
+try { window.salesOrderCustomerComboOnInput = salesOrderCustomerComboOnInput; } catch (e) {}
+try { window.salesOrderCustomerComboOnFocus = salesOrderCustomerComboOnFocus; } catch (e) {}
+try { window.salesOrderCustomerComboOnBlurSoon = salesOrderCustomerComboOnBlurSoon; } catch (e) {}
+try { window.salesOrderCustomerComboPick = salesOrderCustomerComboPick; } catch (e) {}
 try { window.openSalesPaymentReceiversModal = openSalesPaymentReceiversModal; } catch (e) {}
 try { window.clSalesPaymentReceiversModal = clSalesPaymentReceiversModal; } catch (e) {}
 try { window.addSalesPaymentReceiver = addSalesPaymentReceiver; } catch (e) {}

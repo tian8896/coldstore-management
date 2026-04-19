@@ -49,6 +49,11 @@ header p{color:var(--tx);font-size:17px;font-weight:bold;margin-top:4px;letter-s
 .tc{flex:1;padding:18px 21px;overflow:auto;display:none;width:100%}
 .tc.ac{display:flex;flex-direction:column}
 .tw{overflow-x:auto;border:1px solid var(--bd);border-radius:6px;flex:1;min-width:0}
+/* 采购列表 Purchase：表格、字号略大、行距紧凑 */
+#tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table{width:100%;border-collapse:collapse;font-size:15px;line-height:1.18;font-family:var(--csm-font-en);font-weight:700}
+#tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table>thead>tr>th{padding:5px 10px 4px;font-size:14px;line-height:1.12;vertical-align:bottom;border-bottom:1px solid var(--bd);background:var(--bg2);color:var(--tx)}
+#tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table>tbody>tr>td{padding:3px 10px;font-size:15px;line-height:1.18;border-bottom:1px solid rgba(48,54,61,.18);vertical-align:middle}
+#tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table>thead>tr>th span{font-size:11px;color:#666;font-weight:700}
 table{width:max-content;min-width:100%;border-collapse:collapse;font-size:14px}
 th{background:var(--bg2);padding:12px 14px;text-align:left;font-size:14px;font-family:var(--csm-font-en);font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--tx);border-bottom:2px solid var(--bd);white-space:nowrap}
 td{padding:11px 14px;border-bottom:1px solid rgba(48,54,61,.5);color:var(--tx);white-space:nowrap;font-size:14px;font-family:var(--csm-font-en);font-weight:700}
@@ -181,6 +186,11 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 .portal-placeholder{min-height:calc(100vh - 200px);padding:40px 36px;max-width:920px}
 .portal-placeholder h2{font-size:20px;color:var(--ice);letter-spacing:2px;margin-bottom:12px;text-transform:uppercase}
 .portal-placeholder p{color:var(--tx2);line-height:1.75;font-size:14px;margin-bottom:10px}
+.csm-sales-cust-wrap{position:relative;width:100%}
+.csm-sales-cust-dd{position:absolute;left:0;right:0;top:100%;margin-top:2px;max-height:220px;overflow-y:auto;z-index:50;background:#fff;border:1px solid #ccc;border-radius:4px;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+.csm-sales-cust-dd .csm-sales-cust-item{display:block;width:100%;text-align:left;padding:8px 10px;border:none;border-bottom:1px solid #eee;background:#fff;cursor:pointer;font-family:var(--csm-font-en);font-weight:700;font-size:13px;color:var(--tx)}
+.csm-sales-cust-dd .csm-sales-cust-item:hover{background:#e8f4ff}
+.csm-sales-cust-dd .csm-sales-cust-item:last-child{border-bottom:none}
 </style>
 </head>
 <body>
@@ -295,7 +305,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260419a" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260419d" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -890,7 +900,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <button class="btn" onclick="filterPurchase()">确定 Confirm</button>
       <button class="btn btn-g" onclick="resetPurchaseSearch()">重置 Reset</button>
     </div>
-    <div class="tw"><table><thead><tr><th style="font-family:Arial">Seq No<br><span style="font-size:11px;color:#666">序列号</span></th><th style="font-family:Arial">Container<br><span style="font-size:11px;color:#666">集装箱号</span></th><th style="font-family:Arial">Supplier<br><span style="font-size:11px;color:#666">供应商</span></th><th style="font-family:Arial">Product<br><span style="font-size:11px;color:#666">品名</span></th><th style="font-family:Arial">Date<br><span style="font-size:11px;color:#666">采购日期</span></th><th style="font-family:Arial">Quantity<br><span style="font-size:11px;color:#666">数量</span></th><th style="font-family:Arial">Demurrage<br><span style="font-size:11px;color:#666">停柜费</span></th><th style="font-family:Arial">Logistics<br><span style="font-size:11px;color:#666">清关费</span></th><th style="font-family:Arial">Cold Fee<br><span style="font-size:11px;color:#666">冷藏费</span></th><th style="font-family:Arial">Attestation<br><span style="font-size:11px;color:#666">单据认证</span></th><th style="font-family:Arial">Repack<br><span style="font-size:11px;color:#666">翻包费</span></th><th style="font-family:Arial">Waste<br><span style="font-size:11px;color:#666">垃圾费</span></th><th style="font-family:Arial">Other<br><span style="font-size:11px;color:#666">其他</span></th><th style="font-family:Arial">Total<br><span style="font-size:11px;color:#666">合计</span></th><th style="font-family:Arial">Action<br><span style="font-size:11px;color:#666">操作</span></th></tr></thead><tbody id="tb-purchase"></tbody></table></div>
+    <div class="tw csm-purchase-list-wrap"><table class="csm-purchase-table"><thead><tr><th>Seq No<br><span>序列号</span></th><th>Container<br><span>集装箱号</span></th><th>Supplier<br><span>供应商</span></th><th>Product<br><span>品名</span></th><th>Date<br><span>采购日期</span></th><th>Quantity<br><span>数量</span></th><th>Rem. Items<br><span>剩余件数</span></th><th>Demurrage<br><span>停柜费</span></th><th>Logistics<br><span>清关费</span></th><th>Cold Fee<br><span>冷藏费</span></th><th>Attestation<br><span>单据认证</span></th><th>Repack<br><span>翻包费</span></th><th>Waste<br><span>垃圾费</span></th><th>Other<br><span>其他</span></th><th>Total<br><span>合计</span></th><th>Action<br><span>操作</span></th></tr></thead><tbody id="tb-purchase"></tbody></table></div>
     <div class="es" id="es-purchase" style="display:none"><div class="em">📭</div><div>暂无采购记录 / No Purchase Records</div></div>
   </div>
 
@@ -1011,7 +1021,9 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <button type="button" class="btn btn-s" onclick="openSalesCustomerModal('')">+ 新增客户 Add customer</button>
       </div>
       <div class="tw"><table><thead><tr>
-        <th>Customer name</th><th>Address</th><th>VAT No.</th><th>Phone</th><th>Email</th><th>Action</th>
+        <th style="font-family:var(--csm-font-en);font-weight:700">Short</th>
+        <th style="font-family:var(--csm-font-en);font-weight:700">Full name</th>
+        <th>Address</th><th>VAT No.</th><th>Phone</th><th>Email</th><th>Action</th>
       </tr></thead><tbody id="tb-sales-customers"></tbody></table></div>
     </div>
     <div id="sales-panel-orders" style="display:none">
@@ -1116,7 +1128,8 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   <div class="mdl" style="width:520px;max-height:85vh;overflow-y:auto">
     <h3>客户 Customer</h3>
     <input type="hidden" id="sales-customer-id">
-    <div class="fg"><label>Customer name *</label><input type="text" id="sales-customer-name" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></div>
+    <div class="fg"><label>Full name *</label><input type="text" id="sales-customer-name-full" placeholder="Legal / full company name" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></div>
+    <div class="fg"><label>Short name</label><input type="text" id="sales-customer-short" placeholder="Abbreviation (optional)" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></div>
     <div class="fg"><label>Address</label><input type="text" id="sales-customer-address" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></div>
     <div class="fg"><label>VAT number</label><input type="text" id="sales-customer-vat" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></div>
     <div class="fg"><label>Phone</label><input type="text" id="sales-customer-phone" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></div>
@@ -1135,7 +1148,13 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <input type="hidden" id="sales-order-id">
     <div class="fg"><label>订单号 Order No.</label><div id="sales-order-order-no-display" style="padding:10px 12px;background:#f5f5f5;border:1px solid #ddd;border-radius:5px;font-weight:700">—</div></div>
     <div class="fg"><label>生成时间 Created at</label><div id="sales-order-created-display" style="padding:10px 12px;background:#f5f5f5;border:1px solid #ddd;border-radius:5px">—</div></div>
-    <div class="fg"><label>Customer *</label><select id="sales-order-customer" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px"></select></div>
+    <div class="fg"><label>Customer *</label>
+      <input type="hidden" id="sales-order-customer-id" value="">
+      <div class="csm-sales-cust-wrap">
+        <input type="text" id="sales-order-customer-search" placeholder="Type to search — name, short name, phone…" autocomplete="off" oninput="salesOrderCustomerComboOnInput(this)" onfocus="salesOrderCustomerComboOnFocus(this)" onblur="salesOrderCustomerComboOnBlurSoon()" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+        <div id="sales-order-customer-dd" class="csm-sales-cust-dd" style="display:none" role="listbox"></div>
+      </div>
+    </div>
     <div class="fg"><label>Order lines * <span style="font-size:12px;color:#666;font-weight:700">(container + product + qty + unit price per line)</span></label>
       <div style="overflow-x:auto;border:1px solid #ddd;border-radius:6px;margin-top:6px">
         <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:var(--csm-font-en);font-weight:700">

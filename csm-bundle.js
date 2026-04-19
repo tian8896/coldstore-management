@@ -3388,15 +3388,9 @@ function csmSalesLocalYmd(d) {
 }
 function csmSalesPayLabel(code, forFinance) {
   var c = String(code || '');
-  if (forFinance) {
-    if (c === 'cash') return '\u5df2\u4ed8\u6b3e';
-    if (c === 'cash_pending') return 'cash pending';
-    if (c === 'credit') return '\u672a\u4ed8\u6b3e';
-    return c || '-';
-  }
-  if (c === 'cash') return 'Cash \u5df2\u4ed8\u6b3e';
-  if (c === 'cash_pending') return 'Cash pending \u5f85\u73b0\u91d1';
-  if (c === 'credit') return 'Credit \u8d4a\u8d26';
+  if (c === 'cash') return 'Cash';
+  if (c === 'cash_pending') return 'Cash pending';
+  if (c === 'credit') return 'Credit';
   return c || '-';
 }
 function csmSalesOrderStatusCellHtml(o) {

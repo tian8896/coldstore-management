@@ -310,7 +310,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260419m" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260419n" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -1046,7 +1046,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           <div style="font-size:24px;font-weight:bold;color:#1565c0" id="sales-dash-confirmed">0.00</div>
         </div>
         <div style="background:#fff3e0;border:1px solid #f57c00;border-radius:8px;padding:16px;text-align:center">
-          <div style="font-size:12px;color:#666">未付款金额（赊账+待现金）Unpaid AED</div>
+          <div style="font-size:12px;color:#666">Unpaid AED (Credit + Cash pending)</div>
           <div style="font-size:24px;font-weight:bold;color:#e65100" id="sales-dash-unpaid">0.00</div>
         </div>
       </div>
@@ -1202,9 +1202,9 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <p style="font-size:12px;color:#666;margin:0 0 8px;line-height:1.45;font-family:var(--csm-font-en);font-weight:700">Type in <strong>Include VAT</strong> or <strong>Exclude VAT</strong>; the other column fills automatically (5% VAT). The column you edit is the price saved for that line.</p>
     <div class="fg"><label>Payment status</label>
       <select id="sales-order-payment" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px">
-        <option value="cash">Cash received 已付款</option>
-        <option value="cash_pending">Cash pending 待现金</option>
-        <option value="credit">Credit 赊账未付</option>
+        <option value="cash">Cash</option>
+        <option value="cash_pending">Cash pending</option>
+        <option value="credit">Credit</option>
       </select>
     </div>
     <div class="fg"><label>Payment receiver</label>

@@ -362,8 +362,8 @@ function runChunkedRootUpdate(updates) {
   }
   return nextChunk();
 }
-function refreshSupplierShipCompanyOptions(selectedValue) {
-  var el = gid('supplier-shipcompany');
+function refreshShipCompanyDropdown(selectId, selectedValue) {
+  var el = gid(selectId);
   if (!el) return;
   var current = String(selectedValue != null ? selectedValue : el.value || '').trim();
   var list = (settData.shipCompanies || []).slice().sort(function(a, b) { return String(a).localeCompare(String(b)); });
@@ -377,6 +377,73 @@ function refreshSupplierShipCompanyOptions(selectedValue) {
     html += '<option value="' + safeCurrent + '" selected>' + safeCurrent + '（旧值）</option>';
   }
   el.innerHTML = html;
+}
+function refreshSupplierShipCompanyOptions(selectedValue) {
+  refreshShipCompanyDropdown('supplier-shipcompany', selectedValue);
+}
+function refreshFpSupplierSelect(selectedValue) {
+  var el = gid('fp-supplier');
+  if (!el || el.tagName !== 'SELECT') return;
+  var current = String(selectedValue != null ? selectedValue : el.value || '').trim();
+  var list = (settData.suppliers || []).slice().sort(function(a, b) { return String(a).localeCompare(String(b), 'en'); });
+  var html = '<option value="">请选择供应商 / Select supplier</option>';
+  list.forEach(function(name) {
+    var n = String(name || '').trim();
+    if (!n) return;
+    var esc = n.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    var selected = current && current.toLowerCase() === n.toLowerCase() ? ' selected' : '';
+    html += '<option value="' + esc + '"' + selected + '>' + esc + '</option>';
+  });
+  if (current && list.every(function(n) { return String(n).trim().toLowerCase() !== current.toLowerCase(); })) {
+    var escC = current.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    html += '<option value="' + escC + '" selected>' + escC + '（旧值）</option>';
+  }
+  el.innerHTML = html;
+}
+function fpUpdateAedFromUsd() {
+  var uEl = gid('fp-total-usd');
+  var aEl = gid('fp-total-aed');
+  if (!aEl) return;
+  if (!uEl || String(uEl.value).trim() === '') {
+    aEl.value = '';
+    return;
+  }
+  var v = parseFloat(uEl.value);
+  if (isNaN(v) || !isFinite(v) || v < 0) {
+    aEl.value = '';
+    return;
+  }
+  aEl.value = String(Math.round(v * CSM_SUPPLIER_USD_TO_AED_RATE * 100) / 100);
+}
+function htmlPurchaseItemsBodySingleRow() {
+  return '<tr class="purchase-item-row">' +
+    '<td style="padding:4px;border:1px solid #ddd">' + htmlPurchaseItemProductSelect(0, '') + '</td>' +
+    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-qty" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-demurrage" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-customs" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-coldfee" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-attestation" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-repack" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
+    '<td style="padding:4px;border:1px solid #ddd;text-align:center"><button type="button" class="abtn x" onclick="removePurchaseItem(this)" style="color:#ff4444;font-size:16px">×</button></td>' +
+    '</tr>';
+}
+function resetW1PurchaseFormFields(clearDate) {
+  var ids = ['fp-cn', 'fp-bl', 'fp-net-mt', 'fp-gross-mt', 'fp-unit-price-usd', 'fp-total-usd', 'fp-total-aed', 'fp-shipname', 'fp-remark'];
+  ids.forEach(function(id) {
+    var e = gid(id);
+    if (e) e.value = '';
+  });
+  var tt = gid('fp-trade-term');
+  if (tt) tt.value = '';
+  var etd = gid('fp-etd');
+  var eta = gid('fp-eta');
+  if (etd) etd.value = '';
+  if (eta) eta.value = '';
+  var fd = gid('fp-date');
+  if (fd && clearDate) fd.value = '';
+  var ft = gid('fp-time');
+  if (ft && clearDate) ft.value = '';
+  fpUpdateAedFromUsd();
 }
 function propagateSupplierDisplayName(oldName, newName, ownerUid) {
   oldName = String(oldName || '').trim();
@@ -2148,56 +2215,151 @@ var PURCHASE_KEY = 'csm_purchase_v1';var purchaseRecs = [];
 // 供应商采购记录
 var SUPPLIER_RECS_KEY = 'csm_supplier_recs_v1';var supplierRecs = [];var supplierRef = null;function loadPurchase() {  try {    var stored = localStorage.getItem(PURCHASE_KEY);    purchaseRecs = stored ? JSON.parse(stored) : [];  } catch(e) { purchaseRecs = []; }}function savePurchase() {}
 // Firebase 自动同步
-function savePurchaseItem(item) {  if (purchaseRef && item.id) {    purchaseRef.child(item.id).set(item);  }}function openPurchaseForm() {  
-// 重置入库按钮状态  
-var checkInBtn = gid('checkInBtn');  if (checkInBtn) {    checkInBtn.classList.remove('btn-g');    checkInBtn.classList.add('btn-s');    checkInBtn.innerHTML = '✓ 入库 Check In';    checkInBtn.disabled = false;  }  
-// 重置表单  
-var cnField = gid('fp-cn');  var supplierField = gid('fp-supplier');  var dateField = gid('fp-date');  var itemsBody = gid('purchaseItemsBody');  purchaseItemRowCounter = 0;  if (cnField) cnField.value = '';  if (supplierField) supplierField.value = '';  if (dateField) dateField.value = nowFmt();  if (itemsBody) {    itemsBody.innerHTML = '<tr class="purchase-item-row">' +      '<td style="padding:4px;border:1px solid #ddd">' + htmlPurchaseItemProductSelect(0, '') + '</td>' +      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-qty" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-demurrage" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-customs" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-coldfee" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-attestation" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-repack" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +      '<td style="padding:4px;border:1px solid #ddd;text-align:center"><button type="button" class="abtn x" onclick="removePurchaseItem(this)" style="color:#ff4444;font-size:16px">×</button></td>' +      '</tr>';  }  gid('purchaseModal').classList.add('sh');}function clPurchaseModal() {  
-// 重置表单  
-var cnField = gid('fp-cn');  var supplierField = gid('fp-supplier');  var dateField = gid('fp-date');  var itemsBody = gid('purchaseItemsBody');  purchaseItemRowCounter = 0;  if (cnField) cnField.value = '';  if (supplierField) supplierField.value = '';  if (dateField) dateField.value = '';  if (itemsBody) {    itemsBody.innerHTML = '<tr class="purchase-item-row">' +      '<td style="padding:4px;border:1px solid #ddd">' + htmlPurchaseItemProductSelect(0, '') + '</td>' +      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-qty" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-demurrage" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-customs" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-coldfee" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-attestation" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +      '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-repack" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +      '<td style="padding:4px;border:1px solid #ddd;text-align:center"><button type="button" class="abtn x" onclick="removePurchaseItem(this)" style="color:#ff4444;font-size:16px">×</button></td>' +      '</tr>';  }  gid('purchaseModal').classList.remove('sh');}function addPurchase() {  console.log('addPurchase called');  var cn = (gid('fp-cn').value || '').trim().toUpperCase();  var supplier = (gid('fp-supplier').value || '').trim();  var purchaseDate = gid('fp-date').value;  if (!cn) { toast('请输入集装箱号 / Enter container no.', 'err'); return; }  if (!supplier) { toast('请输入供应商', 'err'); return; }  
-  if (getW1ProductsNormalized().length === 0) { toast('请先在「设置 → 品名管理」中添加品名', 'err'); return; }
-// 获取所有品名行  
-var rows = document.querySelectorAll('.purchase-item-row');  console.log('Found rows:', rows.length);  var items = [];  rows.forEach(function(row, idx) {    var productInput = row.querySelector('.item-product');    var product = canonicalProductName((productInput.value || '').trim());    console.log('Row', idx, 'product:', product);    if (!product) return; 
-// 跳过空品名行    
-var item = {      qty: parseFloat(row.querySelector('.item-qty').value) || 0,      demurrage: parseFloat(row.querySelector('.item-demurrage').value) || 0,      customs: parseFloat(row.querySelector('.item-customs').value) || 0,      coldFee: parseFloat(row.querySelector('.item-coldfee').value) || 0,      attestation: parseFloat(row.querySelector('.item-attestation').value) || 0,      repack: parseFloat(row.querySelector('.item-repack').value) || 0    };    
-// 为每个品名创建单独的采购记录    
-var id = Date.now().toString(36) + Math.random().toString(36).substr(2, 5) + idx;    var rec = {      id: id,      cn: cn,      supplier: supplier,      product: product,      purchaseDate: purchaseDate,      qty: item.qty,      demurrage: item.demurrage,      customs: item.customs,      coldFee: item.coldFee,      attestation: item.attestation,      repack: item.repack,      waste: 0,      other: 0    };    items.push(rec);    console.log('Added item:', rec.product);    
-// 生成序列号（使用采购日期）并保存到 Firebase
-generateSeq(function(seq) {
-  rec.seq = seq;
-  if (purchaseRef) {
-    purchaseRef.child(id).set(rec).then(function() {
-      console.log('Saved:', id, 'seq:', seq);
-    }).catch(function(e) {
-      console.error('Error:', e);
-    });
+function savePurchaseItem(item) {  if (purchaseRef && item.id) {    purchaseRef.child(item.id).set(item);  }}
+function openPurchaseForm() {
+  var checkInBtn = gid('checkInBtn');
+  if (checkInBtn) {
+    checkInBtn.classList.remove('btn-g');
+    checkInBtn.classList.add('btn-s');
+    checkInBtn.innerHTML = '✓ 入库 Check In';
+    checkInBtn.disabled = false;
   }
-}, purchaseDate ? new Date(purchaseDate + 'T00:00:00') : null);
+  function doOpenPurchase() {
+    try { loadSettings(); } catch (eLs) {}
+    refreshFpSupplierSelect('');
+    refreshShipCompanyDropdown('fp-shipcompany', '');
+    resetW1PurchaseFormFields(true);
+    var dateField = gid('fp-date');
+    if (dateField) dateField.value = nowFmt();
+    var ft = gid('fp-time');
+    if (ft) {
+      var now = new Date();
+      ft.value = pad2(now.getHours()) + ':' + pad2(now.getMinutes());
+    }
+    var cnField = gid('fp-cn');
+    if (cnField) cnField.value = '';
+    purchaseItemRowCounter = 0;
+    var itemsBody = gid('purchaseItemsBody');
+    if (itemsBody) itemsBody.innerHTML = htmlPurchaseItemsBodySingleRow();
+    try { syncAllProductSelects(); } catch (eSync) {}
+    gid('purchaseModal').classList.add('sh');
+  }
+  if (typeof pullUnifiedSettingsOnce === 'function') {
+    pullUnifiedSettingsOnce().then(doOpenPurchase, function(err) { console.error('csm pull settings (open purchase)', err); doOpenPurchase(); });
+  } else {
+    doOpenPurchase();
+  }
+}
+function clPurchaseModal() {
+  purchaseItemRowCounter = 0;
+  resetW1PurchaseFormFields(true);
+  refreshFpSupplierSelect('');
+  refreshShipCompanyDropdown('fp-shipcompany', '');
+  var itemsBody = gid('purchaseItemsBody');
+  if (itemsBody) itemsBody.innerHTML = htmlPurchaseItemsBodySingleRow();
+  gid('purchaseModal').classList.remove('sh');
+}
+function addPurchase() {
+  console.log('addPurchase called');
+  var cn = (gid('fp-cn').value || '').trim().toUpperCase();
+  var supEl = gid('fp-supplier');
+  var supplier = supEl ? String(supEl.value || '').trim() : '';
+  var purchaseDate = gid('fp-date') ? gid('fp-date').value : '';
+  if (!cn) { toast('请输入集装箱号 / Enter container no.', 'err'); return; }
+  if (!supplier) { toast('请选择供应商 / Select supplier', 'err'); return; }
+  if (!purchaseDate) { toast('请选择采购日期 / Select purchase date', 'err'); return; }
+  var shipname = gid('fp-shipname') ? String(gid('fp-shipname').value || '').trim() : '';
+  var shipCompany = gid('fp-shipcompany') ? String(gid('fp-shipcompany').value || '').trim() : '';
+  if (!shipname) { toast('请输入船名 / Ship name is required', 'err'); return; }
+  if (!shipCompany) { toast('请选择船公司 / Select shipping company', 'err'); return; }
+  if ((settData.shipCompanies || []).indexOf(shipCompany) === -1) {
+    toast('船公司必须从设置列表中选择', 'err');
+    return;
+  }
+  if (getW1ProductsNormalized().length === 0) { toast('请先在「设置 → 品名管理」中添加品名', 'err'); return; }
+  var ptRaw = gid('fp-time') ? String(gid('fp-time').value || '').trim() : '';
+  var purchaseTimeNorm = ptRaw ? csmPurchaseNormalizeTimePart(ptRaw) : '';
+  var bl = gid('fp-bl') ? String(gid('fp-bl').value || '').trim() : '';
+  var etd = gid('fp-etd') ? gid('fp-etd').value : '';
+  var eta = gid('fp-eta') ? gid('fp-eta').value : '';
+  var remarks = gid('fp-remark') ? String(gid('fp-remark').value || '').trim() : '';
+  var formSnap = {
+    netWeightMt: gid('fp-net-mt') ? gid('fp-net-mt').value : '',
+    grossWeightMt: gid('fp-gross-mt') ? gid('fp-gross-mt').value : '',
+    tradeTerm: gid('fp-trade-term') ? gid('fp-trade-term').value : '',
+    unitPriceUsdMt: gid('fp-unit-price-usd') ? gid('fp-unit-price-usd').value : '',
+    totalAmountUsd: gid('fp-total-usd') ? gid('fp-total-usd').value : ''
+  };
+  var wpForm = supplierRecWeightPriceForPurchase(formSnap);
+  var rows = document.querySelectorAll('.purchase-item-row');
+  console.log('Found rows:', rows.length);
+  var items = [];
+  rows.forEach(function(row, idx) {
+    var productInput = row.querySelector('.item-product');
+    var product = canonicalProductName((productInput.value || '').trim());
+    console.log('Row', idx, 'product:', product);
+    if (!product) return;
+    var item = {
+      qty: parseFloat(row.querySelector('.item-qty').value) || 0,
+      demurrage: parseFloat(row.querySelector('.item-demurrage').value) || 0,
+      customs: parseFloat(row.querySelector('.item-customs').value) || 0,
+      coldFee: parseFloat(row.querySelector('.item-coldfee').value) || 0,
+      attestation: parseFloat(row.querySelector('.item-attestation').value) || 0,
+      repack: parseFloat(row.querySelector('.item-repack').value) || 0
+    };
+    var id = Date.now().toString(36) + Math.random().toString(36).substr(2, 5) + idx;
+    var rec = {
+      id: id,
+      cn: cn,
+      supplier: supplier,
+      product: product,
+      purchaseDate: purchaseDate,
+      purchaseTime: purchaseTimeNorm,
+      qty: item.qty,
+      demurrage: item.demurrage,
+      customs: item.customs,
+      coldFee: item.coldFee,
+      attestation: item.attestation,
+      repack: item.repack,
+      waste: 0,
+      other: 0,
+      bl: bl,
+      shipname: shipname,
+      shipCompany: shipCompany,
+      etd: etd,
+      eta: eta,
+      remarks: remarks,
+      netWeightMt: wpForm.netWeightMt === '' ? '' : wpForm.netWeightMt,
+      grossWeightMt: wpForm.grossWeightMt === '' ? '' : wpForm.grossWeightMt,
+      tradeTerm: wpForm.tradeTerm,
+      unitPriceUsdMt: wpForm.unitPriceUsdMt === '' ? '' : wpForm.unitPriceUsdMt,
+      totalAmountUsd: wpForm.totalAmountUsd === '' ? '' : wpForm.totalAmountUsd,
+      totalAmountAed: wpForm.totalAmountAed === '' ? '' : wpForm.totalAmountAed
+    };
+    items.push(rec);
+    console.log('Added item:', rec.product);
   });
   console.log('Total items to add:', items.length);
   if (items.length === 0) {
     toast('请至少添加一个品名', 'err');
     return;
   }
-// 注意：数据会通过 Firebase 监听器自动添加到 purchaseRecs，这里不需要手动 concat
-// 只需要保存到 Firebase 即可
-// 重置表单
-gid('fp-cn').value = '';
-gid('fp-supplier').value = '';
-gid('fp-date').value = '';
-gid('purchaseItemsBody').innerHTML = '<tr class="purchase-item-row">' +
-  '<td style="padding:4px;border:1px solid #ddd">' + htmlPurchaseItemProductSelect(0, '') + '</td>' +
-  '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-qty" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
-  '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-demurrage" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
-  '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-customs" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
-  '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-coldfee" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
-  '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-attestation" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
-  '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-repack" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +
-  '<td style="padding:4px;border:1px solid #ddd;text-align:center"><button type="button" class="abtn x" onclick="removePurchaseItem(this)" style="color:#ff4444;font-size:16px">×</button></td>' +
-  '</tr>';
-clPurchaseModal();
-renderPurchase();
-toast('✅ 已添加 ' + items.length + ' 条采购记录', 'ok');
+  items.forEach(function(rec) {
+    var rid = rec.id;
+    generateSeq(function(seq) {
+      rec.seq = seq;
+      if (purchaseRef) {
+        purchaseRef.child(rid).set(rec).then(function() {
+          console.log('Saved:', rid, 'seq:', seq);
+        }).catch(function(e) {
+          console.error('Error:', e);
+        });
+      }
+    }, purchaseDate ? new Date(purchaseDate + 'T00:00:00') : null);
+  });
+  clPurchaseModal();
+  renderPurchase();
+  toast('✅ 已添加 ' + items.length + ' 条采购记录', 'ok');
 }
 // 添加品名行
 function addPurchaseItem() {  purchaseItemRowCounter++;  var rowId = purchaseItemRowCounter;  var newRow = document.createElement('tr');  newRow.className = 'purchase-item-row';  newRow.innerHTML =    '<td style="padding:4px;border:1px solid #ddd">' + htmlPurchaseItemProductSelect(rowId, '') + '</td>' +    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-qty" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-demurrage" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-customs" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-coldfee" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-attestation" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +    '<td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-repack" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>' +    '<td style="padding:4px;border:1px solid #ddd;text-align:center"><button type="button" class="abtn x" onclick="removePurchaseItem(this)" style="color:#ff4444;font-size:16px">×</button></td>';  document.getElementById('purchaseItemsBody').appendChild(newRow);}
@@ -2935,7 +3097,13 @@ function hideSuggest(type) {
 function pickSuggest(el, type) {
   var val = el.textContent;
   if (type === 'supplier') {
-    gid('fp-supplier').value = val;
+    var fpS = gid('fp-supplier');
+    if (fpS && fpS.tagName === 'SELECT') {
+      fpS.value = val;
+      if (fpS.value !== val && typeof refreshFpSupplierSelect === 'function') refreshFpSupplierSelect(val);
+    } else if (fpS) {
+      fpS.value = val;
+    }
   } else if (type === 'product' && gid('fp-product')) {
     gid('fp-product').value = val;
   } else if (type === 'shipcompany' && gid('supplier-shipcompany')) {

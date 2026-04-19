@@ -305,7 +305,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260419j" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260419k" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -1240,54 +1240,107 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 </div>
 
 <div class="mov" id="purchaseModal">
-  <div class="mdl" style="width:680px;max-height:85vh;overflow-y:auto">
+  <div class="mdl" style="width:700px;max-height:85vh;overflow-y:auto">
     <h3>🛒 新增采购记录 / Add Purchase Record</h3>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:10px">
-      <tr>
-        <td style="padding:4px 6px"><label style="font-size:12px">集装箱号 Container No. *</label><br>
-          <input type="text" id="fp-cn" placeholder="输入集装箱号码" maxlength="11" style="text-transform:uppercase;width:100%;padding:6px;border:1px solid #ddd;border-radius:4px" autocomplete="off"></td>
-        <td style="padding:4px 6px"><label style="font-size:12px">供应商 Supplier *</label><br>
-          <input type="text" id="fp-supplier" placeholder="输入供应商" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px" autocomplete="off" oninput="showSuggest(this,'supplier')" onfocus="showSuggest(this,'supplier')" onblur="setTimeout(function(){hideSuggest('supplier')},200)">
-          <div class="suggest-list" id="suggest-supplier"></div></td>
-        <td style="padding:4px 6px"><label style="font-size:12px">采购日期</label><br>
-          <input type="date" id="fp-date" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px"></td>
-      </tr>
-    </table>
-    
-    <div style="margin-bottom:8px"><strong>品名列表 / Product Items</strong> <button type="button" class="abtn" style="background:#4CAF50;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer" onclick="addPurchaseItem()">+ 添加品名</button></div>
-    <div id="purchaseItemsContainer">
-      <table style="width:100%;border-collapse:collapse" id="purchaseItemsTable">
-        <thead style="background:#f5f5f5">
-          <tr>
-            <th style="padding:6px;text-align:left;font-size:12px;border:1px solid #ddd">品名 Product *</th>
-            <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px">数量 Qty</th>
-            <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px">停柜费</th>
-            <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px">清关费 Logistics</th>
-            <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px">冷库费</th>
-            <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px">认证费</th>
-            <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px">翻包费</th>
-            <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:60px">操作</th>
-          </tr>
-        </thead>
-        <tbody id="purchaseItemsBody">
-          <tr class="purchase-item-row">
-            <td style="padding:4px;border:1px solid #ddd">
-              <select class="item-product csm-product-select" data-rowid="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;font-size:13px">
-                <option value="">请选择品名</option>
-              </select>
-            </td>
-            <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-qty" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>
-            <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-demurrage" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>
-            <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-customs" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>
-            <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-coldfee" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>
-            <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-attestation" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>
-            <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-repack" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center"></td>
-            <td style="padding:4px;border:1px solid #ddd;text-align:center"><button type="button" class="abtn x" onclick="removePurchaseItem(this)" style="color:#ff4444;font-size:16px">×</button></td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="supplier-modal-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="fg" style="grid-column:1 / -1"><label>供应商 Supplier *</label>
+        <select id="fp-supplier" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+          <option value="">请选择供应商 / Select supplier</option>
+        </select>
+      </div>
+      <div class="fg"><label>集装箱号 Container No. *</label>
+        <input type="text" id="fp-cn" placeholder="输入集装箱号码" maxlength="11" style="text-transform:uppercase;width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700" autocomplete="off">
+      </div>
+      <div class="fg"><label>采购日期 Date</label>
+        <input type="date" id="fp-date" autocomplete="off" style="width:100%;display:inline-block;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+        <input type="time" id="fp-time" autocomplete="off" style="width:48%;display:inline-block;margin-left:2%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+      </div>
+      <div class="fg" style="grid-column:1 / -1"><label>提单号 B/L No.</label>
+        <input type="text" id="fp-bl" placeholder="输入提单号" autocomplete="off" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+      </div>
+      <div class="fg" style="grid-column:1 / -1;margin-bottom:4px">
+        <label>品名明细 Product Items *</label>
+        <div style="margin-top:6px;margin-bottom:8px">
+          <button type="button" class="abtn" style="background:#4CAF50;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer" onclick="addPurchaseItem()">+ 添加品名</button>
+        </div>
+        <div id="purchaseItemsContainer" style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse" id="purchaseItemsTable">
+            <thead style="background:#f5f5f5">
+              <tr>
+                <th style="padding:6px;text-align:left;font-size:12px;border:1px solid #ddd;font-family:var(--csm-font-en);font-weight:700">品名 Product *</th>
+                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px;font-family:var(--csm-font-en);font-weight:700">数量 Qty</th>
+                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px;font-family:var(--csm-font-en);font-weight:700">停柜费</th>
+                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px;font-family:var(--csm-font-en);font-weight:700">清关费</th>
+                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px;font-family:var(--csm-font-en);font-weight:700">冷库费</th>
+                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px;font-family:var(--csm-font-en);font-weight:700">认证费</th>
+                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px;font-family:var(--csm-font-en);font-weight:700">翻包费</th>
+                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:60px;font-family:var(--csm-font-en);font-weight:700">操作</th>
+              </tr>
+            </thead>
+            <tbody id="purchaseItemsBody">
+              <tr class="purchase-item-row">
+                <td style="padding:4px;border:1px solid #ddd">
+                  <select class="item-product csm-product-select" data-rowid="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;font-size:13px;font-family:var(--csm-font-en);font-weight:700">
+                    <option value="">请选择品名</option>
+                  </select>
+                </td>
+                <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-qty" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center;font-family:var(--csm-font-en);font-weight:700"></td>
+                <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-demurrage" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center;font-family:var(--csm-font-en);font-weight:700"></td>
+                <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-customs" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center;font-family:var(--csm-font-en);font-weight:700"></td>
+                <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-coldfee" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center;font-family:var(--csm-font-en);font-weight:700"></td>
+                <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-attestation" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center;font-family:var(--csm-font-en);font-weight:700"></td>
+                <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-repack" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center;font-family:var(--csm-font-en);font-weight:700"></td>
+                <td style="padding:4px;border:1px solid #ddd;text-align:center"><button type="button" class="abtn x" onclick="removePurchaseItem(this)" style="color:#ff4444;font-size:16px">×</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="fg" style="grid-column:1 / -1;display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-top:10px;margin-top:4px;border-top:1px solid #e8e8e8">
+        <div class="fg" style="margin:0"><label>净重 Net weight <span style="font-size:11px;color:#666;font-weight:400">(MT 吨)</span></label>
+          <input type="number" id="fp-net-mt" step="0.001" min="0" placeholder="Enter MT" autocomplete="off" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+        </div>
+        <div class="fg" style="margin:0"><label>毛重 Gross weight <span style="font-size:11px;color:#666;font-weight:400">(MT 吨)</span></label>
+          <input type="number" id="fp-gross-mt" step="0.001" min="0" placeholder="Enter MT" autocomplete="off" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+        </div>
+        <div class="fg" style="grid-column:1 / -1;margin:0">
+          <label>单价 Unit price <span style="font-size:11px;color:#666;font-weight:400">(USD/MT 美元/吨)</span></label>
+          <div style="display:flex;gap:10px;align-items:stretch;flex-wrap:wrap;margin-top:4px">
+            <select id="fp-trade-term" title="贸易条款 Incoterm" style="flex:0 0 auto;min-width:130px;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+              <option value="">Incoterm</option>
+              <option value="CFR">CFR</option>
+              <option value="CIF">CIF</option>
+              <option value="FOB">FOB</option>
+            </select>
+            <input type="number" id="fp-unit-price-usd" step="0.01" min="0" placeholder="USD/MT" title="USD per metric ton" autocomplete="off" style="flex:1;min-width:160px;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+          </div>
+        </div>
+        <div class="fg" style="margin:0"><label>总金额 Total amount <span style="font-size:11px;color:#666;font-weight:400">(USD 美元)</span></label>
+          <input type="number" id="fp-total-usd" step="0.01" min="0" placeholder="USD" autocomplete="off" oninput="fpUpdateAedFromUsd()" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+        </div>
+        <div class="fg" style="margin:0"><label>迪拉姆换算 AED <span style="font-size:11px;color:#666;font-weight:400">(USD × 3.675)</span></label>
+          <input type="text" id="fp-total-aed" readonly tabindex="-1" placeholder="—" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;background:#f5f5f5;font-family:var(--csm-font-en);font-weight:700">
+        </div>
+      </div>
+      <div class="fg"><label>船名 Ship Name *</label>
+        <input type="text" id="fp-shipname" placeholder="输入船名" autocomplete="off" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+      </div>
+      <div class="fg"><label>船公司 Shipping Company *</label>
+        <select id="fp-shipcompany" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+          <option value="">请选择船公司</option>
+        </select>
+      </div>
+      <div class="fg"><label>预计开船日 ETD</label>
+        <input type="date" id="fp-etd" autocomplete="off" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+      </div>
+      <div class="fg"><label>预计到港日 ETA</label>
+        <input type="date" id="fp-eta" autocomplete="off" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+      </div>
+      <div class="fg" style="grid-column:1 / -1">
+        <label>备注 Remarks <span style="font-size:11px;color:#666;font-weight:400">请输入装货的规格</span></label>
+        <textarea id="fp-remark" rows="3" maxlength="2000" placeholder="选填；将保存到采购记录，并在集装箱详情弹窗中显示 / Optional; shown in container details" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;resize:vertical;font-family:var(--csm-font-en);font-weight:700"></textarea>
+      </div>
     </div>
-    
     <div class="brow" style="margin-top:14px">
       <button class="btn btn-s" onclick="addPurchase()">✓ 提交 Submit</button>
       <button class="btn btn-g" onclick="clPurchaseModal()">取消 Cancel</button>

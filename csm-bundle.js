@@ -272,7 +272,7 @@ function createPurchaseRecordFromSupplierRec(rec, id, item) {
     waste: 0,
     other: 0,
     shipname: rec.shipname || '',
-    bl: rec.bl || '',
+    bl: String(rec.bl || '').trim().toUpperCase(),
     etd: rec.etd || '',
     eta: rec.eta || '',
     sourceSupplierRecId: rec.id || '',
@@ -889,7 +889,7 @@ function saveSupplierRec() {
   var supplier = (gid('supplier-supplier').value || '').trim();
   var shipname = (gid('supplier-shipname').value || '').trim();
   var shipCompany = (gid('supplier-shipcompany') ? gid('supplier-shipcompany').value : '').trim();
-  var bl = (gid('supplier-bl').value || '').trim();
+  var bl = (gid('supplier-bl').value || '').trim().toUpperCase();
   var etd = (gid('supplier-etd').value || '').trim();
   var eta = (gid('supplier-eta').value || '').trim();
   var remarks = (gid('supplier-remark') && gid('supplier-remark').value != null) ? String(gid('supplier-remark').value).trim() : '';
@@ -1138,7 +1138,7 @@ function editSupplierRec(id) {
     resetSupplierItemRows(normalizeSupplierRecItems(rec));
     gid('supplier-shipname').value = rec.shipname || '';
     refreshSupplierShipCompanyOptions(rec.shipCompany || '');
-    gid('supplier-bl').value = rec.bl || '';
+    gid('supplier-bl').value = String(rec.bl || '').trim().toUpperCase();
     gid('supplier-etd').value = rec.etd || '';
     gid('supplier-eta').value = rec.eta || '';
     var snmE = gid('supplier-net-mt');
@@ -2288,7 +2288,7 @@ function addPurchase() {
   if (getW1ProductsNormalized().length === 0) { toast('请先在「设置 → 品名管理」中添加品名', 'err'); return; }
   var ptRaw = gid('fp-time') ? String(gid('fp-time').value || '').trim() : '';
   var purchaseTimeNorm = ptRaw ? csmPurchaseNormalizeTimePart(ptRaw) : '';
-  var bl = gid('fp-bl') ? String(gid('fp-bl').value || '').trim() : '';
+  var bl = gid('fp-bl') ? String(gid('fp-bl').value || '').trim().toUpperCase() : '';
   var etd = gid('fp-etd') ? gid('fp-etd').value : '';
   var eta = gid('fp-eta') ? gid('fp-eta').value : '';
   var remarks = gid('fp-remark') ? String(gid('fp-remark').value || '').trim() : '';

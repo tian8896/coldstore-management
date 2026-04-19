@@ -310,7 +310,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260419n" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260419o" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -783,7 +783,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <input type="time" id="supplier-time" autocomplete="off" style="width:48%;display:inline-block;margin-left:2%">
       </div>
       <div class="fg" style="grid-column:1 / -1"><label>提单号 B/L No.</label>
-        <input type="text" id="supplier-bl" placeholder="输入提单号" autocomplete="off">
+        <input type="text" id="supplier-bl" placeholder="输入提单号" autocomplete="off" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
       </div>
       <div class="fg" style="grid-column:1 / -1;margin-bottom:4px">
         <label>品名明细 Product Items *</label>
@@ -1265,7 +1265,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <input type="time" id="fp-time" autocomplete="off" style="width:48%;display:inline-block;margin-left:2%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
       </div>
       <div class="fg" style="grid-column:1 / -1"><label>提单号 B/L No.</label>
-        <input type="text" id="fp-bl" placeholder="输入提单号" autocomplete="off" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+        <input type="text" id="fp-bl" placeholder="输入提单号" autocomplete="off" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
       </div>
       <div class="fg" style="grid-column:1 / -1;margin-bottom:4px">
         <label>品名明细 Product Items *</label>

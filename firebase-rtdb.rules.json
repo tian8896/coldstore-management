@@ -61,6 +61,18 @@
           ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff')"
         }
       },
+      "workers": {
+        "$wid": {
+          ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff')",
+          ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff')"
+        }
+      },
+      "trucks": {
+        "$tid": {
+          ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff')",
+          ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff')"
+        }
+      },
       "orders": {
         "$oid": {
           ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff')",

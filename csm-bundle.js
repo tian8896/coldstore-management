@@ -2929,6 +2929,11 @@ function csmSalesLinesRawToArr(raw) {
   }
   return [];
 }
+function csmSalesLineVatMode(L, order) {
+  if (L && (L.vatMode === 'included' || L.vatMode === 'excluded')) return L.vatMode;
+  if (order && order.vatMode === 'included') return 'included';
+  return 'excluded';
+}
 function csmSalesNormalizeLinesFromOrder(o) {
   if (!o) return [];
   var arr = [];
@@ -2939,7 +2944,8 @@ function csmSalesNormalizeLinesFromOrder(o) {
     var q = parseFloat(L.quantity);
     var u = parseFloat(L.unitPrice);
     if (!cn || !pr || !(q > 0) || !(u >= 0)) return;
-    arr.push({ containerNo: cn, productName: pr, quantity: q, unitPrice: u });
+    var vmLine = (L.vatMode === 'included' || L.vatMode === 'excluded') ? L.vatMode : csmSalesLineVatMode(null, o);
+    arr.push({ containerNo: cn, productName: pr, quantity: q, unitPrice: u, vatMode: vmLine });
   });
   if (!arr.length) {
     var cn0 = String(o.containerNo || '').trim().toUpperCase();
@@ -2947,7 +2953,7 @@ function csmSalesNormalizeLinesFromOrder(o) {
     var q0 = parseFloat(o.quantity);
     var u0 = parseFloat(o.unitPrice);
     if (cn0 && pr0 && q0 > 0 && (u0 >= 0 || u0 === 0)) {
-      arr.push({ containerNo: cn0, productName: pr0, quantity: q0, unitPrice: u0 });
+      arr.push({ containerNo: cn0, productName: pr0, quantity: q0, unitPrice: u0, vatMode: csmSalesLineVatMode(null, o) });
     }
   }
   return arr;
@@ -3013,20 +3019,21 @@ function csmSalesLineTotalForDisplay(o) {
   return csmSalesLineNetVatTotal(o).total;
 }
 function csmSalesLineNetVatTotal(o) {
-  var vatMode = (o && o.vatMode === 'included') ? 'included' : 'excluded';
   var lines = csmSalesNormalizeLinesFromOrder(o);
   if (lines.length) {
     var net = 0;
     var vat = 0;
     var total = 0;
     lines.forEach(function(L) {
-      var a = csmSalesComputeTotals(L.unitPrice, L.quantity, vatMode);
+      var vm = csmSalesLineVatMode(L, o);
+      var a = csmSalesComputeTotals(L.unitPrice, L.quantity, vm);
       net += a.net;
       vat += a.vat;
       total += a.total;
     });
     return { net: csmSalesRound2(net), vat: csmSalesRound2(vat), total: csmSalesRound2(total) };
   }
+  var vatMode = (o && o.vatMode === 'included') ? 'included' : 'excluded';
   var u = parseFloat(o && o.unitPrice);
   var q = parseFloat(o && o.quantity);
   if ((u >= 0 || u === 0) && q > 0) {
@@ -3054,9 +3061,12 @@ function csmSalesOrderReceiverDisplay(o) {
   return '';
 }
 function csmSalesNetUnitAndVat(o) {
-  var vatMode = (o && o.vatMode === 'included') ? 'included' : 'excluded';
   var lines = csmSalesNormalizeLinesFromOrder(o);
-  if (lines.length) return csmSalesNetUnitAndVatFromLine(lines[0], vatMode);
+  if (lines.length) {
+    var L0 = lines[0];
+    return csmSalesNetUnitAndVatFromLine(L0, csmSalesLineVatMode(L0, o));
+  }
+  var vatMode = (o && o.vatMode === 'included') ? 'included' : 'excluded';
   var u = parseFloat(o && o.unitPrice) || 0;
   var q = parseFloat(o && o.quantity) || 0;
   if (q <= 0) return { netUnit: 0, vatAmt: 0 };
@@ -3416,8 +3426,8 @@ function renderSalesOrdersTable() {
   tb.innerHTML = pageRows.map(function(o) {
     var lines = csmSalesNormalizeLinesFromOrder(o);
     var L0 = lines[0] || {};
-    var vatMode = (o.vatMode === 'included') ? 'included' : 'excluded';
-    var nv0 = lines.length ? csmSalesNetUnitAndVatFromLine(L0, vatMode) : csmSalesNetUnitAndVat(o);
+    var vm0 = csmSalesLineVatMode(L0, o);
+    var nv0 = lines.length ? csmSalesNetUnitAndVatFromLine(L0, vm0) : csmSalesNetUnitAndVat(o);
     var up0 = parseFloat(L0.unitPrice);
     if (!(up0 >= 0)) up0 = parseFloat(o.unitPrice) || 0;
     var q0 = parseFloat(L0.quantity);
@@ -3454,8 +3464,9 @@ function renderSalesOrdersTable() {
     if (lines.length > 1) {
       for (var li = 1; li < lines.length; li++) {
         var L = lines[li];
-        var aL = csmSalesComputeTotals(L.unitPrice, L.quantity, vatMode);
-        var nvL = csmSalesNetUnitAndVatFromLine(L, vatMode);
+        var vmL = csmSalesLineVatMode(L, o);
+        var aL = csmSalesComputeTotals(L.unitPrice, L.quantity, vmL);
+        var nvL = csmSalesNetUnitAndVatFromLine(L, vmL);
         subHtml += '<tr class="csm-sales-ord-sub ' + trClassName + '" data-so-gid="' + gidAttr + '" style="display:none;background:rgba(21,101,192,.05)">' +
           '<td class="csm-sel-td"></td>' +
           '<td colspan="3"></td>' +
@@ -3537,8 +3548,8 @@ function renderSalesFinanceTable() {
   tb.innerHTML = pageRows.map(function(o) {
     var lines = csmSalesNormalizeLinesFromOrder(o);
     var L0 = lines[0] || {};
-    var vatMode = (o.vatMode === 'included') ? 'included' : 'excluded';
-    var nv0 = lines.length ? csmSalesNetUnitAndVatFromLine(L0, vatMode) : csmSalesNetUnitAndVat(o);
+    var vm0 = csmSalesLineVatMode(L0, o);
+    var nv0 = lines.length ? csmSalesNetUnitAndVatFromLine(L0, vm0) : csmSalesNetUnitAndVat(o);
     var up0 = parseFloat(L0.unitPrice);
     if (!(up0 >= 0)) up0 = parseFloat(o.unitPrice) || 0;
     var q0 = parseFloat(L0.quantity);
@@ -3554,8 +3565,9 @@ function renderSalesFinanceTable() {
     if (lines.length > 1) {
       for (var li = 1; li < lines.length; li++) {
         var L = lines[li];
-        var aL = csmSalesComputeTotals(L.unitPrice, L.quantity, vatMode);
-        var nvL = csmSalesNetUnitAndVatFromLine(L, vatMode);
+        var vmL = csmSalesLineVatMode(L, o);
+        var aL = csmSalesComputeTotals(L.unitPrice, L.quantity, vmL);
+        var nvL = csmSalesNetUnitAndVatFromLine(L, vmL);
         subHtml += '<tr class="csm-sales-ord-sub" data-so-gid="' + gidAttr + '" style="display:none;background:rgba(21,101,192,.05)">' +
           '<td class="csm-sel-td"></td>' +
           '<td colspan="3"></td>' +
@@ -3736,14 +3748,67 @@ function buildSalesOrderLineEditorRow(line) {
   var cn = line.containerNo || '';
   var pr = line.productName || '';
   var qty = line.quantity != null && line.quantity !== '' ? line.quantity : 1;
-  var up = line.unitPrice != null && line.unitPrice !== '' ? line.unitPrice : '';
-  return '<tr>' +
+  var vm = (line.vatMode === 'included') ? 'included' : 'excluded';
+  var up = line.unitPrice;
+  var hasUp = up != null && up !== '' && !isNaN(parseFloat(up));
+  var nu = hasUp ? parseFloat(up) : NaN;
+  var mult = 1 + VAT_RATE;
+  var inclVal = '';
+  var exclVal = '';
+  var basisAttr = '';
+  if (hasUp) {
+    if (vm === 'included') {
+      inclVal = String(nu);
+      exclVal = String(csmSalesRound2(nu / mult));
+      basisAttr = ' data-price-basis="included"';
+    } else {
+      exclVal = String(nu);
+      inclVal = String(csmSalesRound2(nu * mult));
+      basisAttr = ' data-price-basis="excluded"';
+    }
+  }
+  return '<tr' + basisAttr + '>' +
     '<td style="padding:6px 8px;vertical-align:middle"><select class="sol-cn" onchange="salesOrderLineCnChanged(this)" style="width:100%;min-width:120px;padding:6px;border:1px solid #ccc;border-radius:4px;text-transform:uppercase;font-family:var(--csm-font-en);font-weight:700">' + buildSalesOrderCnSelectHtml(cn) + '</select></td>' +
     '<td style="padding:6px 8px;vertical-align:middle"><select class="sol-pr csm-product-select" style="width:100%;min-width:120px;padding:6px;border:1px solid #ccc;border-radius:4px">' + buildProductSelectOptionsHtml(pr) + '</select></td>' +
-    '<td style="padding:6px 8px;vertical-align:middle;width:96px"><input type="number" class="sol-qty" min="0.01" step="any" value="' + csmEscapeHtml(String(qty)) + '" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></td>' +
-    '<td style="padding:6px 8px;vertical-align:middle;width:112px"><input type="number" class="sol-price" min="0" step="any" value="' + (up === '' ? '' : csmEscapeHtml(String(up))) + '" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></td>' +
+    '<td style="padding:6px 8px;vertical-align:middle;width:80px"><input type="number" class="sol-qty" min="0.01" step="any" value="' + csmEscapeHtml(String(qty)) + '" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></td>' +
+    '<td style="padding:6px 8px;vertical-align:middle;width:108px"><input type="number" class="sol-price-incl" min="0" step="any" value="' + (inclVal === '' ? '' : csmEscapeHtml(inclVal)) + '" oninput="salesOrderLinePriceSync(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700" title="Unit including 5% VAT \u2014 other column auto-fills"></td>' +
+    '<td style="padding:6px 8px;vertical-align:middle;width:108px"><input type="number" class="sol-price-excl" min="0" step="any" value="' + (exclVal === '' ? '' : csmEscapeHtml(exclVal)) + '" oninput="salesOrderLinePriceSync(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700" title="Unit before 5% VAT \u2014 other column auto-fills"></td>' +
     '<td style="padding:6px 4px;vertical-align:middle;width:40px"><button type="button" class="abtn x" onclick="salesOrderRemoveLine(this)" title="Remove line">\u00d7</button></td>' +
     '</tr>';
+}
+function salesOrderLinePriceSync(el) {
+  var tr = el && el.closest && el.closest('tr');
+  if (!tr || tr._csmPriceSyncing) return;
+  var inc = tr.querySelector('.sol-price-incl');
+  var exc = tr.querySelector('.sol-price-excl');
+  if (!inc || !exc) return;
+  var mult = 1 + VAT_RATE;
+  tr._csmPriceSyncing = true;
+  try {
+    if (el === inc) {
+      var s = String(inc.value || '').trim();
+      if (s === '' || isNaN(parseFloat(s)) || parseFloat(s) < 0) {
+        exc.value = '';
+        tr.removeAttribute('data-price-basis');
+        return;
+      }
+      tr.setAttribute('data-price-basis', 'included');
+      var ni = parseFloat(s);
+      exc.value = String(csmSalesRound2(ni / mult));
+    } else {
+      var s2 = String(exc.value || '').trim();
+      if (s2 === '' || isNaN(parseFloat(s2)) || parseFloat(s2) < 0) {
+        inc.value = '';
+        tr.removeAttribute('data-price-basis');
+        return;
+      }
+      tr.setAttribute('data-price-basis', 'excluded');
+      var ne = parseFloat(s2);
+      inc.value = String(csmSalesRound2(ne * mult));
+    }
+  } finally {
+    tr._csmPriceSyncing = false;
+  }
 }
 function salesOrderFillLinesBody(orderOrNull) {
   var tb = gid('sales-order-lines-body');
@@ -3790,22 +3855,54 @@ function salesOrderReadLinesFromDom() {
   if (!tb) return { err: 'Missing line editor' };
   var out = [];
   var incomplete = false;
+  var priceMismatch = false;
+  var mult = 1 + VAT_RATE;
+  var tol = 0.021;
   tb.querySelectorAll('tr').forEach(function(tr) {
     var cnEl = tr.querySelector('.sol-cn');
     var prEl = tr.querySelector('.sol-pr');
     var qtyEl = tr.querySelector('.sol-qty');
-    var upEl = tr.querySelector('.sol-price');
+    var incEl = tr.querySelector('.sol-price-incl');
+    var excEl = tr.querySelector('.sol-price-excl');
     var cn = (cnEl && cnEl.value || '').trim().toUpperCase();
     var pr = canonicalProductName((prEl && prEl.value || '').trim());
     var qty = parseFloat(qtyEl && qtyEl.value);
-    var up = parseFloat(upEl && upEl.value);
-    var any = cn || pr || (qty > 0) || (up >= 0);
+    var sIn = incEl ? String(incEl.value || '').trim() : '';
+    var sEx = excEl ? String(excEl.value || '').trim() : '';
+    var nIn = parseFloat(sIn);
+    var nEx = parseFloat(sEx);
+    var hasIn = sIn !== '' && !isNaN(nIn) && nIn >= 0;
+    var hasEx = sEx !== '' && !isNaN(nEx) && nEx >= 0;
+    var any = cn || pr || (qty > 0) || hasIn || hasEx;
     if (!any) return;
-    if (!cn || !pr || !(qty > 0) || !(up >= 0)) incomplete = true;
-    else out.push({ containerNo: cn, productName: pr, quantity: qty, unitPrice: up });
+    if (!cn || !pr || !(qty > 0)) {
+      incomplete = true;
+      return;
+    }
+    if (hasIn && hasEx) {
+      var basis = (tr.getAttribute('data-price-basis') || '').trim().toLowerCase();
+      if (basis === 'included') {
+        out.push({ containerNo: cn, productName: pr, quantity: qty, unitPrice: nIn, vatMode: 'included' });
+      } else if (basis === 'excluded') {
+        out.push({ containerNo: cn, productName: pr, quantity: qty, unitPrice: nEx, vatMode: 'excluded' });
+      } else if (Math.abs(nEx - csmSalesRound2(nIn / mult)) <= tol) {
+        out.push({ containerNo: cn, productName: pr, quantity: qty, unitPrice: nIn, vatMode: 'included' });
+      } else if (Math.abs(nIn - csmSalesRound2(nEx * mult)) <= tol) {
+        out.push({ containerNo: cn, productName: pr, quantity: qty, unitPrice: nEx, vatMode: 'excluded' });
+      } else {
+        priceMismatch = true;
+      }
+    } else if (hasIn) {
+      out.push({ containerNo: cn, productName: pr, quantity: qty, unitPrice: nIn, vatMode: 'included' });
+    } else if (hasEx) {
+      out.push({ containerNo: cn, productName: pr, quantity: qty, unitPrice: nEx, vatMode: 'excluded' });
+    } else {
+      incomplete = true;
+    }
   });
-  if (incomplete) return { err: 'Each line needs container, product, qty and unit price.' };
-  if (!out.length) return { err: 'Add at least one complete line (container + product + qty + price).' };
+  if (priceMismatch) return { err: 'Include VAT and Exclude VAT must match 5% VAT on each line (or clear one column).' };
+  if (incomplete) return { err: 'Each line needs container, product, qty, and at least one unit price (both columns link by 5% VAT).' };
+  if (!out.length) return { err: 'Add at least one complete line (container + product + qty + unit price).' };
   return { lines: out };
 }
 function openSalesOrderModal(id) {
@@ -3814,9 +3911,6 @@ function openSalesOrderModal(id) {
   m.classList.add('sh');
   gid('sales-order-id').value = id || '';
   salesFillCustomerSelect(gid('sales-order-customer'));
-  var rEx = document.getElementById('sales-vat-excluded');
-  var rIn = document.getElementById('sales-vat-included');
-  if (rEx) rEx.checked = true;
   gid('sales-order-payment').value = 'cash_pending';
   var onDisp = gid('sales-order-order-no-display');
   var ctDisp = gid('sales-order-created-display');
@@ -3828,8 +3922,6 @@ function openSalesOrderModal(id) {
     if (o.orderStatus !== 'draft') { toast('Only draft orders editable', 'err'); clSalesOrderModal(); return; }
     gid('sales-order-customer').value = o.customerId || '';
     salesOrderFillLinesBody(o);
-    if (o.vatMode === 'included' && rIn) rIn.checked = true;
-    else if (rEx) rEx.checked = true;
     gid('sales-order-payment').value = o.paymentStatus || 'cash_pending';
     if (onDisp) onDisp.textContent = o.orderNo || '\u2014';
     if (ctDisp) ctDisp.textContent = csmSalesFormatOrderCreated(o.createdAt);
@@ -3862,11 +3954,10 @@ function saveSalesOrderFromModal(submitAfter) {
     toast('\u6682\u65E0\u91C7\u8D2D\u8BB0\u5F55\u4E2D\u7684\u96C6\u88C5\u7BB1\u53F7\uFF0C\u8BF7\u5148\u5728 Warehouse1 \u91C7\u8D2D\u4E2D\u5F55\u5165', 'err');
     return;
   }
-  var vatMode = document.getElementById('sales-vat-included') && document.getElementById('sales-vat-included').checked ? 'included' : 'excluded';
   var payment = gid('sales-order-payment').value || 'cash_pending';
   var prEl = gid('sales-order-payment-receiver');
   var prId = prEl ? String(prEl.value || '').trim() : '';
-  var tmpTotals = csmSalesLineNetVatTotal({ vatMode: vatMode, lines: newLines });
+  var tmpTotals = csmSalesLineNetVatTotal({ lines: newLines });
   if (!id) id = 'so_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   var existing = salesOrders.find(function(x) { return x.id === id; });
   var prEnt = prId ? salesPaymentReceivers.find(function(x) { return x.id === prId; }) : null;
@@ -3888,6 +3979,7 @@ function saveSalesOrderFromModal(submitAfter) {
     createdVal = nowIso;
   }
   var L0 = newLines[0];
+  var orderVatMode = (L0 && (L0.vatMode === 'included' || L0.vatMode === 'excluded')) ? L0.vatMode : 'excluded';
   var rec = {
     orderNo: orderNoVal,
     customerId: customerId,
@@ -3897,7 +3989,7 @@ function saveSalesOrderFromModal(submitAfter) {
     quantity: L0.quantity,
     unitPrice: L0.unitPrice,
     lines: newLines,
-    vatMode: vatMode,
+    vatMode: orderVatMode,
     paymentStatus: payment,
     paymentReceiverId: prId || '',
     paymentReceiverName: prName,
@@ -3976,6 +4068,7 @@ try { window.csmSalesToggleOrderSubRows = csmSalesToggleOrderSubRows; } catch (e
 try { window.salesOrderAddLine = salesOrderAddLine; } catch (e) {}
 try { window.salesOrderRemoveLine = salesOrderRemoveLine; } catch (e) {}
 try { window.salesOrderLineCnChanged = salesOrderLineCnChanged; } catch (e) {}
+try { window.salesOrderLinePriceSync = salesOrderLinePriceSync; } catch (e) {}
 try { window.openSalesPaymentReceiversModal = openSalesPaymentReceiversModal; } catch (e) {}
 try { window.clSalesPaymentReceiversModal = clSalesPaymentReceiversModal; } catch (e) {}
 try { window.addSalesPaymentReceiver = addSalesPaymentReceiver; } catch (e) {}

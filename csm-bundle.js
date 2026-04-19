@@ -211,11 +211,51 @@ function attachDataListenersForRole() {
     console.error('csm settings listener bind failed', eSettListen);
   }
 }
+var CSM_SUPPLIER_USD_TO_AED_RATE = 3.675;
+function supplierUpdateAedFromUsd() {
+  var uEl = gid('supplier-total-usd');
+  var aEl = gid('supplier-total-aed');
+  if (!aEl) return;
+  if (!uEl || String(uEl.value).trim() === '') {
+    aEl.value = '';
+    return;
+  }
+  var v = parseFloat(uEl.value);
+  if (isNaN(v) || !isFinite(v) || v < 0) {
+    aEl.value = '';
+    return;
+  }
+  aEl.value = String(Math.round(v * CSM_SUPPLIER_USD_TO_AED_RATE * 100) / 100);
+}
+function supplierRecWeightPriceForPurchase(rec) {
+  rec = rec || {};
+  var tt = String(rec.tradeTerm || '').trim().toUpperCase();
+  if (['CFR', 'CIF', 'FOB'].indexOf(tt) === -1) tt = '';
+  var nwm = parseFloat(rec.netWeightMt);
+  var gwm = parseFloat(rec.grossWeightMt);
+  var uusd = parseFloat(rec.unitPriceUsdMt);
+  var tUsd = parseFloat(rec.totalAmountUsd);
+  var totalAmountUsd = '';
+  var totalAmountAed = '';
+  if (!isNaN(tUsd) && isFinite(tUsd) && tUsd >= 0 && rec.totalAmountUsd !== '' && rec.totalAmountUsd != null) {
+    totalAmountUsd = tUsd;
+    totalAmountAed = Math.round(tUsd * CSM_SUPPLIER_USD_TO_AED_RATE * 100) / 100;
+  }
+  return {
+    netWeightMt: isNaN(nwm) ? '' : nwm,
+    grossWeightMt: isNaN(gwm) ? '' : gwm,
+    tradeTerm: tt,
+    unitPriceUsdMt: isNaN(uusd) ? '' : uusd,
+    totalAmountUsd: totalAmountUsd,
+    totalAmountAed: totalAmountAed
+  };
+}
 function createPurchaseRecordFromSupplierRec(rec, id, item) {
   var sourceItem = item || (typeof normalizeSupplierRecItems === 'function' ? normalizeSupplierRecItems(rec)[0] : null) || {
     product: rec.product || '',
     qty: rec.qty || 0
   };
+  var wp = supplierRecWeightPriceForPurchase(rec);
   return {
     id: id,
     seq: rec.seq || '',
@@ -236,7 +276,13 @@ function createPurchaseRecordFromSupplierRec(rec, id, item) {
     etd: rec.etd || '',
     eta: rec.eta || '',
     sourceSupplierRecId: rec.id || '',
-    remarks: String(rec.remarks || '').trim()
+    remarks: String(rec.remarks || '').trim(),
+    netWeightMt: wp.netWeightMt,
+    grossWeightMt: wp.grossWeightMt,
+    tradeTerm: wp.tradeTerm,
+    unitPriceUsdMt: wp.unitPriceUsdMt,
+    totalAmountUsd: wp.totalAmountUsd,
+    totalAmountAed: wp.totalAmountAed
   };
 }
 function makePurchaseRecordId() {
@@ -747,6 +793,18 @@ function openSupplierFormBody() {
   gid('supplier-bl').value = '';
   gid('supplier-etd').value = '';
   gid('supplier-eta').value = '';
+  var snm = gid('supplier-net-mt');
+  var sgm = gid('supplier-gross-mt');
+  var stt = gid('supplier-trade-term');
+  var sup = gid('supplier-unit-price-usd');
+  if (snm) snm.value = '';
+  if (sgm) sgm.value = '';
+  if (stt) stt.value = '';
+  if (sup) sup.value = '';
+  var stu = gid('supplier-total-usd');
+  var sta = gid('supplier-total-aed');
+  if (stu) stu.value = '';
+  if (sta) sta.value = '';
   var srm = gid('supplier-remark');
   if (srm) srm.value = '';
   gid('supplier-modal-title').textContent = '📦 添加采购记录 / Add Purchase Record';
@@ -773,6 +831,16 @@ function saveSupplierRec() {
   var etd = (gid('supplier-etd').value || '').trim();
   var eta = (gid('supplier-eta').value || '').trim();
   var remarks = (gid('supplier-remark') && gid('supplier-remark').value != null) ? String(gid('supplier-remark').value).trim() : '';
+  var tradeTermRaw = gid('supplier-trade-term') ? String(gid('supplier-trade-term').value || '').trim().toUpperCase() : '';
+  if (['CFR', 'CIF', 'FOB'].indexOf(tradeTermRaw) === -1) tradeTermRaw = '';
+  var netMtParsed = gid('supplier-net-mt') && String(gid('supplier-net-mt').value).trim() !== '' ? parseFloat(gid('supplier-net-mt').value) : NaN;
+  var grossMtParsed = gid('supplier-gross-mt') && String(gid('supplier-gross-mt').value).trim() !== '' ? parseFloat(gid('supplier-gross-mt').value) : NaN;
+  var unitUsdParsed = gid('supplier-unit-price-usd') && String(gid('supplier-unit-price-usd').value).trim() !== '' ? parseFloat(gid('supplier-unit-price-usd').value) : NaN;
+  var totalUsdParsed = gid('supplier-total-usd') && String(gid('supplier-total-usd').value).trim() !== '' ? parseFloat(gid('supplier-total-usd').value) : NaN;
+  var totalAedComputed = '';
+  if (!isNaN(totalUsdParsed) && isFinite(totalUsdParsed) && totalUsdParsed >= 0) {
+    totalAedComputed = Math.round(totalUsdParsed * CSM_SUPPLIER_USD_TO_AED_RATE * 100) / 100;
+  }
   var itemResult = collectSupplierFormItems();
   var supplierItems = itemResult.items;
   var product = supplierItems.map(function(item) { return item.product; }).join(' / ');
@@ -831,6 +899,12 @@ function saveSupplierRec() {
     etd: etd,
     eta: eta,
     remarks: remarks,
+    netWeightMt: isNaN(netMtParsed) ? '' : netMtParsed,
+    grossWeightMt: isNaN(grossMtParsed) ? '' : grossMtParsed,
+    tradeTerm: tradeTermRaw,
+    unitPriceUsdMt: isNaN(unitUsdParsed) ? '' : unitUsdParsed,
+    totalAmountUsd: isNaN(totalUsdParsed) ? '' : totalUsdParsed,
+    totalAmountAed: isNaN(totalUsdParsed) ? '' : totalAedComputed,
     addedBy: currentUserEmail,
     ownerUid: currentUser,
     addTime: new Date().toISOString(),
@@ -941,8 +1015,18 @@ function confirmSupplierRec(id) {
     var writes = [];
     if (existingPurchases.length) {
       var adoptRemarks = String(rec.remarks || '').trim();
+      var wpAdopt = supplierRecWeightPriceForPurchase(rec);
       existingPurchases.forEach(function(item) {
-        writes.push(purchaseRef.child(item.id).update({ seq: seq, remarks: adoptRemarks }));
+        writes.push(purchaseRef.child(item.id).update({
+          seq: seq,
+          remarks: adoptRemarks,
+          netWeightMt: wpAdopt.netWeightMt,
+          grossWeightMt: wpAdopt.grossWeightMt,
+          tradeTerm: wpAdopt.tradeTerm,
+          unitPriceUsdMt: wpAdopt.unitPriceUsdMt,
+          totalAmountUsd: wpAdopt.totalAmountUsd,
+          totalAmountAed: wpAdopt.totalAmountAed
+        }));
       });
     } else {
       supplierItems.forEach(function(item) {
@@ -995,6 +1079,17 @@ function editSupplierRec(id) {
     gid('supplier-bl').value = rec.bl || '';
     gid('supplier-etd').value = rec.etd || '';
     gid('supplier-eta').value = rec.eta || '';
+    var snmE = gid('supplier-net-mt');
+    var sgmE = gid('supplier-gross-mt');
+    var sttE = gid('supplier-trade-term');
+    var supE = gid('supplier-unit-price-usd');
+    if (snmE) snmE.value = rec.netWeightMt != null && rec.netWeightMt !== '' ? rec.netWeightMt : '';
+    if (sgmE) sgmE.value = rec.grossWeightMt != null && rec.grossWeightMt !== '' ? rec.grossWeightMt : '';
+    if (sttE) sttE.value = ['CFR', 'CIF', 'FOB'].indexOf(String(rec.tradeTerm || '').trim().toUpperCase()) !== -1 ? String(rec.tradeTerm || '').trim().toUpperCase() : '';
+    if (supE) supE.value = rec.unitPriceUsdMt != null && rec.unitPriceUsdMt !== '' ? rec.unitPriceUsdMt : '';
+    var stuE = gid('supplier-total-usd');
+    if (stuE) stuE.value = rec.totalAmountUsd != null && rec.totalAmountUsd !== '' ? rec.totalAmountUsd : '';
+    supplierUpdateAedFromUsd();
     var srmE = gid('supplier-remark');
     if (srmE) srmE.value = rec.remarks || '';
     gid('supplier-modal-title').textContent = '✏️ 编辑采购记录 / Edit Purchase Record';
@@ -1183,6 +1278,12 @@ function openSupplierCNDetail(id) {
   html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">供应商</td><td style="padding:6px">' + (rec.supplier || '-') + '</td></tr>';
   html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">采购日期</td><td style="padding:6px">' + (rec.purchaseDate || '-') + (rec.purchaseTime ? ' ' + rec.purchaseTime : '') + '</td></tr>';
   html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">总数量</td><td style="padding:6px">' + getSupplierQtyTotal(rec) + '</td></tr>';
+  var wpD = supplierRecWeightPriceForPurchase(rec);
+  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">净重 Net (MT)</td><td style="padding:6px;font-family:var(--csm-font-en);font-weight:700">' + (wpD.netWeightMt === '' ? '<span style="color:#999">—</span>' : wpD.netWeightMt + ' MT') + '</td></tr>';
+  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">毛重 Gross (MT)</td><td style="padding:6px;font-family:var(--csm-font-en);font-weight:700">' + (wpD.grossWeightMt === '' ? '<span style="color:#999">—</span>' : wpD.grossWeightMt + ' MT') + '</td></tr>';
+  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">单价 Unit price</td><td style="padding:6px;font-family:var(--csm-font-en);font-weight:700">' + (wpD.tradeTerm ? csmEscapeHtml(wpD.tradeTerm) + ' · ' : '') + (wpD.unitPriceUsdMt === '' ? '<span style="color:#999">—</span>' : wpD.unitPriceUsdMt + ' USD/MT') + '</td></tr>';
+  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">总金额 Total (USD)</td><td style="padding:6px;font-family:var(--csm-font-en);font-weight:700">' + (wpD.totalAmountUsd === '' ? '<span style="color:#999">—</span>' : wpD.totalAmountUsd + ' USD') + '</td></tr>';
+  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">迪拉姆换算 AED</td><td style="padding:6px;font-family:var(--csm-font-en);font-weight:700">' + (wpD.totalAmountAed === '' ? '<span style="color:#999">—</span>' : wpD.totalAmountAed + ' AED') + '</td></tr>';
   var supRem = String(rec.remarks || '').trim();
   html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888;vertical-align:top">备注</td><td style="padding:6px;white-space:pre-wrap;font-family:var(--csm-font-en);font-weight:700">' + (supRem ? csmEscapeHtml(supRem) : '<span style="color:#999">—</span>') + '</td></tr>';
   html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">船名</td><td style="padding:6px">' + (rec.shipname || '-') + '</td></tr>';
@@ -1553,6 +1654,15 @@ function showPurchaseCnDetail(cn) {
     var t = String(it.remarks || '').trim();
     if (t && cnRemarkParts.indexOf(t) === -1) cnRemarkParts.push(t);
   });
+  var wpCn = supplierRecWeightPriceForPurchase(base);
+  var hasWpCn = wpCn.netWeightMt !== '' || wpCn.grossWeightMt !== '' || wpCn.tradeTerm || wpCn.unitPriceUsdMt !== '' || wpCn.totalAmountUsd !== '';
+  if (hasWpCn) {
+    html += '<div class="mr"><span class="ml">净重 Net (MT)</span><span class="mv" style="font-family:var(--csm-font-en);font-weight:700">' + (wpCn.netWeightMt === '' ? '—' : wpCn.netWeightMt + ' MT') + '</span></div>';
+    html += '<div class="mr"><span class="ml">毛重 Gross (MT)</span><span class="mv" style="font-family:var(--csm-font-en);font-weight:700">' + (wpCn.grossWeightMt === '' ? '—' : wpCn.grossWeightMt + ' MT') + '</span></div>';
+    html += '<div class="mr" style="grid-column:1 / -1"><span class="ml">单价 Unit price</span><span class="mv" style="font-family:var(--csm-font-en);font-weight:700">' + (wpCn.tradeTerm ? csmEscapeHtml(wpCn.tradeTerm) + ' · ' : '') + (wpCn.unitPriceUsdMt === '' ? '—' : wpCn.unitPriceUsdMt + ' USD/MT') + '</span></div>';
+    html += '<div class="mr"><span class="ml">总金额 Total (USD)</span><span class="mv" style="font-family:var(--csm-font-en);font-weight:700">' + (wpCn.totalAmountUsd === '' ? '—' : wpCn.totalAmountUsd + ' USD') + '</span></div>';
+    html += '<div class="mr"><span class="ml">迪拉姆 AED</span><span class="mv" style="font-family:var(--csm-font-en);font-weight:700">' + (wpCn.totalAmountAed === '' ? '—' : wpCn.totalAmountAed + ' AED') + '</span></div>';
+  }
   if (cnRemarkParts.length) {
     html += '<div class="mr" style="grid-column:1 / -1"><span class="ml">备注 / Remarks</span><span class="mv" style="display:block;margin-top:4px;white-space:pre-wrap;font-weight:700;font-family:var(--csm-font-en)">' + csmEscapeHtml(cnRemarkParts.join('\n')) + '</span></div>';
   }

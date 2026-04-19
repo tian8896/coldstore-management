@@ -305,7 +305,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260419g" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260419i" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -767,6 +767,9 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   <div class="mdl" style="width:700px;max-height:85vh;overflow-y:auto">
     <h3 id="supplier-modal-title">📦 添加采购记录 / Add Purchase Record</h3>
     <div class="supplier-modal-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="fg" style="grid-column:1 / -1"><label>供应商 Supplier *</label>
+        <input type="text" id="supplier-supplier" placeholder="输入供应商名称" autocomplete="off">
+      </div>
       <div class="fg"><label>集装箱号 Container No. *</label>
         <input type="text" id="supplier-cn" placeholder="输入集装箱号码" maxlength="11" style="text-transform:uppercase" autocomplete="off">
       </div>
@@ -774,8 +777,8 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <input type="date" id="supplier-date" autocomplete="off" style="width:100%;display:inline-block"> 
         <input type="time" id="supplier-time" autocomplete="off" style="width:48%;display:inline-block;margin-left:2%">
       </div>
-      <div class="fg"><label>供应商 Supplier *</label>
-        <input type="text" id="supplier-supplier" placeholder="输入供应商名称" autocomplete="off">
+      <div class="fg" style="grid-column:1 / -1"><label>提单号 B/L No.</label>
+        <input type="text" id="supplier-bl" placeholder="输入提单号" autocomplete="off">
       </div>
       <div class="fg" style="grid-column:1 / -1;margin-bottom:4px">
         <label>品名明细 Product Items *</label>
@@ -809,6 +812,32 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           </table>
         </div>
       </div>
+      <div class="fg" style="grid-column:1 / -1;display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-top:10px;margin-top:4px;border-top:1px solid #e8e8e8">
+        <div class="fg" style="margin:0"><label>净重 Net weight <span style="font-size:11px;color:#666;font-weight:400">(MT 吨)</span></label>
+          <input type="number" id="supplier-net-mt" step="0.001" min="0" placeholder="Enter MT" autocomplete="off" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+        </div>
+        <div class="fg" style="margin:0"><label>毛重 Gross weight <span style="font-size:11px;color:#666;font-weight:400">(MT 吨)</span></label>
+          <input type="number" id="supplier-gross-mt" step="0.001" min="0" placeholder="Enter MT" autocomplete="off" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+        </div>
+        <div class="fg" style="grid-column:1 / -1;margin:0">
+          <label>单价 Unit price <span style="font-size:11px;color:#666;font-weight:400">(USD/MT 美元/吨)</span></label>
+          <div style="display:flex;gap:10px;align-items:stretch;flex-wrap:wrap;margin-top:4px">
+            <select id="supplier-trade-term" title="贸易条款 Incoterm" style="flex:0 0 auto;min-width:130px;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+              <option value="">Incoterm</option>
+              <option value="CFR">CFR</option>
+              <option value="CIF">CIF</option>
+              <option value="FOB">FOB</option>
+            </select>
+            <input type="number" id="supplier-unit-price-usd" step="0.01" min="0" placeholder="USD/MT" title="USD per metric ton" autocomplete="off" style="flex:1;min-width:160px;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+          </div>
+        </div>
+        <div class="fg" style="margin:0"><label>总金额 Total amount <span style="font-size:11px;color:#666;font-weight:400">(USD 美元)</span></label>
+          <input type="number" id="supplier-total-usd" step="0.01" min="0" placeholder="USD" autocomplete="off" oninput="supplierUpdateAedFromUsd()" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+        </div>
+        <div class="fg" style="margin:0"><label>迪拉姆换算 AED <span style="font-size:11px;color:#666;font-weight:400">(USD × 3.675)</span></label>
+          <input type="text" id="supplier-total-aed" readonly tabindex="-1" placeholder="—" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;background:#f5f5f5;font-family:var(--csm-font-en);font-weight:700">
+        </div>
+      </div>
       <div class="fg"><label>船名 Ship Name *</label>
         <input type="text" id="supplier-shipname" placeholder="输入船名" autocomplete="off">
       </div>
@@ -817,38 +846,11 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           <option value="">请选择船公司</option>
         </select>
       </div>
-      <div class="fg"><label>提单号 B/L No.</label>
-        <input type="text" id="supplier-bl" placeholder="输入提单号" autocomplete="off">
-      </div>
       <div class="fg"><label>预计开船日 ETD</label>
         <input type="date" id="supplier-etd" autocomplete="off">
       </div>
       <div class="fg"><label>预计到港日 ETA</label>
         <input type="date" id="supplier-eta" autocomplete="off">
-      </div>
-      <div class="fg"><label>净重 Net weight <span style="font-size:11px;color:#666;font-weight:400">(MT 吨)</span></label>
-        <input type="number" id="supplier-net-mt" step="0.001" min="0" placeholder="Enter MT" autocomplete="off" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
-      </div>
-      <div class="fg"><label>毛重 Gross weight <span style="font-size:11px;color:#666;font-weight:400">(MT 吨)</span></label>
-        <input type="number" id="supplier-gross-mt" step="0.001" min="0" placeholder="Enter MT" autocomplete="off" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
-      </div>
-      <div class="fg" style="grid-column:1 / -1">
-        <label>单价 Unit price <span style="font-size:11px;color:#666;font-weight:400">(USD/MT 美元/吨)</span></label>
-        <div style="display:flex;gap:10px;align-items:stretch;flex-wrap:wrap">
-          <select id="supplier-trade-term" title="贸易条款 Incoterm" style="flex:0 0 auto;min-width:130px;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
-            <option value="">Incoterm</option>
-            <option value="CFR">CFR</option>
-            <option value="CIF">CIF</option>
-            <option value="FOB">FOB</option>
-          </select>
-          <input type="number" id="supplier-unit-price-usd" step="0.01" min="0" placeholder="USD/MT" title="USD per metric ton" autocomplete="off" style="flex:1;min-width:160px;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
-        </div>
-      </div>
-      <div class="fg"><label>总金额 Total amount <span style="font-size:11px;color:#666;font-weight:400">(USD 美元)</span></label>
-        <input type="number" id="supplier-total-usd" step="0.01" min="0" placeholder="USD" autocomplete="off" oninput="supplierUpdateAedFromUsd()" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
-      </div>
-      <div class="fg"><label>迪拉姆换算 AED <span style="font-size:11px;color:#666;font-weight:400">(USD × 3.675)</span></label>
-        <input type="text" id="supplier-total-aed" readonly tabindex="-1" placeholder="—" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;background:#f5f5f5;font-family:var(--csm-font-en);font-weight:700">
       </div>
       <div class="fg" style="grid-column:1 / -1">
         <label>备注 Remarks</label>

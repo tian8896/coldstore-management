@@ -51,9 +51,11 @@ header p{color:var(--tx);font-size:17px;font-weight:bold;margin-top:4px;letter-s
 .tw{overflow-x:auto;border:1px solid var(--bd);border-radius:6px;flex:1;min-width:0}
 /* 采购列表 Purchase：表格、字号略大、行距紧凑 */
 #tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table{width:100%;border-collapse:collapse;font-size:15px;line-height:1.18;font-family:var(--csm-font-en);font-weight:700}
-#tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table>thead>tr>th{padding:5px 10px 4px;font-size:14px;line-height:1.12;vertical-align:bottom;border-bottom:1px solid var(--bd);background:var(--bg2);color:var(--tx)}
+#tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table>thead>tr>th{padding:5px 10px 4px;font-size:14px;line-height:1.12;vertical-align:bottom;border-bottom:1px solid var(--bd);background:var(--bg2);color:var(--tx);font-family:var(--csm-font-en);font-weight:700;text-transform:none;letter-spacing:.02em}
 #tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table>tbody>tr>td{padding:3px 10px;font-size:15px;line-height:1.18;border-bottom:1px solid rgba(48,54,61,.18);vertical-align:middle}
-#tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table>thead>tr>th span{font-size:11px;color:#666;font-weight:700}
+#tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table>thead>tr>th span{font-size:11px;color:#666;font-weight:700;text-transform:none}
+/* Supplier portal purchase table: English Arial + bold + title case (override global th uppercase) */
+#supplierView .tw table>thead>tr>th{font-family:var(--csm-font-en);font-weight:700;text-transform:none;letter-spacing:.02em}
 table{width:max-content;min-width:100%;border-collapse:collapse;font-size:14px}
 th{background:var(--bg2);padding:12px 14px;text-align:left;font-size:14px;font-family:var(--csm-font-en);font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--tx);border-bottom:2px solid var(--bd);white-space:nowrap}
 td{padding:11px 14px;border-bottom:1px solid rgba(48,54,61,.5);color:var(--tx);white-space:nowrap;font-size:14px;font-family:var(--csm-font-en);font-weight:700}

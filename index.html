@@ -109,8 +109,9 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 #tc-sales #sales-orders-toolbar .btn{font-family:var(--csm-font-en);font-weight:700;text-transform:none;letter-spacing:.02em}
 #tc-sales .csm-sales-subnav .btn .csm-sales-subnav-en,
 #tc-sales #sales-orders-toolbar .btn .csm-sales-subnav-en{font-family:var(--csm-font-en);font-weight:700}
-/* Sales tables (orders, finance, customers): Arial + bold + title case — override global th uppercase */
+/* Sales tables (orders + finance tab, customers): Arial + bold + title case — override global th uppercase */
 #tc-sales .tw-sales-dense table > thead > tr > th,
+#tc-sales_finance .tw-sales-dense table > thead > tr > th,
 #tc-sales #sales-panel-customers .tw table > thead > tr > th{font-family:var(--csm-font-en);font-weight:700;text-transform:none;letter-spacing:.02em}
 .bdg{display:inline-block;padding:5px 10px;border-radius:3px;font-size:13px;font-weight:700;font-family:var(--csm-font-en)}
 .bdg-a{background:var(--am15);color:var(--am);border:1px solid rgba(210,153,34,.3)}
@@ -1162,7 +1163,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <th>Order No.<br><span style="font-size:11px;color:#888;font-weight:700">订单号</span></th>
       <th>Created<br><span style="font-size:11px;color:#888;font-weight:700">生成时间</span></th>
       <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net Unit (AED)</th><th>5% VAT (AED)</th><th>Total (AED)</th><th>Worker</th><th>Truck</th><th>Receiver</th><th>Payment (Fin.)</th>
-      <th>Payment confirm<br><span style="font-size:11px;color:#888;font-weight:700">付款确认</span></th>
+      <th>Payment Confirm<br><span style="font-size:11px;color:#888;font-weight:700">付款确认</span></th>
     </tr></thead><tbody id="tb-sales-finance"></tbody><tfoot><tr>
         <td colspan="6"></td>
         <td id="sales-finance-foot-qty" style="text-align:right;font-variant-numeric:tabular-nums">0</td>

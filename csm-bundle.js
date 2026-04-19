@@ -1318,7 +1318,7 @@ function toggleSupplierItems(groupId, btn) {
 function openSupplierCNDetail(id) {
   var rec = supplierRecs.find(function(r) { return r.id === id; });
   if (!rec) return;
-  setModalTitle('集装箱详情  Container details');
+  setModalTitle('Container Details');
   var linked = [];
   if (purchaseRecs && purchaseRecs.length) {
     linked = purchaseRecs.filter(function(p) { return p.sourceSupplierRecId === rec.id; });
@@ -1329,67 +1329,51 @@ function openSupplierCNDetail(id) {
   }
   var supplierItems = normalizeSupplierRecItems(rec);
   var status = rec.status || 'draft';
-  var statusBadge = ({
-    'draft': '<span style="background:#e3f2fd;color:#1565c0;padding:4px 10px;border-radius:8px;font-size:13px;font-weight:bold">初始 Initial</span>',
-    'submitted': '<span style="background:#fff8e1;color:#f57f17;padding:4px 10px;border-radius:8px;font-size:13px;font-weight:bold">已提交 Submitted</span>',
-    'confirmed': '<span style="background:#e8f5e9;color:#2e7d32;padding:4px 10px;border-radius:8px;font-size:13px;font-weight:bold">已确认 Confirmed</span>'
-  })[status] || '<span style="background:#eceff1;color:#455a64;padding:4px 10px;border-radius:8px;font-size:13px;font-weight:bold">其他 Other</span>';
-  function L(zh, en) {
-    return '<td style="padding:8px 10px;color:#444;width:34%;vertical-align:top;border-bottom:1px solid #eee;line-height:1.4">' +
-      '<span style="display:block;font-size:17px;color:#111;font-weight:700">' + zh + '</span>' +
-      '<span style="display:block;font-size:14px;color:#555;font-weight:600;margin-top:4px">' + en + '</span></td>';
-  }
-  var V = 'padding:8px 10px;font-size:15px;border-bottom:1px solid #eee;line-height:1.4';
-  var html = '<div class="csm-supplier-cn-detail" style="text-align:left;font-size:15px;line-height:1.45">';
-  html += '<table style="width:100%;border-collapse:collapse">';
-  html += '<tr>' + L('集装箱号', 'Container No.') + '<td style="' + V + ';font-weight:bold;color:#00bfff;font-size:17px">' + csmEscapeHtml(rec.cn || '-') + '</td></tr>';
-  html += '<tr>' + L('状态', 'Status') + '<td style="' + V + '">' + statusBadge + '</td></tr>';
-  html += '<tr>' + L('供应商', 'Supplier') + '<td style="' + V + '">' + csmEscapeHtml(rec.supplier || '-') + '</td></tr>';
-  html += '<tr>' + L('采购日期', 'Purchase date') + '<td style="' + V + '">' + csmEscapeHtml(rec.purchaseDate || '-') + (rec.purchaseTime ? ' ' + csmEscapeHtml(String(rec.purchaseTime)) : '') + '</td></tr>';
-  html += '<tr>' + L('总数量', 'Total qty') + '<td style="' + V + '">' + getSupplierQtyTotal(rec) + '</td></tr>';
+  var statusHtml = csmSupplierRecordStatusBadgeEn(status);
   var wpD = supplierRecWeightPriceForPurchase(rec);
-  html += '<tr>' + L('净重', 'Net weight (MT)') + '<td style="' + V + '">' + (wpD.netWeightMt === '' ? '<span style="color:#999">—</span>' : wpD.netWeightMt + ' MT') + '</td></tr>';
-  html += '<tr>' + L('毛重', 'Gross weight (MT)') + '<td style="' + V + '">' + (wpD.grossWeightMt === '' ? '<span style="color:#999">—</span>' : wpD.grossWeightMt + ' MT') + '</td></tr>';
-  html += '<tr>' + L('单价', 'Unit price') + '<td style="' + V + '">' + (wpD.tradeTerm ? csmEscapeHtml(wpD.tradeTerm) + ' · ' : '') + (wpD.unitPriceUsdMt === '' ? '<span style="color:#999">—</span>' : wpD.unitPriceUsdMt + ' USD/MT') + '</td></tr>';
-  html += '<tr>' + L('总金额', 'Total (USD)') + '<td style="' + V + '">' + (wpD.totalAmountUsd === '' ? '<span style="color:#999">—</span>' : wpD.totalAmountUsd + ' USD') + '</td></tr>';
-  html += '<tr>' + L('迪拉姆', 'AED amount') + '<td style="' + V + '">' + (wpD.totalAmountAed === '' ? '<span style="color:#999">—</span>' : wpD.totalAmountAed + ' AED') + '</td></tr>';
+  var pDateLine = String(rec.purchaseDate || '—') + (rec.purchaseTime ? ' ' + String(rec.purchaseTime) : '');
+  var dateForProducts = (rec.purchaseDate ? fdt(rec.purchaseDate + 'T00:00:00') : '—') + (rec.purchaseTime ? ' ' + csmEscapeHtml(String(rec.purchaseTime)) : '');
+  var productRows = supplierItems.map(function(item) {
+    return { product: item.product, qty: item.qty, dateStr: dateForProducts };
+  });
   var supRem = String(rec.remarks || '').trim();
-  html += '<tr>' + L('备注', 'Remarks') + '<td style="' + V + ';white-space:pre-wrap">' + (supRem ? csmEscapeHtml(supRem) : '<span style="color:#999">—</span>') + '</td></tr>';
-  html += '<tr>' + L('船名', 'Ship name') + '<td style="' + V + '">' + csmEscapeHtml(rec.shipname || '-') + '</td></tr>';
-  html += '<tr>' + L('船公司', 'Shipping company') + '<td style="' + V + '">' + csmEscapeHtml(rec.shipCompany || '-') + '</td></tr>';
-  html += '<tr>' + L('提单号', 'B/L No.') + '<td style="' + V + '">' + csmEscapeHtml(rec.bl || '-') + '</td></tr>';
-  html += '<tr>' + L('开船日', 'ETD') + '<td style="' + V + '">' + csmEscapeHtml(rec.etd || '-') + '</td></tr>';
-  html += '<tr>' + L('到港日', 'ETA') + '<td style="' + V + '">' + csmEscapeHtml(rec.eta || '-') + '</td></tr>';
-  html += '</table>';
-  html += '<div style="margin-top:12px">';
-  html += '<div style="font-weight:bold;margin-bottom:8px;font-size:16px">品名明细 <span style="font-size:14px;color:#666;font-weight:600">Product items</span></div>';
-  html += '<table style="width:100%;border-collapse:collapse;font-size:14px">';
-  html += '<tr style="background:#f5f5f5"><th style="padding:8px;text-align:left;border:1px solid #ddd;font-size:15px">品名 <span style="font-size:13px;color:#666">Product</span></th><th style="padding:8px;text-align:center;border:1px solid #ddd;width:88px;font-size:15px">数量 <span style="font-size:13px;color:#666">Qty</span></th></tr>';
-  html += supplierItems.map(function(item) {
-    return '<tr><td style="padding:8px;border:1px solid #ddd;font-family:Arial;text-transform:capitalize">' + w1ProductHtml(item.product) + '</td><td style="padding:8px;border:1px solid #ddd;text-align:center">' + (item.qty || 0) + '</td></tr>';
-  }).join('');
-  html += '</table></div>';
+  var remarksHtml = supRem ? '<span style="white-space:pre-wrap">' + csmEscapeHtml(supRem) + '</span>' : '';
+  var feeSection;
   if (linked.length) {
-    html += '<div style="margin-top:12px;padding:12px;background:#e8f5e9;border-radius:6px;border:1px solid #4CAF50">';
-    html += '<div style="color:#00aa00;font-weight:bold;margin-bottom:8px;font-size:16px">Warehouse1 已采用 <span style="font-size:14px;color:#2e7d32;font-weight:600">Adopted in W1</span></div>';
-    html += '<table style="width:100%;border-collapse:collapse;font-size:14px">';
-    html += '<tr style="background:#f1fbf1"><th style="padding:8px;text-align:left;border:1px solid #c8e6c9;font-size:15px">品名 <span style="font-size:13px;color:#666">Product</span></th><th style="padding:8px;text-align:center;border:1px solid #c8e6c9;width:72px;font-size:15px">数量 <span style="font-size:13px;color:#666">Qty</span></th><th style="padding:8px;text-align:center;border:1px solid #c8e6c9;width:100px;font-size:15px">费用 <span style="font-size:13px;color:#666">Fees (AED)</span></th></tr>';
-    html += linked.map(function(item) {
-      var total = (item.demurrage || 0) + (item.customs || 0) + (item.coldFee || item.coldfee || 0) + (item.attestation || 0) + (item.repack || 0) + (item.waste || 0) + (item.other || 0);
-      return '<tr>' +
-        '<td style="padding:8px;border:1px solid #c8e6c9;font-family:Arial;text-transform:capitalize">' + w1ProductHtml(item.product) + '</td>' +
-        '<td style="padding:8px;border:1px solid #c8e6c9;text-align:center">' + (item.qty || 0) + '</td>' +
-        '<td style="padding:8px;border:1px solid #c8e6c9;text-align:center">' + total.toFixed(2) + ' AED</td>' +
-      '</tr>';
-    }).join('');
-    html += '</table></div>';
+    feeSection = {
+      type: 'table',
+      title: 'W1 Purchase Fees (Aed)',
+      rows: linked.map(function(item) {
+        var total = (item.demurrage || 0) + (item.customs || 0) + (item.coldFee || item.coldfee || 0) + (item.attestation || 0) + (item.repack || 0) + (item.waste || 0) + (item.other || 0);
+        return { product: item.product, qty: item.qty, fees: total };
+      })
+    };
   } else {
-    html += '<div style="margin-top:12px;padding:12px;background:#fff8e1;border-radius:6px;border:1px solid #ffb300">';
-    html += '<div style="color:#ff8f00;font-weight:bold;font-size:16px">尚未采用 <span style="font-size:14px;color:#e65100;font-weight:600">Not adopted in W1</span></div>';
-    html += '<div style="margin-top:6px;font-size:14px;color:#444;line-height:1.5">管理员确认后将同步到 Warehouse1 采购记录。<span style="color:#666;font-weight:600">After admin confirms, data syncs to the W1 purchase list.</span></div></div>';
+    feeSection = {
+      type: 'notice',
+      html: '<div style="margin-top:14px;padding:12px;background:#fff8e1;border-radius:6px;border:1px solid #ffb300;font-family:Arial,Helvetica,sans-serif;font-weight:700;font-size:14px;color:#e65100">' +
+        'Not Yet In W1 Purchase List. After Admin Confirms, Data Syncs To Warehouse1.</div>'
+    };
   }
-  html += '</div>';
-  gid('mcon').innerHTML = html;
+  var coldBreakdown = getContainerColdFeeBreakdown(rec.cn || '');
+  gid('mcon').innerHTML = htmlContainerDetailUnified({
+    cn: rec.cn,
+    supplier: rec.supplier || '',
+    statusHtml: statusHtml,
+    purchaseDateLine: pDateLine.trim() || '—',
+    totalQty: getSupplierQtyTotal(rec),
+    lineCount: supplierItems.length,
+    wp: wpD,
+    remarksHtml: remarksHtml,
+    shipname: rec.shipname,
+    shipCompany: rec.shipCompany,
+    bl: rec.bl,
+    etd: rec.etd,
+    eta: rec.eta,
+    productRows: productRows,
+    feeSection: feeSection,
+    coldBreakdown: coldBreakdown
+  });
   gid('modal').classList.add('sh');
 }
 // ============================================================
@@ -1689,8 +1673,112 @@ function getContainerColdFeeBreakdown(cn) {
     allCheckedOut: allCheckedOut
   };
 }
+/** Unified container detail HTML (W1 + supplier): English, Arial bold, title-case labels. */
+function htmlContainerDetailUnified(d) {
+  d = d || {};
+  var ARI = 'font-family:Arial,Helvetica,sans-serif;font-weight:700';
+  var Ls = ARI + ';font-size:14px;text-transform:capitalize;color:#333;width:34%;vertical-align:top;padding:8px 10px;border-bottom:1px solid #eee';
+  var Vs = ARI + ';font-size:15px;padding:8px 10px;border-bottom:1px solid #eee;color:#111;line-height:1.4';
+  function row(label, valueHtml) {
+    return '<tr><td style="' + Ls + '">' + csmEscapeHtml(label) + '</td><td style="' + Vs + '">' + valueHtml + '</td></tr>';
+  }
+  var html = '<div class="csm-cn-detail-unified" style="text-align:left;line-height:1.45">';
+  html += '<table style="width:100%;border-collapse:collapse">';
+  html += row('Container No.', '<span style="color:#00bfff;font-size:17px">' + csmEscapeHtml(String(d.cn || '—')) + '</span>');
+  html += row('Record Status', d.statusHtml || '<span style="color:#999">—</span>');
+  html += row('Supplier', csmEscapeHtml(String(d.supplier || '—')));
+  html += row('Purchase Date', csmEscapeHtml(String(d.purchaseDateLine || '—')));
+  html += row('Total Qty', csmEscapeHtml(String(d.totalQty != null ? d.totalQty : '—')));
+  html += row('Line Items', csmEscapeHtml(String(d.lineCount != null ? d.lineCount : '—')));
+  var wp = d.wp || {};
+  html += row('Net Weight (Mt)', wp.netWeightMt === '' || wp.netWeightMt == null ? '<span style="color:#999">—</span>' : csmEscapeHtml(String(wp.netWeightMt)) + ' MT');
+  html += row('Gross Weight (Mt)', wp.grossWeightMt === '' || wp.grossWeightMt == null ? '<span style="color:#999">—</span>' : csmEscapeHtml(String(wp.grossWeightMt)) + ' MT');
+  var up = (wp.tradeTerm ? csmEscapeHtml(wp.tradeTerm) + ' · ' : '') + (wp.unitPriceUsdMt === '' || wp.unitPriceUsdMt == null ? '<span style="color:#999">—</span>' : csmEscapeHtml(String(wp.unitPriceUsdMt)) + ' USD/MT');
+  html += row('Unit Price', up);
+  html += row('Total (Usd)', wp.totalAmountUsd === '' || wp.totalAmountUsd == null ? '<span style="color:#999">—</span>' : csmEscapeHtml(String(wp.totalAmountUsd)) + ' USD');
+  html += row('Total (Aed)', wp.totalAmountAed === '' || wp.totalAmountAed == null ? '<span style="color:#999">—</span>' : csmEscapeHtml(String(wp.totalAmountAed)) + ' AED');
+  html += row('Remarks', d.remarksHtml || '<span style="color:#999">—</span>');
+  html += row('Ship Name', csmEscapeHtml(String(d.shipname || '—')));
+  html += row('Shipping Company', csmEscapeHtml(String(d.shipCompany || '—')));
+  html += row('B/L No.', csmEscapeHtml(String(d.bl || '—')));
+  html += row('Etd', csmEscapeHtml(String(d.etd || '—')));
+  html += row('Eta', csmEscapeHtml(String(d.eta || '—')));
+  html += '</table>';
+  html += '<div style="margin-top:14px;font-size:15px;' + ARI + ';text-transform:capitalize;margin-bottom:8px;color:#0d47a1">Product Items</div>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:14px;' + ARI + '"><thead><tr style="background:#f5f5f5">';
+  html += '<th style="padding:8px;border:1px solid #ddd;text-align:left;text-transform:capitalize">Product</th>';
+  html += '<th style="padding:8px;border:1px solid #ddd;text-align:center;width:80px;text-transform:capitalize">Qty</th>';
+  html += '<th style="padding:8px;border:1px solid #ddd;text-transform:capitalize">Purchase Date</th></tr></thead><tbody>';
+  (d.productRows || []).forEach(function(pr) {
+    html += '<tr><td style="padding:8px;border:1px solid #ddd;text-transform:capitalize">' + w1ProductHtml(pr.product) + '</td>' +
+      '<td style="padding:8px;border:1px solid #ddd;text-align:center">' + (pr.qty || 0) + '</td>' +
+      '<td style="padding:8px;border:1px solid #ddd">' + csmEscapeHtml(pr.dateStr || '—') + '</td></tr>';
+  });
+  if (!(d.productRows || []).length) {
+    html += '<tr><td colspan="3" style="padding:10px;border:1px solid #ddd;color:#888">—</td></tr>';
+  }
+  html += '</tbody></table>';
+  if (d.feeSection) {
+    if (d.feeSection.type === 'table' && d.feeSection.rows && d.feeSection.rows.length) {
+      html += '<div style="margin-top:14px;padding:12px;background:#e8f5e9;border-radius:6px;border:1px solid #4caf50">';
+      html += '<div style="' + ARI + ';font-size:15px;color:#1b5e20;text-transform:capitalize;margin-bottom:8px">' + csmEscapeHtml(d.feeSection.title || 'W1 Fee Lines') + '</div>';
+      html += '<table style="width:100%;border-collapse:collapse;font-size:14px;' + ARI + '"><thead><tr style="background:#e8f5e9">';
+      html += '<th style="padding:8px;border:1px solid #c8e6c9;text-transform:capitalize">Product</th>';
+      html += '<th style="padding:8px;border:1px solid #c8e6c9;text-align:center;width:72px;text-transform:capitalize">Qty</th>';
+      html += '<th style="padding:8px;border:1px solid #c8e6c9;text-transform:capitalize">Fees (Aed)</th></tr></thead><tbody>';
+      d.feeSection.rows.forEach(function(r) {
+        html += '<tr><td style="padding:8px;border:1px solid #c8e6c9;text-transform:capitalize">' + w1ProductHtml(r.product) + '</td>' +
+          '<td style="padding:8px;border:1px solid #c8e6c9;text-align:center">' + (r.qty || 0) + '</td>' +
+          '<td style="padding:8px;border:1px solid #c8e6c9;text-align:center">' + (typeof r.fees === 'number' ? r.fees.toFixed(2) : csmEscapeHtml(String(r.fees || ''))) + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+    } else if (d.feeSection.type === 'notice' && d.feeSection.html) {
+      html += d.feeSection.html;
+    }
+  }
+  var br = d.coldBreakdown || { rows: [], totalFee: 0, allCheckedOut: false };
+  html += '<div style="margin-top:14px;font-size:15px;' + ARI + ';text-transform:capitalize;margin-bottom:8px;color:#01579b">Cold Storage</div>';
+  if (br.rows && br.rows.length) {
+    html += '<div style="' + ARI + ';font-size:13px;margin-bottom:6px;color:#444">Rows: ' + br.rows.length + ' · Status: ' + (br.allCheckedOut ? '<span style="color:#2e7d32">All Checked Out</span>' : '<span style="color:#ff9900">Not All Checked Out</span>') +
+      ' · Total Fee (Aed): <span style="color:#0066cc">' + (br.allCheckedOut ? br.totalFee.toFixed(2) : '—') + '</span></div>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:13px;' + ARI + '"><thead><tr style="background:#e3f2fd">';
+    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:capitalize">Store</th>';
+    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:capitalize">Product</th>';
+    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:capitalize">Plt In/Rem</th>';
+    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:capitalize">Itm In/Rem</th>';
+    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:capitalize">Check-in</th>';
+    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:capitalize">Check-out</th>';
+    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:capitalize">Status</th>';
+    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:capitalize">Fee (Aed)</th></tr></thead><tbody>';
+    br.rows.forEach(function(row) {
+      html += '<tr>' +
+        '<td style="padding:6px;border:1px solid #90caf9;text-align:center">' + getStoreDisplayName(row.store) + '</td>' +
+        '<td style="padding:6px;border:1px solid #90caf9;text-transform:capitalize">' + w1ProductHtml(row.product) + '</td>' +
+        '<td style="padding:6px;border:1px solid #90caf9;text-align:center">' + row.pallets + '/' + Math.max(0, row.remainingPallets) + '</td>' +
+        '<td style="padding:6px;border:1px solid #90caf9;text-align:center">' + row.items + '/' + Math.max(0, row.remainingItems) + '</td>' +
+        '<td style="padding:6px;border:1px solid #90caf9">' + fdt(row.arr) + '</td>' +
+        '<td style="padding:6px;border:1px solid #90caf9">' + fdt(row.dep) + '</td>' +
+        '<td style="padding:6px;border:1px solid #90caf9;text-align:center">' + (row.checkedOut ? '<span style="color:#2e7d32">Out</span>' : '<span style="color:#ff9900">In</span>') + '</td>' +
+        '<td style="padding:6px;border:1px solid #90caf9;text-align:right;color:' + (row.checkedOut ? '#0066cc' : '#ff9900') + '">' + (row.actualFee > 0 ? row.actualFee.toFixed(2) : '—') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    html += '<div style="margin-top:6px;font-size:12px;color:#666">Total Cold Fee On Purchase List Appears Only After Every Row Is Fully Checked Out.</div>';
+  } else {
+    html += '<p style="' + ARI + ';font-size:14px;color:#666;margin:8px 0">No Inbound Cold-storage Rows For This Container.</p>';
+  }
+  html += '</div>';
+  return html;
+}
+function csmSupplierRecordStatusBadgeEn(status) {
+  var s = ({
+    'draft': '<span style="background:#e3f2fd;color:#1565c0;padding:4px 10px;border-radius:8px;font-size:13px;font-weight:700;font-family:Arial,Helvetica,sans-serif">Draft</span>',
+    'submitted': '<span style="background:#fff8e1;color:#f57f17;padding:4px 10px;border-radius:8px;font-size:13px;font-weight:700;font-family:Arial,Helvetica,sans-serif">Submitted</span>',
+    'confirmed': '<span style="background:#e8f5e9;color:#2e7d32;padding:4px 10px;border-radius:8px;font-size:13px;font-weight:700;font-family:Arial,Helvetica,sans-serif">Confirmed</span>'
+  })[String(status || '').toLowerCase()];
+  return s || '<span style="background:#eceff1;color:#455a64;padding:4px 10px;border-radius:8px;font-size:13px;font-weight:700;font-family:Arial,Helvetica,sans-serif">Other</span>';
+}
 function showPurchaseCnDetail(cn) {
-  setModalTitle('Container details');
+  setModalTitle('Container Details');
   var purchaseItems = purchaseRecs.filter(function(r) {
     return r.cn === cn;
   }).sort(function(a, b) {
@@ -1702,88 +1790,49 @@ function showPurchaseCnDetail(cn) {
   var mcon = gid('mcon');
   if (!mcon) return;
   if (!purchaseItems.length && !breakdown.rows.length) {
-    mcon.innerHTML = '<div style="text-align:center;padding:12px;color:#888;font-size:12px">No purchase or cold-store rows for this container.</div>';
+    mcon.innerHTML = '<div style="text-align:center;padding:14px;color:#666;font-size:15px;font-family:Arial,Helvetica,sans-serif;font-weight:700">No Purchase Or Cold-storage Data For This Container.</div>';
     gid('modal').classList.add('sh');
     return;
   }
-  var base = purchaseItems[0] || breakdown.rows[0] || {};
+  var base = purchaseItems[0] || {};
   var totalQty = purchaseItems.reduce(function(sum, item) {
     return sum + (parseFloat(item.qty) || 0);
   }, 0);
-  var escCn = csmEscapeHtml(cn || '-');
-  var html = '<div style="text-align:left;font-size:12px;line-height:1.35">';
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-bottom:10px">';
-  html += '<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid #eee"><span style="color:#888;font-size:10px;text-transform:uppercase">Container</span><strong style="color:var(--ac)">' + escCn + '</strong></div>';
-  html += '<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid #eee"><span style="color:#888;font-size:10px;text-transform:uppercase">Supplier</span><span style="font-family:Arial">' + fmtSupplierName(base.supplier || '-') + '</span></div>';
-  html += '<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid #eee"><span style="color:#888;font-size:10px;text-transform:uppercase">Purchase lines</span><span>' + purchaseItems.length + '</span></div>';
-  html += '<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid #eee"><span style="color:#888;font-size:10px;text-transform:uppercase">Total qty</span><span>' + totalQty + '</span></div>';
-  html += '<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid #eee"><span style="color:#888;font-size:10px;text-transform:uppercase">Cold-store rows</span><span>' + breakdown.rows.length + '</span></div>';
-  html += '<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid #eee"><span style="color:#888;font-size:10px;text-transform:uppercase">Cold fee status</span><span>' + (breakdown.allCheckedOut ? '<span style="color:#2e7d32">All checked out</span>' : '<span style="color:#ff9900">Not all out</span>') + '</span></div>';
-  html += '<div style="grid-column:1 / -1;display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #eee"><span style="color:#888;font-size:10px;text-transform:uppercase">Total cold fee (AED)</span><span style="color:#0066cc;font-weight:bold;font-size:15px">' + (breakdown.allCheckedOut ? breakdown.totalFee.toFixed(2) + ' AED' : '—') + '</span></div>';
   var cnRemarkParts = [];
   purchaseItems.forEach(function(it) {
     var t = String(it.remarks || '').trim();
     if (t && cnRemarkParts.indexOf(t) === -1) cnRemarkParts.push(t);
   });
+  var remarksHtml = cnRemarkParts.length ? '<span style="white-space:pre-wrap">' + csmEscapeHtml(cnRemarkParts.join('\n')) + '</span>' : '';
   var wpCn = supplierRecWeightPriceForPurchase(base);
-  var hasWpCn = wpCn.netWeightMt !== '' || wpCn.grossWeightMt !== '' || wpCn.tradeTerm || wpCn.unitPriceUsdMt !== '' || wpCn.totalAmountUsd !== '';
-  if (hasWpCn) {
-    html += '<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid #eee"><span style="color:#888;font-size:10px;text-transform:uppercase">Net (MT)</span><span>' + (wpCn.netWeightMt === '' ? '—' : wpCn.netWeightMt + ' MT') + '</span></div>';
-    html += '<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid #eee"><span style="color:#888;font-size:10px;text-transform:uppercase">Gross (MT)</span><span>' + (wpCn.grossWeightMt === '' ? '—' : wpCn.grossWeightMt + ' MT') + '</span></div>';
-    html += '<div style="grid-column:1 / -1;display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid #eee"><span style="color:#888;font-size:10px;text-transform:uppercase">Unit price</span><span>' + (wpCn.tradeTerm ? csmEscapeHtml(wpCn.tradeTerm) + ' · ' : '') + (wpCn.unitPriceUsdMt === '' ? '—' : wpCn.unitPriceUsdMt + ' USD/MT') + '</span></div>';
-    html += '<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid #eee"><span style="color:#888;font-size:10px;text-transform:uppercase">Total (USD)</span><span>' + (wpCn.totalAmountUsd === '' ? '—' : wpCn.totalAmountUsd + ' USD') + '</span></div>';
-    html += '<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid #eee"><span style="color:#888;font-size:10px;text-transform:uppercase">Total (AED)</span><span>' + (wpCn.totalAmountAed === '' ? '—' : wpCn.totalAmountAed + ' AED') + '</span></div>';
-  }
-  if (cnRemarkParts.length) {
-    html += '<div style="grid-column:1 / -1;padding:4px 0;border-bottom:1px solid #eee"><span style="color:#888;font-size:10px;text-transform:uppercase;display:block;margin-bottom:2px">Remarks</span><span style="display:block;white-space:pre-wrap;font-size:12px">' + csmEscapeHtml(cnRemarkParts.join('\n')) + '</span></div>';
-  }
-  html += '</div>';
-  if (purchaseItems.length) {
-    html += '<div style="margin-top:8px;border-top:1px solid #ddd;padding-top:8px">';
-    html += '<div style="font-size:10px;color:#888;text-transform:uppercase;margin-bottom:4px">Purchase lines</div>';
-    html += '<table style="width:100%;border-collapse:collapse;font-size:11px;border:1px solid #ddd">';
-    html += '<tr style="background:#f5f5f5"><th style="padding:4px;border:1px solid #ddd">Product</th><th style="padding:4px;border:1px solid #ddd;width:56px">Qty</th><th style="padding:4px;border:1px solid #ddd">Purchase date</th></tr>';
-    purchaseItems.forEach(function(item) {
-      html += '<tr>' +
-        '<td style="padding:4px;border:1px solid #ddd;font-family:Arial;text-transform:capitalize">' + w1ProductHtml(item.product) + '</td>' +
-        '<td style="padding:4px;border:1px solid #ddd;text-align:center">' + (item.qty || 0) + '</td>' +
-        '<td style="padding:4px;border:1px solid #ddd">' + (item.purchaseDate ? fdt(item.purchaseDate + 'T00:00:00') : '—') + (item.purchaseTime ? ' <span style="font-size:10px;color:#888">' + csmEscapeHtml(String(item.purchaseTime)) + '</span>' : '') + '</td>' +
-      '</tr>';
-    });
-    html += '</table></div>';
-  }
-  if (breakdown.rows.length) {
-    html += '<div style="margin-top:8px;border-top:1px solid #ddd;padding-top:8px">';
-    html += '<div style="font-size:10px;color:#888;text-transform:uppercase;margin-bottom:4px">Cold fee by store</div>';
-    html += '<table style="width:100%;border-collapse:collapse;font-size:11px;border:1px solid #ddd">';
-    html += '<tr style="background:#f5f5f5">' +
-      '<th style="padding:4px;border:1px solid #ddd">Store</th>' +
-      '<th style="padding:4px;border:1px solid #ddd">Product</th>' +
-      '<th style="padding:4px;border:1px solid #ddd">Plt in/rem</th>' +
-      '<th style="padding:4px;border:1px solid #ddd">Itm in/rem</th>' +
-      '<th style="padding:4px;border:1px solid #ddd">In</th>' +
-      '<th style="padding:4px;border:1px solid #ddd">Out</th>' +
-      '<th style="padding:4px;border:1px solid #ddd">Status</th>' +
-      '<th style="padding:4px;border:1px solid #ddd">Fee</th>' +
-    '</tr>';
-    breakdown.rows.forEach(function(row) {
-      html += '<tr>' +
-        '<td style="padding:4px;border:1px solid #ddd;text-align:center">' + getStoreDisplayName(row.store) + '</td>' +
-        '<td style="padding:4px;border:1px solid #ddd;font-family:Arial;text-transform:capitalize">' + w1ProductHtml(row.product) + '</td>' +
-        '<td style="padding:4px;border:1px solid #ddd;text-align:center;font-size:10px">' + row.pallets + '/' + Math.max(0, row.remainingPallets) + '</td>' +
-        '<td style="padding:4px;border:1px solid #ddd;text-align:center;font-size:10px">' + row.items + '/' + Math.max(0, row.remainingItems) + '</td>' +
-        '<td style="padding:4px;border:1px solid #ddd;font-size:10px">' + fdt(row.arr) + '</td>' +
-        '<td style="padding:4px;border:1px solid #ddd;font-size:10px">' + fdt(row.dep) + '</td>' +
-        '<td style="padding:4px;border:1px solid #ddd;text-align:center;font-size:10px">' + (row.checkedOut ? '<span style="color:#2e7d32">Out</span>' : '<span style="color:#ff9900">In</span>') + '</td>' +
-        '<td style="padding:4px;border:1px solid #ddd;text-align:right;font-size:10px;color:' + (row.checkedOut ? '#0066cc' : '#ff9900') + '">' + (row.actualFee > 0 ? row.actualFee.toFixed(2) + ' AED' : '—') + '</td>' +
-      '</tr>';
-    });
-    html += '</table>';
-    html += '<div style="margin-top:4px;font-size:10px;color:#888">Purchase list shows total cold fee only after every related row is fully checked out.</div>';
-    html += '</div>';
-  }
-  html += '</div>';
-  mcon.innerHTML = html;
+  var pDate = (base.purchaseDate || '') + (base.purchaseTime ? ' ' + String(base.purchaseTime) : '');
+  var productRows = purchaseItems.map(function(item) {
+    var ds = (item.purchaseDate ? fdt(item.purchaseDate + 'T00:00:00') : '—') + (item.purchaseTime ? ' ' + String(item.purchaseTime) : '');
+    return { product: item.product, qty: item.qty, dateStr: ds };
+  });
+  var feeRows = purchaseItems.map(function(item) {
+    var total = (item.demurrage || 0) + (item.customs || 0) + (item.coldFee || item.coldfee || 0) + (item.attestation || 0) + (item.repack || 0) + (item.waste || 0) + (item.other || 0);
+    return { product: item.product, qty: item.qty, fees: total };
+  });
+  var statusHtml = '<span style="background:#e8f4ff;color:#0066cc;padding:4px 10px;border-radius:8px;font-size:13px;font-weight:700;font-family:Arial,Helvetica,sans-serif">Warehouse1 Purchase</span>';
+  gid('mcon').innerHTML = htmlContainerDetailUnified({
+    cn: cn,
+    supplier: base.supplier || '',
+    statusHtml: statusHtml,
+    purchaseDateLine: pDate.trim() || '—',
+    totalQty: totalQty,
+    lineCount: purchaseItems.length,
+    wp: wpCn,
+    remarksHtml: remarksHtml,
+    shipname: base.shipname,
+    shipCompany: base.shipCompany,
+    bl: base.bl,
+    etd: base.etd,
+    eta: base.eta,
+    productRows: productRows,
+    feeSection: feeRows.length ? { type: 'table', title: 'W1 Purchase Fees (Aed)', rows: feeRows } : null,
+    coldBreakdown: breakdown
+  });
   gid('modal').classList.add('sh');
 }
 function calcFee(r) {  if (!r.arr) return 0;  var start = new Date(r.arr);  var end = r.dep ? new Date(r.dep) : new Date();  var days = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;  if (days <= 0) return 0;  var weeks = Math.ceil(days / 7);  var totalPallets = r.pallets - (r.pallets_out || 0);  var rate = getRateByStore(r.store);  return weeks * totalPallets * rate * (1 + VAT_RATE);}function updStats() {  if (!gid('s-total') || !gid('s-pallets') || !gid('s-items')) return;  

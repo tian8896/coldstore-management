@@ -1318,7 +1318,7 @@ function toggleSupplierItems(groupId, btn) {
 function openSupplierCNDetail(id) {
   var rec = supplierRecs.find(function(r) { return r.id === id; });
   if (!rec) return;
-  setModalTitle('集装箱详情 / Container details');
+  setModalTitle('集装箱详情  Container details');
   var linked = [];
   if (purchaseRecs && purchaseRecs.length) {
     linked = purchaseRecs.filter(function(p) { return p.sourceSupplierRecId === rec.id; });
@@ -1330,61 +1330,63 @@ function openSupplierCNDetail(id) {
   var supplierItems = normalizeSupplierRecItems(rec);
   var status = rec.status || 'draft';
   var statusBadge = ({
-    'draft': '<span style="background:#e3f2fd;color:#1565c0;padding:2px 6px;border-radius:8px;font-size:10px;font-weight:bold">Initial 初始</span>',
-    'submitted': '<span style="background:#fff8e1;color:#f57f17;padding:2px 6px;border-radius:8px;font-size:10px;font-weight:bold">Submitted 已提交</span>',
-    'confirmed': '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 6px;border-radius:8px;font-size:10px;font-weight:bold">Confirmed 已确认</span>'
-  })[status] || '<span style="background:#eceff1;color:#455a64;padding:2px 6px;border-radius:8px;font-size:10px;font-weight:bold">Other 其他</span>';
+    'draft': '<span style="background:#e3f2fd;color:#1565c0;padding:4px 10px;border-radius:8px;font-size:13px;font-weight:bold">初始 Initial</span>',
+    'submitted': '<span style="background:#fff8e1;color:#f57f17;padding:4px 10px;border-radius:8px;font-size:13px;font-weight:bold">已提交 Submitted</span>',
+    'confirmed': '<span style="background:#e8f5e9;color:#2e7d32;padding:4px 10px;border-radius:8px;font-size:13px;font-weight:bold">已确认 Confirmed</span>'
+  })[status] || '<span style="background:#eceff1;color:#455a64;padding:4px 10px;border-radius:8px;font-size:13px;font-weight:bold">其他 Other</span>';
   function L(zh, en) {
-    return '<td style="padding:3px 5px;color:#555;width:36%;font-size:11px;line-height:1.2;vertical-align:top;border-bottom:1px solid #eee">' +
-      '<span style="color:#333">' + zh + '</span><br><span style="font-size:10px;color:#888">' + en + '</span></td>';
+    return '<td style="padding:8px 10px;color:#444;width:34%;vertical-align:top;border-bottom:1px solid #eee;line-height:1.4">' +
+      '<span style="display:block;font-size:17px;color:#111;font-weight:700">' + zh + '</span>' +
+      '<span style="display:block;font-size:14px;color:#555;font-weight:600;margin-top:4px">' + en + '</span></td>';
   }
-  var html = '<div style="text-align:left;font-size:12px;line-height:1.35">';
+  var V = 'padding:8px 10px;font-size:15px;border-bottom:1px solid #eee;line-height:1.4';
+  var html = '<div class="csm-supplier-cn-detail" style="text-align:left;font-size:15px;line-height:1.45">';
   html += '<table style="width:100%;border-collapse:collapse">';
-  html += '<tr>' + L('集装箱号', 'Container No.') + '<td style="padding:3px 5px;font-weight:bold;color:#00bfff;border-bottom:1px solid #eee">' + csmEscapeHtml(rec.cn || '-') + '</td></tr>';
-  html += '<tr>' + L('状态', 'Status') + '<td style="padding:3px 5px;border-bottom:1px solid #eee">' + statusBadge + '</td></tr>';
-  html += '<tr>' + L('供应商', 'Supplier') + '<td style="padding:3px 5px;border-bottom:1px solid #eee">' + csmEscapeHtml(rec.supplier || '-') + '</td></tr>';
-  html += '<tr>' + L('采购日期', 'Purchase date') + '<td style="padding:3px 5px;border-bottom:1px solid #eee">' + csmEscapeHtml(rec.purchaseDate || '-') + (rec.purchaseTime ? ' ' + csmEscapeHtml(String(rec.purchaseTime)) : '') + '</td></tr>';
-  html += '<tr>' + L('总数量', 'Total qty') + '<td style="padding:3px 5px;border-bottom:1px solid #eee">' + getSupplierQtyTotal(rec) + '</td></tr>';
+  html += '<tr>' + L('集装箱号', 'Container No.') + '<td style="' + V + ';font-weight:bold;color:#00bfff;font-size:17px">' + csmEscapeHtml(rec.cn || '-') + '</td></tr>';
+  html += '<tr>' + L('状态', 'Status') + '<td style="' + V + '">' + statusBadge + '</td></tr>';
+  html += '<tr>' + L('供应商', 'Supplier') + '<td style="' + V + '">' + csmEscapeHtml(rec.supplier || '-') + '</td></tr>';
+  html += '<tr>' + L('采购日期', 'Purchase date') + '<td style="' + V + '">' + csmEscapeHtml(rec.purchaseDate || '-') + (rec.purchaseTime ? ' ' + csmEscapeHtml(String(rec.purchaseTime)) : '') + '</td></tr>';
+  html += '<tr>' + L('总数量', 'Total qty') + '<td style="' + V + '">' + getSupplierQtyTotal(rec) + '</td></tr>';
   var wpD = supplierRecWeightPriceForPurchase(rec);
-  html += '<tr>' + L('净重 (MT)', 'Net weight') + '<td style="padding:3px 5px;border-bottom:1px solid #eee">' + (wpD.netWeightMt === '' ? '<span style="color:#999">—</span>' : wpD.netWeightMt + ' MT') + '</td></tr>';
-  html += '<tr>' + L('毛重 (MT)', 'Gross weight') + '<td style="padding:3px 5px;border-bottom:1px solid #eee">' + (wpD.grossWeightMt === '' ? '<span style="color:#999">—</span>' : wpD.grossWeightMt + ' MT') + '</td></tr>';
-  html += '<tr>' + L('单价', 'Unit price') + '<td style="padding:3px 5px;border-bottom:1px solid #eee">' + (wpD.tradeTerm ? csmEscapeHtml(wpD.tradeTerm) + ' · ' : '') + (wpD.unitPriceUsdMt === '' ? '<span style="color:#999">—</span>' : wpD.unitPriceUsdMt + ' USD/MT') + '</td></tr>';
-  html += '<tr>' + L('总金额 (USD)', 'Total (USD)') + '<td style="padding:3px 5px;border-bottom:1px solid #eee">' + (wpD.totalAmountUsd === '' ? '<span style="color:#999">—</span>' : wpD.totalAmountUsd + ' USD') + '</td></tr>';
-  html += '<tr>' + L('迪拉姆 (AED)', 'AED amount') + '<td style="padding:3px 5px;border-bottom:1px solid #eee">' + (wpD.totalAmountAed === '' ? '<span style="color:#999">—</span>' : wpD.totalAmountAed + ' AED') + '</td></tr>';
+  html += '<tr>' + L('净重', 'Net weight (MT)') + '<td style="' + V + '">' + (wpD.netWeightMt === '' ? '<span style="color:#999">—</span>' : wpD.netWeightMt + ' MT') + '</td></tr>';
+  html += '<tr>' + L('毛重', 'Gross weight (MT)') + '<td style="' + V + '">' + (wpD.grossWeightMt === '' ? '<span style="color:#999">—</span>' : wpD.grossWeightMt + ' MT') + '</td></tr>';
+  html += '<tr>' + L('单价', 'Unit price') + '<td style="' + V + '">' + (wpD.tradeTerm ? csmEscapeHtml(wpD.tradeTerm) + ' · ' : '') + (wpD.unitPriceUsdMt === '' ? '<span style="color:#999">—</span>' : wpD.unitPriceUsdMt + ' USD/MT') + '</td></tr>';
+  html += '<tr>' + L('总金额', 'Total (USD)') + '<td style="' + V + '">' + (wpD.totalAmountUsd === '' ? '<span style="color:#999">—</span>' : wpD.totalAmountUsd + ' USD') + '</td></tr>';
+  html += '<tr>' + L('迪拉姆', 'AED amount') + '<td style="' + V + '">' + (wpD.totalAmountAed === '' ? '<span style="color:#999">—</span>' : wpD.totalAmountAed + ' AED') + '</td></tr>';
   var supRem = String(rec.remarks || '').trim();
-  html += '<tr>' + L('备注', 'Remarks') + '<td style="padding:3px 5px;white-space:pre-wrap;border-bottom:1px solid #eee">' + (supRem ? csmEscapeHtml(supRem) : '<span style="color:#999">—</span>') + '</td></tr>';
-  html += '<tr>' + L('船名', 'Ship name') + '<td style="padding:3px 5px;border-bottom:1px solid #eee">' + csmEscapeHtml(rec.shipname || '-') + '</td></tr>';
-  html += '<tr>' + L('船公司', 'Shipping co.') + '<td style="padding:3px 5px;border-bottom:1px solid #eee">' + csmEscapeHtml(rec.shipCompany || '-') + '</td></tr>';
-  html += '<tr>' + L('提单号', 'B/L No.') + '<td style="padding:3px 5px;border-bottom:1px solid #eee">' + csmEscapeHtml(rec.bl || '-') + '</td></tr>';
-  html += '<tr>' + L('开船日', 'ETD') + '<td style="padding:3px 5px;border-bottom:1px solid #eee">' + csmEscapeHtml(rec.etd || '-') + '</td></tr>';
-  html += '<tr>' + L('到港日', 'ETA') + '<td style="padding:3px 5px;border-bottom:1px solid #eee">' + csmEscapeHtml(rec.eta || '-') + '</td></tr>';
+  html += '<tr>' + L('备注', 'Remarks') + '<td style="' + V + ';white-space:pre-wrap">' + (supRem ? csmEscapeHtml(supRem) : '<span style="color:#999">—</span>') + '</td></tr>';
+  html += '<tr>' + L('船名', 'Ship name') + '<td style="' + V + '">' + csmEscapeHtml(rec.shipname || '-') + '</td></tr>';
+  html += '<tr>' + L('船公司', 'Shipping company') + '<td style="' + V + '">' + csmEscapeHtml(rec.shipCompany || '-') + '</td></tr>';
+  html += '<tr>' + L('提单号', 'B/L No.') + '<td style="' + V + '">' + csmEscapeHtml(rec.bl || '-') + '</td></tr>';
+  html += '<tr>' + L('开船日', 'ETD') + '<td style="' + V + '">' + csmEscapeHtml(rec.etd || '-') + '</td></tr>';
+  html += '<tr>' + L('到港日', 'ETA') + '<td style="' + V + '">' + csmEscapeHtml(rec.eta || '-') + '</td></tr>';
   html += '</table>';
-  html += '<div style="margin-top:8px">';
-  html += '<div style="font-weight:bold;margin-bottom:4px;font-size:11px">品名明细 · Product items</div>';
-  html += '<table style="width:100%;border-collapse:collapse;font-size:11px">';
-  html += '<tr style="background:#f5f5f5"><th style="padding:4px;text-align:left;border:1px solid #ddd">品名 Product</th><th style="padding:4px;text-align:center;border:1px solid #ddd;width:72px">数量 Qty</th></tr>';
+  html += '<div style="margin-top:12px">';
+  html += '<div style="font-weight:bold;margin-bottom:8px;font-size:16px">品名明细 <span style="font-size:14px;color:#666;font-weight:600">Product items</span></div>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:14px">';
+  html += '<tr style="background:#f5f5f5"><th style="padding:8px;text-align:left;border:1px solid #ddd;font-size:15px">品名 <span style="font-size:13px;color:#666">Product</span></th><th style="padding:8px;text-align:center;border:1px solid #ddd;width:88px;font-size:15px">数量 <span style="font-size:13px;color:#666">Qty</span></th></tr>';
   html += supplierItems.map(function(item) {
-    return '<tr><td style="padding:4px;border:1px solid #ddd;font-family:Arial;text-transform:capitalize">' + w1ProductHtml(item.product) + '</td><td style="padding:4px;border:1px solid #ddd;text-align:center">' + (item.qty || 0) + '</td></tr>';
+    return '<tr><td style="padding:8px;border:1px solid #ddd;font-family:Arial;text-transform:capitalize">' + w1ProductHtml(item.product) + '</td><td style="padding:8px;border:1px solid #ddd;text-align:center">' + (item.qty || 0) + '</td></tr>';
   }).join('');
   html += '</table></div>';
   if (linked.length) {
-    html += '<div style="margin-top:8px;padding:8px;background:#e8f5e9;border-radius:4px;border:1px solid #4CAF50">';
-    html += '<div style="color:#00aa00;font-weight:bold;margin-bottom:4px;font-size:11px">Warehouse1 已采用 · Adopted in W1</div>';
-    html += '<table style="width:100%;border-collapse:collapse;font-size:11px">';
-    html += '<tr style="background:#f1fbf1"><th style="padding:3px;text-align:left;border:1px solid #c8e6c9">品名 Product</th><th style="padding:3px;text-align:center;border:1px solid #c8e6c9;width:56px">数量 Qty</th><th style="padding:3px;text-align:center;border:1px solid #c8e6c9;width:88px">费用合计 Fees</th></tr>';
+    html += '<div style="margin-top:12px;padding:12px;background:#e8f5e9;border-radius:6px;border:1px solid #4CAF50">';
+    html += '<div style="color:#00aa00;font-weight:bold;margin-bottom:8px;font-size:16px">Warehouse1 已采用 <span style="font-size:14px;color:#2e7d32;font-weight:600">Adopted in W1</span></div>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:14px">';
+    html += '<tr style="background:#f1fbf1"><th style="padding:8px;text-align:left;border:1px solid #c8e6c9;font-size:15px">品名 <span style="font-size:13px;color:#666">Product</span></th><th style="padding:8px;text-align:center;border:1px solid #c8e6c9;width:72px;font-size:15px">数量 <span style="font-size:13px;color:#666">Qty</span></th><th style="padding:8px;text-align:center;border:1px solid #c8e6c9;width:100px;font-size:15px">费用 <span style="font-size:13px;color:#666">Fees (AED)</span></th></tr>';
     html += linked.map(function(item) {
       var total = (item.demurrage || 0) + (item.customs || 0) + (item.coldFee || item.coldfee || 0) + (item.attestation || 0) + (item.repack || 0) + (item.waste || 0) + (item.other || 0);
       return '<tr>' +
-        '<td style="padding:3px;border:1px solid #c8e6c9;font-family:Arial;text-transform:capitalize">' + w1ProductHtml(item.product) + '</td>' +
-        '<td style="padding:3px;border:1px solid #c8e6c9;text-align:center">' + (item.qty || 0) + '</td>' +
-        '<td style="padding:3px;border:1px solid #c8e6c9;text-align:center">' + total.toFixed(2) + ' AED</td>' +
+        '<td style="padding:8px;border:1px solid #c8e6c9;font-family:Arial;text-transform:capitalize">' + w1ProductHtml(item.product) + '</td>' +
+        '<td style="padding:8px;border:1px solid #c8e6c9;text-align:center">' + (item.qty || 0) + '</td>' +
+        '<td style="padding:8px;border:1px solid #c8e6c9;text-align:center">' + total.toFixed(2) + ' AED</td>' +
       '</tr>';
     }).join('');
     html += '</table></div>';
   } else {
-    html += '<div style="margin-top:8px;padding:8px;background:#fff8e1;border-radius:4px;border:1px solid #ffb300">';
-    html += '<div style="color:#ff8f00;font-weight:bold;font-size:11px">尚未采用 · Not adopted in Warehouse1</div>';
-    html += '<div style="margin-top:3px;font-size:10px;color:#666">管理员确认后同步到 W1 采购记录。After admin confirms, data syncs to W1 purchase list.</div></div>';
+    html += '<div style="margin-top:12px;padding:12px;background:#fff8e1;border-radius:6px;border:1px solid #ffb300">';
+    html += '<div style="color:#ff8f00;font-weight:bold;font-size:16px">尚未采用 <span style="font-size:14px;color:#e65100;font-weight:600">Not adopted in W1</span></div>';
+    html += '<div style="margin-top:6px;font-size:14px;color:#444;line-height:1.5">管理员确认后将同步到 Warehouse1 采购记录。<span style="color:#666;font-weight:600">After admin confirms, data syncs to the W1 purchase list.</span></div></div>';
   }
   html += '</div>';
   gid('mcon').innerHTML = html;

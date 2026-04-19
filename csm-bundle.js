@@ -4492,12 +4492,15 @@ function buildSalesOrderLineEditorRow(line) {
       basisAttr = ' data-price-basis="excluded"';
     }
   }
-  var svc = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;max-width:100%">' +
-    '<div><div style="font-size:11px;color:#555;margin-bottom:4px">Worker</div><select class="sol-worker-id" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box;margin-bottom:6px">' + csmSalesBuildServiceSelectHtml(salesWorkers, line.workerId, 'Select worker') + '</select>' +
-    '<input type="number" class="sol-worker-qty" min="0" step="any" value="' + (workerQty === '' ? '' : csmEscapeHtml(String(workerQty))) + '" placeholder="Qty" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box"></div>' +
-    '<div><div style="font-size:11px;color:#555;margin-bottom:4px">Truck</div><select class="sol-truck-id" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box;margin-bottom:6px">' + csmSalesBuildServiceSelectHtml(salesTrucks, line.truckId, 'Select truck') + '</select>' +
-    '<input type="number" class="sol-truck-qty" min="0" step="any" value="' + (truckQty === '' ? '' : csmEscapeHtml(String(truckQty))) + '" placeholder="Qty" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box"></div>' +
-    '</div>';
+  var svc = '<div class="csm-sol-svc-grid">' +
+    '<div class="csm-sol-svc-col"><div style="font-size:11px;color:#555;margin-bottom:6px">Worker</div><div class="csm-sol-svc-fields">' +
+    '<select class="sol-worker-id">' + csmSalesBuildServiceSelectHtml(salesWorkers, line.workerId, 'Select worker') + '</select>' +
+    '<input type="number" class="sol-worker-qty" min="0" step="any" value="' + (workerQty === '' ? '' : csmEscapeHtml(String(workerQty))) + '" placeholder="Qty" inputmode="decimal" title="Worker qty">' +
+    '</div></div>' +
+    '<div class="csm-sol-svc-col"><div style="font-size:11px;color:#555;margin-bottom:6px">Truck</div><div class="csm-sol-svc-fields">' +
+    '<select class="sol-truck-id">' + csmSalesBuildServiceSelectHtml(salesTrucks, line.truckId, 'Select truck') + '</select>' +
+    '<input type="number" class="sol-truck-qty" min="0" step="any" value="' + (truckQty === '' ? '' : csmEscapeHtml(String(truckQty))) + '" placeholder="Qty" inputmode="decimal" title="Truck qty">' +
+    '</div></div></div>';
   return '<tr class="csm-sol-main"' + basisAttr + '>' +
     '<td style="padding:6px 8px;vertical-align:middle"><select class="sol-cn" onchange="salesOrderLineCnChanged(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;text-transform:uppercase;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box">' + buildSalesOrderCnSelectHtml(cn) + '</select></td>' +
     '<td style="padding:6px 8px;vertical-align:middle"><select class="sol-pr csm-product-select" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box">' + buildProductSelectOptionsHtml(pr) + '</select></td>' +

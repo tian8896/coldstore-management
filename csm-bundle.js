@@ -4492,23 +4492,28 @@ function buildSalesOrderLineEditorRow(line) {
       basisAttr = ' data-price-basis="excluded"';
     }
   }
-  return '<tr' + basisAttr + '>' +
-    '<td style="padding:6px 8px;vertical-align:middle"><select class="sol-cn" onchange="salesOrderLineCnChanged(this)" style="width:100%;min-width:120px;padding:6px;border:1px solid #ccc;border-radius:4px;text-transform:uppercase;font-family:var(--csm-font-en);font-weight:700">' + buildSalesOrderCnSelectHtml(cn) + '</select></td>' +
-    '<td style="padding:6px 8px;vertical-align:middle"><select class="sol-pr csm-product-select" style="width:100%;min-width:120px;padding:6px;border:1px solid #ccc;border-radius:4px">' + buildProductSelectOptionsHtml(pr) + '</select></td>' +
-    '<td style="padding:6px 8px;vertical-align:middle;width:80px"><input type="number" class="sol-qty" min="0.01" step="any" value="' + csmEscapeHtml(String(qty)) + '" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></td>' +
-    '<td style="padding:6px 8px;vertical-align:middle;width:108px"><input type="number" class="sol-price-incl" min="0" step="any" value="' + (inclVal === '' ? '' : csmEscapeHtml(inclVal)) + '" oninput="salesOrderLinePriceSync(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700" title="Unit including 5% VAT \u2014 other column auto-fills"></td>' +
-    '<td style="padding:6px 8px;vertical-align:middle;width:108px"><input type="number" class="sol-price-excl" min="0" step="any" value="' + (exclVal === '' ? '' : csmEscapeHtml(exclVal)) + '" oninput="salesOrderLinePriceSync(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700" title="Unit before 5% VAT \u2014 other column auto-fills"></td>' +
-    '<td style="padding:6px 8px;vertical-align:middle;min-width:180px"><select class="sol-worker-id" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;margin-bottom:6px">' + csmSalesBuildServiceSelectHtml(salesWorkers, line.workerId, 'Select worker') + '</select><input type="number" class="sol-worker-qty" min="0" step="any" value="' + (workerQty === '' ? '' : csmEscapeHtml(String(workerQty))) + '" placeholder="Worker qty" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></td>' +
-    '<td style="padding:6px 8px;vertical-align:middle;min-width:180px"><select class="sol-truck-id" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;margin-bottom:6px">' + csmSalesBuildServiceSelectHtml(salesTrucks, line.truckId, 'Select truck') + '</select><input type="number" class="sol-truck-qty" min="0" step="any" value="' + (truckQty === '' ? '' : csmEscapeHtml(String(truckQty))) + '" placeholder="Truck qty" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></td>' +
-    '<td style="padding:6px 4px;vertical-align:middle;width:40px"><button type="button" class="abtn x" onclick="salesOrderRemoveLine(this)" title="Remove line">\u00d7</button></td>' +
-    '</tr>';
+  var svc = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;max-width:100%">' +
+    '<div><div style="font-size:11px;color:#555;margin-bottom:4px">Worker</div><select class="sol-worker-id" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box;margin-bottom:6px">' + csmSalesBuildServiceSelectHtml(salesWorkers, line.workerId, 'Select worker') + '</select>' +
+    '<input type="number" class="sol-worker-qty" min="0" step="any" value="' + (workerQty === '' ? '' : csmEscapeHtml(String(workerQty))) + '" placeholder="Qty" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box"></div>' +
+    '<div><div style="font-size:11px;color:#555;margin-bottom:4px">Truck</div><select class="sol-truck-id" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box;margin-bottom:6px">' + csmSalesBuildServiceSelectHtml(salesTrucks, line.truckId, 'Select truck') + '</select>' +
+    '<input type="number" class="sol-truck-qty" min="0" step="any" value="' + (truckQty === '' ? '' : csmEscapeHtml(String(truckQty))) + '" placeholder="Qty" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box"></div>' +
+    '</div>';
+  return '<tr class="csm-sol-main"' + basisAttr + '>' +
+    '<td style="padding:6px 8px;vertical-align:middle"><select class="sol-cn" onchange="salesOrderLineCnChanged(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;text-transform:uppercase;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box">' + buildSalesOrderCnSelectHtml(cn) + '</select></td>' +
+    '<td style="padding:6px 8px;vertical-align:middle"><select class="sol-pr csm-product-select" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box">' + buildProductSelectOptionsHtml(pr) + '</select></td>' +
+    '<td style="padding:6px 8px;vertical-align:middle"><input type="number" class="sol-qty" min="0.01" step="any" value="' + csmEscapeHtml(String(qty)) + '" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box"></td>' +
+    '<td style="padding:6px 8px;vertical-align:middle"><input type="number" class="sol-price-incl" min="0" step="any" value="' + (inclVal === '' ? '' : csmEscapeHtml(inclVal)) + '" oninput="salesOrderLinePriceSync(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box" title="Unit including 5% VAT \u2014 other column auto-fills"></td>' +
+    '<td style="padding:6px 8px;vertical-align:middle"><input type="number" class="sol-price-excl" min="0" step="any" value="' + (exclVal === '' ? '' : csmEscapeHtml(exclVal)) + '" oninput="salesOrderLinePriceSync(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box" title="Unit before 5% VAT \u2014 other column auto-fills"></td>' +
+    '<td style="padding:6px 4px;vertical-align:middle;text-align:center"><button type="button" class="abtn x" onclick="salesOrderRemoveLine(this)" title="Remove line">\u00d7</button></td>' +
+    '</tr>' +
+    '<tr class="csm-sol-sub"><td colspan="6" style="padding:6px 8px;vertical-align:top;background:#fafafa;border-bottom:1px solid #e0e0e0">' + svc + '</td></tr>';
 }
 function salesOrderRefreshServiceSelectorsInDom() {
   var tb = gid('sales-order-lines-body');
   if (!tb) return;
-  tb.querySelectorAll('tr').forEach(function(tr) {
-    var workerSel = tr.querySelector('.sol-worker-id');
-    var truckSel = tr.querySelector('.sol-truck-id');
+  tb.querySelectorAll('tr.csm-sol-sub').forEach(function(sub) {
+    var workerSel = sub.querySelector('.sol-worker-id');
+    var truckSel = sub.querySelector('.sol-truck-id');
     if (workerSel) {
       var workerVal = workerSel.value;
       workerSel.innerHTML = csmSalesBuildServiceSelectHtml(salesWorkers, workerVal, 'Select worker');
@@ -4573,9 +4578,12 @@ function salesOrderAddLine() {
 function salesOrderRemoveLine(btn) {
   var tb = gid('sales-order-lines-body');
   if (!tb) return;
-  if (tb.querySelectorAll('tr').length <= 1) { toast('At least one order line is required.', 'err'); return; }
+  if (tb.querySelectorAll('tr.csm-sol-main').length <= 1) { toast('At least one order line is required.', 'err'); return; }
   var tr = btn.closest('tr');
-  if (tr) tr.remove();
+  if (!tr || !tr.classList.contains('csm-sol-main')) return;
+  var sub = tr.nextElementSibling;
+  if (sub && sub.classList.contains('csm-sol-sub')) sub.remove();
+  tr.remove();
 }
 function salesOrderLineCnChanged(sel) {
   var tr = sel.closest('tr');
@@ -4603,16 +4611,18 @@ function salesOrderReadLinesFromDom() {
   var priceMismatch = false;
   var mult = 1 + VAT_RATE;
   var tol = 0.021;
-  tb.querySelectorAll('tr').forEach(function(tr) {
+  tb.querySelectorAll('tr.csm-sol-main').forEach(function(tr) {
+    var sub = tr.nextElementSibling;
+    if (!sub || !sub.classList || !sub.classList.contains('csm-sol-sub')) return;
     var cnEl = tr.querySelector('.sol-cn');
     var prEl = tr.querySelector('.sol-pr');
     var qtyEl = tr.querySelector('.sol-qty');
     var incEl = tr.querySelector('.sol-price-incl');
     var excEl = tr.querySelector('.sol-price-excl');
-    var workerIdEl = tr.querySelector('.sol-worker-id');
-    var workerQtyEl = tr.querySelector('.sol-worker-qty');
-    var truckIdEl = tr.querySelector('.sol-truck-id');
-    var truckQtyEl = tr.querySelector('.sol-truck-qty');
+    var workerIdEl = sub.querySelector('.sol-worker-id');
+    var workerQtyEl = sub.querySelector('.sol-worker-qty');
+    var truckIdEl = sub.querySelector('.sol-truck-id');
+    var truckQtyEl = sub.querySelector('.sol-truck-qty');
     var cn = (cnEl && cnEl.value || '').trim().toUpperCase();
     var pr = canonicalProductName((prEl && prEl.value || '').trim());
     var qty = parseFloat(qtyEl && qtyEl.value);

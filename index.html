@@ -112,6 +112,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 #sales-order-modal .csm-sol-svc-fields select{flex:1 1 0;min-width:120px;width:0;max-width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid #ccc;border-radius:4px}
 #sales-order-modal .csm-sol-svc-fields .sol-worker-qty,
 #sales-order-modal .csm-sol-svc-fields .sol-truck-qty{flex:0 0 100px!important;width:100px!important;min-width:88px!important;max-width:120px!important;box-sizing:border-box;padding:6px 8px!important;border:1px solid #ccc!important;border-radius:4px!important}
+#sales-order-modal .csm-sol-cn-wrap{position:relative;width:100%}
 .mdl{background:var(--bg3);border:1px solid var(--ac);border-radius:8px;padding:26px;width:460px;max-width:92vw;box-shadow:0 0 40px var(--ac15);animation:mi .2s ease}
 @keyframes mi{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
 .mdl h3{color:var(--ac);font-size:15px;letter-spacing:2px;margin-bottom:18px;text-transform:uppercase}
@@ -325,7 +326,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260419w" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260419z" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -1199,14 +1200,14 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <input type="hidden" id="sales-order-id">
     <div class="fg"><label>订单号 Order No.</label><div id="sales-order-order-no-display" style="padding:10px 12px;background:#f5f5f5;border:1px solid #ddd;border-radius:5px;font-weight:700">—</div></div>
     <div class="fg"><label>生成时间 Created at</label><div id="sales-order-created-display" style="padding:10px 12px;background:#f5f5f5;border:1px solid #ddd;border-radius:5px">—</div></div>
-    <div class="fg"><label>Customer *</label>
+    <div class="fg"><label>Customer * <span style="font-size:11px;color:#888;font-weight:700">(locked after first draft save)</span></label>
       <input type="hidden" id="sales-order-customer-id" value="">
       <div class="csm-sales-cust-wrap">
         <input type="text" id="sales-order-customer-search" placeholder="Type to search — name, short name, phone…" autocomplete="off" oninput="salesOrderCustomerComboOnInput(this)" onfocus="salesOrderCustomerComboOnFocus(this)" onblur="salesOrderCustomerComboOnBlurSoon()" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
         <div id="sales-order-customer-dd" class="csm-sales-cust-dd" style="display:none" role="listbox"></div>
       </div>
     </div>
-    <div class="fg"><label>Order lines * <span style="font-size:12px;color:#666;font-weight:700">(container + product + qty + unit price per line)</span></label>
+    <div class="fg"><label>Order lines * <span style="font-size:12px;color:#666;font-weight:700">(container + product + qty + unit price per line — all required to save)</span></label>
       <div style="border:1px solid #ddd;border-radius:6px;margin-top:6px;overflow:visible">
         <table class="csm-sales-order-lines-table" style="width:100%;border-collapse:collapse;font-size:13px;font-family:var(--csm-font-en);font-weight:700;table-layout:fixed">
           <thead><tr style="background:#f5f5f5"><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:22%">Container</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:22%">Product</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:10%">Qty</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:18%;font-size:12px">Include VAT<br><span style="font-weight:700">(AED)</span></th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:18%;font-size:12px">Exclude VAT<br><span style="font-weight:700">(AED)</span></th><th style="width:44px;padding:6px 4px;border-bottom:1px solid #ddd"></th></tr></thead>
@@ -1216,14 +1217,15 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <button type="button" class="btn btn-s" onclick="salesOrderAddLine()" style="margin-top:8px">+ Add line</button>
     </div>
     <p style="font-size:12px;color:#666;margin:0 0 8px;line-height:1.45;font-family:var(--csm-font-en);font-weight:700">Type in <strong>Include VAT</strong> or <strong>Exclude VAT</strong>; the other column fills automatically (5% VAT). The column you edit is the price saved for that line.</p>
-    <div class="fg"><label>Payment status</label>
+    <p style="font-size:12px;color:#666;margin:0 0 8px;line-height:1.45;font-family:var(--csm-font-en);font-weight:700"><strong>Worker</strong> and <strong>Truck</strong> are optional while saving a <strong>draft</strong>. On <strong>Submit</strong>, every line must have a worker and a truck chosen, each with a <strong>box count</strong> greater than 0 and not greater than that line&rsquo;s <strong>Qty</strong>. Rates stay in management; order lists show name and boxes only.</p>
+    <div class="fg"><label>Payment status *</label>
       <select id="sales-order-payment" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px">
         <option value="cash">Cash</option>
         <option value="cash_pending">Cash pending</option>
         <option value="credit">Credit</option>
       </select>
     </div>
-    <div class="fg"><label>Payment receiver</label>
+    <div class="fg"><label>Payment receiver *</label>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <select id="sales-order-payment-receiver" style="flex:1;min-width:200px;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
           <option value="">—</option>
@@ -1259,7 +1261,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 <div class="mov" id="sales-worker-truck-modal">
   <div class="mdl" style="width:980px;max-width:96vw;max-height:88vh;overflow-y:auto">
     <h3>Worker / Truck Management</h3>
-    <p style="font-size:12px;color:#666;margin:0 0 12px;font-family:var(--csm-font-en);font-weight:700">Add, edit, or delete workers and trucks. Set a different rate for each product. Order line amount = rate x quantity.</p>
+    <p style="font-size:12px;color:#666;margin:0 0 12px;font-family:var(--csm-font-en);font-weight:700">Add, edit, or delete workers and trucks. For each product, set the rate as <strong>AED per box</strong>. On an order line, enter <strong>boxes</strong>; amount = (AED per box) × boxes.</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div style="min-width:0">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
@@ -1276,7 +1278,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           <button type="button" class="btn btn-g" onclick="salesWorkerFormReset()">Clear</button>
         </div>
         <div class="tw"><table><thead><tr>
-          <th>Name</th><th>Rates</th><th style="width:120px">Action</th>
+          <th>Name</th><th style="font-family:var(--csm-font-en);font-weight:700">Rates (AED/box)</th><th style="width:120px">Action</th>
         </tr></thead><tbody id="tb-sales-workers"></tbody></table></div>
       </div>
       <div style="min-width:0">
@@ -1294,7 +1296,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           <button type="button" class="btn btn-g" onclick="salesTruckFormReset()">Clear</button>
         </div>
         <div class="tw"><table><thead><tr>
-          <th>Name</th><th>Rates</th><th style="width:120px">Action</th>
+          <th>Name</th><th style="font-family:var(--csm-font-en);font-weight:700">Rates (AED/box)</th><th style="width:120px">Action</th>
         </tr></thead><tbody id="tb-sales-trucks"></tbody></table></div>
       </div>
     </div>

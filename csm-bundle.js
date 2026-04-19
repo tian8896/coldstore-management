@@ -2682,6 +2682,7 @@ function buildProductSelectOptionsHtml(selectedRaw) {
 }
 function syncAllProductSelects() {
   document.querySelectorAll('select.csm-product-select').forEach(function(sel) {
+    if (sel.closest && sel.closest('#sales-order-modal')) return;
     var prev = String(sel.value || '');
     sel.innerHTML = buildProductSelectOptionsHtml(prev);
   });
@@ -3501,15 +3502,26 @@ function csmSalesBuildServiceSelectHtml(list, selectedId, placeholder) {
   }
   return html;
 }
-function csmSalesServiceCellHtml(name, qty, rate, amount) {
+function csmSalesServiceCellHtml(name, qty) {
   qty = parseFloat(qty) || 0;
-  rate = parseFloat(rate) || 0;
-  amount = parseFloat(amount) || 0;
-  if (!name && !(qty > 0)) return '<span style="color:#999">—</span>';
+  var nm = String(name || '').trim();
+  if (!nm && !(qty > 0)) return '<span style="color:#999">—</span>';
   return '<div style="font-family:var(--csm-font-en);font-weight:700;line-height:1.35">' +
-    '<div>' + csmEscapeHtml(name || '—') + '</div>' +
-    '<div style="font-size:11px;color:#666">Qty: ' + csmEscapeHtml(String(qty || 0)) + ' · Rate: ' + rate.toFixed(2) + ' · Amt: ' + amount.toFixed(2) + '</div>' +
+    '<div>' + csmEscapeHtml(nm || '—') + '</div>' +
+    '<div style="font-size:11px;color:#666">Boxes: ' + csmEscapeHtml(String(qty || 0)) + '</div>' +
     '</div>';
+}
+function csmSalesLineWorkerTruckValidForSubmit(L) {
+  if (!L) return false;
+  var q = parseFloat(L.quantity) || 0;
+  if (!(q > 0)) return false;
+  var wid = String(L.workerId || '').trim();
+  var tid = String(L.truckId || '').trim();
+  var wq = parseFloat(L.workerQty) || 0;
+  var tq = parseFloat(L.truckQty) || 0;
+  if (!wid || !(wq > 0) || !tid || !(tq > 0)) return false;
+  if (wq > q || tq > q) return false;
+  return true;
 }
 function csmSalesNetUnitAndVat(o) {
   var lines = csmSalesNormalizeLinesFromOrder(o);
@@ -3618,6 +3630,8 @@ function refreshSalesUi() {
   if (soModal && soModal.classList.contains('sh')) {
     var cid = gid('sales-order-customer-id');
     if (cid && cid.value) salesOrderCustomerComboSet(cid.value);
+    var oidEl = gid('sales-order-id');
+    salesOrderApplyCustomerLockState(!!(oidEl && oidEl.value));
   }
   var prM = gid('sales-payment-receivers-modal');
   if (prM && prM.classList.contains('sh')) {
@@ -3703,11 +3717,24 @@ function salesBatchSubmit() {
   var ids = csmSalesGetSelectedOrderIds();
   if (!ids.length) { toast('\u8BF7\u52FE\u9009\u8BA2\u5355', 'err'); return; }
   if (!csmSalesRequireAtMostOneSelection(ids)) return;
-  var tasks = [];
+  var toSubmit = [];
   ids.forEach(function(id) {
     var o = salesOrders.find(function(x) { return x.id === id; });
     if (!o || o.voided || o.orderStatus !== 'draft') return;
-    tasks.push(salesOrdersRef.child(id).update({ orderStatus: 'submitted', updatedAt: new Date().toISOString() }));
+    toSubmit.push(o);
+  });
+  var si;
+  for (si = 0; si < toSubmit.length; si++) {
+    var o0 = toSubmit[si];
+    var lines0 = csmSalesNormalizeLinesFromOrder(o0);
+    if (!lines0.length || !lines0.every(function(L) { return csmSalesLineWorkerTruckValidForSubmit(L); })) {
+      toast('Cannot submit: order ' + (o0.orderNo || o0.id) + ' needs worker and truck (box counts > 0 and not more than line Qty) on every line.', 'err');
+      return;
+    }
+  }
+  var tasks = [];
+  toSubmit.forEach(function(o) {
+    tasks.push(salesOrdersRef.child(o.id).update({ orderStatus: 'submitted', updatedAt: new Date().toISOString() }));
   });
   if (!tasks.length) { toast('\u65E0\u53EF\u63D0\u4EA4\u7684\u8349\u7A3F\u8BA2\u5355', 'err'); return; }
   Promise.all(tasks).then(function() { toast('Submitted / \u5DF2\u63D0\u4EA4', 'ok'); }).catch(function(e) { toast(e.message || String(e), 'err'); });
@@ -3970,14 +3997,14 @@ function renderSalesOrdersTable() {
           '<td>' + csmEscapeHtml(nvL.netUnit.toFixed(2)) + '</td>' +
           '<td>' + csmEscapeHtml(nvL.vatAmt.toFixed(2)) + '</td>' +
           '<td>' + aL.total.toFixed(2) + '</td>' +
-          '<td>' + csmSalesServiceCellHtml(L.workerName, L.workerQty, L.workerRate, L.workerAmount) + '</td>' +
-          '<td>' + csmSalesServiceCellHtml(L.truckName, L.truckQty, L.truckRate, L.truckAmount) + '</td>' +
+          '<td>' + csmSalesServiceCellHtml(L.workerName, L.workerQty) + '</td>' +
+          '<td>' + csmSalesServiceCellHtml(L.truckName, L.truckQty) + '</td>' +
           '<td colspan="4"></td>' +
           '</tr>';
       }
     }
     return '<tr class="' + trClassName + '"><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb"' + cbDis + ' onchange="csmSalesOrderCbExclusive(this)" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + cnCell + '</td><td>' + prodCell + '</td><td>' + csmEscapeHtml(String(q0)) + '</td><td>' +
-      csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty, L0.workerRate, L0.workerAmount) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty, L0.truckRate, L0.truckAmount) + '</td><td>' + csmSalesPayLabel(o.paymentStatus, false) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + statusCell + '</td><td>' + actions + '</td></tr>' + subHtml;
+      csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty) + '</td><td>' + csmSalesPayLabel(o.paymentStatus, false) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + statusCell + '</td><td>' + actions + '</td></tr>' + subHtml;
   }).join('');
   csmSalesBindOrdersPager(totalRows);
 }
@@ -4073,15 +4100,15 @@ function renderSalesFinanceTable() {
           '<td>' + csmEscapeHtml(nvL.netUnit.toFixed(2)) + '</td>' +
           '<td>' + csmEscapeHtml(nvL.vatAmt.toFixed(2)) + '</td>' +
           '<td>' + aL.total.toFixed(2) + '</td>' +
-          '<td>' + csmSalesServiceCellHtml(L.workerName, L.workerQty, L.workerRate, L.workerAmount) + '</td>' +
-          '<td>' + csmSalesServiceCellHtml(L.truckName, L.truckQty, L.truckRate, L.truckAmount) + '</td>' +
+          '<td>' + csmSalesServiceCellHtml(L.workerName, L.workerQty) + '</td>' +
+          '<td>' + csmSalesServiceCellHtml(L.truckName, L.truckQty) + '</td>' +
           '<td></td><td></td>' +
           '</tr>';
       }
     }
     return '<tr><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + cnCell + '</td><td>' + prodCell + '</td><td>' + csmEscapeHtml(String(q0)) + '</td><td>' +
       csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' +
-      csmSalesLineTotalForDisplay(o).toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty, L0.workerRate, L0.workerAmount) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty, L0.truckRate, L0.truckAmount) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, true)) + '</td></tr>' + subHtml;
+      csmSalesLineTotalForDisplay(o).toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, true)) + '</td></tr>' + subHtml;
   }).join('');
   csmSalesBindFinancePager(totalRows);
 }
@@ -4192,11 +4219,13 @@ function salesOrderCustomerComboRenderList(filterEl) {
   dd.style.display = 'block';
 }
 function salesOrderCustomerComboOnInput(el) {
+  if (el && el.readOnly) return;
   var hid = gid('sales-order-customer-id');
   if (hid) hid.value = '';
   salesOrderCustomerComboRenderList(el);
 }
 function salesOrderCustomerComboOnFocus(el) {
+  if (el && el.readOnly) return;
   salesOrderCustomerComboRenderList(el);
 }
 function salesOrderCustomerComboOnBlurSoon() {
@@ -4207,6 +4236,8 @@ function salesOrderCustomerComboOnBlurSoon() {
 }
 function salesOrderCustomerComboPick(cid) {
   if (!cid) return;
+  var inpRO = gid('sales-order-customer-search');
+  if (inpRO && inpRO.readOnly) return;
   var c = salesCustomers.find(function(x) { return x.id === cid; });
   var hid = gid('sales-order-customer-id');
   var inp = gid('sales-order-customer-search');
@@ -4283,7 +4314,7 @@ function csmSalesRateFormHtml(prefix, rates) {
     var key = csmSalesProductRateKey(product);
     var val = rates[key];
     return '<label style="display:block;font-size:12px;color:#555;font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(product) +
-      '<input type="number" min="0" step="any" class="' + prefix + '-rate-input" data-product="' + csmAttrEscape(product) + '" value="' + (val >= 0 ? csmEscapeHtml(String(val)) : '') + '" placeholder="AED per qty" style="width:100%;margin-top:4px;padding:7px 8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></label>';
+      '<input type="number" min="0" step="any" class="' + prefix + '-rate-input" data-product="' + csmAttrEscape(product) + '" value="' + (val >= 0 ? csmEscapeHtml(String(val)) : '') + '" placeholder="AED per box" style="width:100%;margin-top:4px;padding:7px 8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></label>';
   }).join('') + '</div>';
 }
 function csmSalesRateFormRead(prefix) {
@@ -4302,7 +4333,7 @@ function csmSalesRateSummaryHtml(rates) {
   if (!keys.length) return '<span style="color:#999">—</span>';
   keys.sort(function(a, b) { return String(a).localeCompare(String(b)); });
   return keys.map(function(k) {
-    return '<div style="font-family:var(--csm-font-en);font-weight:700;line-height:1.35">' + csmEscapeHtml(k) + ': ' + norm[k].toFixed(2) + '</div>';
+    return '<div style="font-family:var(--csm-font-en);font-weight:700;line-height:1.35">' + csmEscapeHtml(k) + ': ' + norm[k].toFixed(2) + ' AED/box</div>';
   }).join('');
 }
 function salesWorkerFormReset() {
@@ -4466,6 +4497,136 @@ function getDistinctPurchaseProductsForCn(cn) {
   });
   return out;
 }
+function buildSalesOrderProductOptionsMulti(distinct, selectedRaw) {
+  var selN = canonicalProductName(String(selectedRaw || '').trim());
+  var html = '<option value="">Select product</option>';
+  var found = false;
+  (distinct || []).forEach(function(p) {
+    var pn = canonicalProductName(p);
+    var isSel = !!selN && pn === selN;
+    if (isSel) found = true;
+    html += '<option value="' + w1EscAttr(p) + '"' + (isSel ? ' selected' : '') + '>' + w1EscHtml(p) + '</option>';
+  });
+  if (selN && !found && String(selectedRaw || '').trim()) {
+    var raw = String(selectedRaw).trim();
+    html += '<option value="' + w1EscAttr(raw) + '" selected>' + w1EscHtml(raw) + ' (not in list for CN)</option>';
+  }
+  return html;
+}
+function buildSalesOrderLineProductOptionsForCn(cnNorm, selectedRaw) {
+  var cn = String(cnNorm || '').trim().toUpperCase();
+  if (!cn) return '<option value="">Select container first</option>';
+  var distinct = getDistinctPurchaseProductsForCn(cn);
+  if (distinct.length === 1) return buildSalesOrderProductOptionsMulti(distinct, selectedRaw || distinct[0]);
+  if (distinct.length > 1) return buildSalesOrderProductOptionsMulti(distinct, selectedRaw);
+  return buildProductSelectOptionsHtml(selectedRaw);
+}
+function buildSalesOrderLineCnCellHtml(cn) {
+  var cnNorm = String(cn || '').trim().toUpperCase();
+  return '<td style="padding:6px 8px;vertical-align:middle">' +
+    '<div class="csm-sol-cn-wrap">' +
+    '<input type="hidden" class="sol-cn-val" value="' + w1EscAttr(cnNorm) + '">' +
+    '<input type="text" class="sol-cn-search" autocomplete="off" value="' + w1EscAttr(cnNorm) + '" placeholder="Search container\u2026" ' +
+    'oninput="salesOrderLineCnSearchInput(this)" onfocus="salesOrderLineCnSearchFocus(this)" onblur="salesOrderLineCnSearchBlurSoon(this)" ' +
+    'style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;text-transform:uppercase;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box">' +
+    '<div class="sol-cn-dd csm-sales-cust-dd" style="display:none" role="listbox"></div>' +
+    '</div></td>';
+}
+function salesOrderLineCnFilterCnList(queryUpper) {
+  var q = String(queryUpper || '').trim().toUpperCase();
+  var list = getPurchaseCnListSorted();
+  if (!q) return list.slice(0, 100);
+  return list.filter(function(cn) { return cn.indexOf(q) >= 0; }).slice(0, 100);
+}
+function salesOrderLineCnRenderDd(inputEl) {
+  var wrap = inputEl && inputEl.closest && inputEl.closest('.csm-sol-cn-wrap');
+  if (!wrap) return;
+  var dd = wrap.querySelector('.sol-cn-dd');
+  if (!dd) return;
+  var q = String(inputEl.value || '').trim().toUpperCase();
+  var hits = salesOrderLineCnFilterCnList(q);
+  if (!hits.length) {
+    dd.innerHTML = '<div style="padding:10px;color:#888;font-size:12px;font-family:var(--csm-font-en);font-weight:700">No matching container</div>';
+    dd.style.display = 'block';
+    return;
+  }
+  dd.innerHTML = hits.map(function(cn) {
+    return '<button type="button" class="csm-sales-cust-item" data-cn="' + w1EscAttr(cn) + '" onmousedown="event.preventDefault();salesOrderLineCnDdPick(this)">' + w1EscHtml(cn) + '</button>';
+  }).join('');
+  dd.style.display = 'block';
+}
+function salesOrderLineCnDdPick(btn) {
+  var cn = btn.getAttribute('data-cn');
+  var wrap = btn.closest('.csm-sol-cn-wrap');
+  salesOrderLineCnApplyPick(wrap, cn);
+}
+function salesOrderLineCnApplyPick(wrap, cn) {
+  if (!wrap) return;
+  var cnU = String(cn || '').trim().toUpperCase();
+  var hid = wrap.querySelector('.sol-cn-val');
+  var inp = wrap.querySelector('.sol-cn-search');
+  var dd = wrap.querySelector('.sol-cn-dd');
+  if (hid) hid.value = cnU;
+  if (inp) inp.value = cnU;
+  if (dd) {
+    dd.style.display = 'none';
+    dd.innerHTML = '';
+  }
+  var tr = wrap.closest('tr.csm-sol-main');
+  if (tr) salesOrderLineAfterCnPicked(tr, cnU);
+}
+function salesOrderLineAfterCnPicked(tr, cnU) {
+  var pr = tr.querySelector('.sol-pr');
+  if (!pr) return;
+  var prev = String(pr.value || '').trim();
+  pr.innerHTML = buildSalesOrderLineProductOptionsForCn(cnU, prev);
+  var distinct = getDistinctPurchaseProductsForCn(cnU);
+  if (distinct.length === 1) pr.value = distinct[0];
+}
+function salesOrderLineCnSearchInput(el) {
+  var wrap = el && el.closest && el.closest('.csm-sol-cn-wrap');
+  if (!wrap) return;
+  var hid = wrap.querySelector('.sol-cn-val');
+  var curU = (hid && hid.value || '').trim().toUpperCase();
+  var ty = String(el.value || '').trim().toUpperCase();
+  if (hid && curU && ty !== curU) hid.value = '';
+  if (!ty) {
+    if (hid) hid.value = '';
+    var tr0 = wrap.closest('tr.csm-sol-main');
+    if (tr0) {
+      var pr0 = tr0.querySelector('.sol-pr');
+      if (pr0) pr0.innerHTML = buildSalesOrderLineProductOptionsForCn('', '');
+    }
+  }
+  salesOrderLineCnRenderDd(el);
+}
+function salesOrderLineCnSearchFocus(el) {
+  salesOrderLineCnRenderDd(el);
+}
+function salesOrderLineCnSearchBlurResolve(el) {
+  var wrap = el && el.closest && el.closest('.csm-sol-cn-wrap');
+  if (!wrap) return;
+  var hid = wrap.querySelector('.sol-cn-val');
+  if (hid && hid.value) return;
+  var q = String(el.value || '').trim().toUpperCase();
+  if (!q) return;
+  var list = getPurchaseCnListSorted();
+  if (list.indexOf(q) >= 0) {
+    salesOrderLineCnApplyPick(wrap, q);
+    return;
+  }
+  var fuzzy = list.filter(function(c) { return c.indexOf(q) >= 0; });
+  if (fuzzy.length === 1) salesOrderLineCnApplyPick(wrap, fuzzy[0]);
+}
+function salesOrderLineCnSearchBlurSoon(el) {
+  setTimeout(function() {
+    var wrap = el && el.closest && el.closest('.csm-sol-cn-wrap');
+    if (!wrap) return;
+    var dd = wrap.querySelector('.sol-cn-dd');
+    if (dd) dd.style.display = 'none';
+    salesOrderLineCnSearchBlurResolve(el);
+  }, 200);
+}
 function buildSalesOrderLineEditorRow(line) {
   line = line || {};
   var cn = line.containerNo || '';
@@ -4495,16 +4656,17 @@ function buildSalesOrderLineEditorRow(line) {
   var svc = '<div class="csm-sol-svc-grid">' +
     '<div class="csm-sol-svc-col"><div style="font-size:11px;color:#555;margin-bottom:6px">Worker</div><div class="csm-sol-svc-fields">' +
     '<select class="sol-worker-id">' + csmSalesBuildServiceSelectHtml(salesWorkers, line.workerId, 'Select worker') + '</select>' +
-    '<input type="number" class="sol-worker-qty" min="0" step="any" value="' + (workerQty === '' ? '' : csmEscapeHtml(String(workerQty))) + '" placeholder="Qty" inputmode="decimal" title="Worker qty">' +
+    '<input type="number" class="sol-worker-qty" min="0" step="any" value="' + (workerQty === '' ? '' : csmEscapeHtml(String(workerQty))) + '" placeholder="Boxes" inputmode="decimal" oninput="salesOrderServiceQtyInput(this)" title="Number of boxes (not more than line Qty; worker rate is AED per box for this product)">' +
     '</div></div>' +
     '<div class="csm-sol-svc-col"><div style="font-size:11px;color:#555;margin-bottom:6px">Truck</div><div class="csm-sol-svc-fields">' +
     '<select class="sol-truck-id">' + csmSalesBuildServiceSelectHtml(salesTrucks, line.truckId, 'Select truck') + '</select>' +
-    '<input type="number" class="sol-truck-qty" min="0" step="any" value="' + (truckQty === '' ? '' : csmEscapeHtml(String(truckQty))) + '" placeholder="Qty" inputmode="decimal" title="Truck qty">' +
+    '<input type="number" class="sol-truck-qty" min="0" step="any" value="' + (truckQty === '' ? '' : csmEscapeHtml(String(truckQty))) + '" placeholder="Boxes" inputmode="decimal" oninput="salesOrderServiceQtyInput(this)" title="Number of boxes (not more than line Qty; truck rate is AED per box for this product)">' +
     '</div></div></div>';
   return '<tr class="csm-sol-main"' + basisAttr + '>' +
-    '<td style="padding:6px 8px;vertical-align:middle"><select class="sol-cn" onchange="salesOrderLineCnChanged(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;text-transform:uppercase;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box">' + buildSalesOrderCnSelectHtml(cn) + '</select></td>' +
-    '<td style="padding:6px 8px;vertical-align:middle"><select class="sol-pr csm-product-select" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box">' + buildProductSelectOptionsHtml(pr) + '</select></td>' +
-    '<td style="padding:6px 8px;vertical-align:middle"><input type="number" class="sol-qty" min="0.01" step="any" value="' + csmEscapeHtml(String(qty)) + '" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box"></td>' +
+    buildSalesOrderLineCnCellHtml(cn) +
+    '<td style="padding:6px 8px;vertical-align:middle"><select class="sol-pr csm-product-select" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box">' +
+    buildSalesOrderLineProductOptionsForCn(String(cn || '').trim().toUpperCase(), pr) + '</select></td>' +
+    '<td style="padding:6px 8px;vertical-align:middle"><input type="number" class="sol-qty" min="0.01" step="any" value="' + csmEscapeHtml(String(qty)) + '" oninput="salesOrderLineQtyChanged(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box"></td>' +
     '<td style="padding:6px 8px;vertical-align:middle"><input type="number" class="sol-price-incl" min="0" step="any" value="' + (inclVal === '' ? '' : csmEscapeHtml(inclVal)) + '" oninput="salesOrderLinePriceSync(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box" title="Unit including 5% VAT \u2014 other column auto-fills"></td>' +
     '<td style="padding:6px 8px;vertical-align:middle"><input type="number" class="sol-price-excl" min="0" step="any" value="' + (exclVal === '' ? '' : csmEscapeHtml(exclVal)) + '" oninput="salesOrderLinePriceSync(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box" title="Unit before 5% VAT \u2014 other column auto-fills"></td>' +
     '<td style="padding:6px 4px;vertical-align:middle;text-align:center"><button type="button" class="abtn x" onclick="salesOrderRemoveLine(this)" title="Remove line">\u00d7</button></td>' +
@@ -4563,20 +4725,54 @@ function salesOrderLinePriceSync(el) {
     tr._csmPriceSyncing = false;
   }
 }
+function salesOrderLineQtyChanged(qtyEl) {
+  var tr = qtyEl && qtyEl.closest && qtyEl.closest('tr.csm-sol-main');
+  if (!tr) return;
+  var sub = tr.nextElementSibling;
+  if (!sub || !sub.classList.contains('csm-sol-sub')) return;
+  var lineQty = parseFloat(qtyEl.value);
+  var capOk = lineQty > 0 && !isNaN(lineQty);
+  [sub.querySelector('.sol-worker-qty'), sub.querySelector('.sol-truck-qty')].forEach(function(inp) {
+    if (!inp) return;
+    if (capOk) inp.setAttribute('max', String(lineQty)); else inp.removeAttribute('max');
+    var v = parseFloat(inp.value);
+    if (capOk && !isNaN(v) && v > lineQty) inp.value = String(lineQty);
+  });
+}
+function salesOrderServiceQtyInput(el) {
+  var sub = el && el.closest && el.closest('tr.csm-sol-sub');
+  if (!sub) return;
+  var main = sub.previousElementSibling;
+  if (!main || !main.classList.contains('csm-sol-main')) return;
+  var qtyEl = main.querySelector('.sol-qty');
+  if (!qtyEl) return;
+  var lineQty = parseFloat(qtyEl.value);
+  if (!(lineQty > 0) || isNaN(lineQty)) return;
+  var v = parseFloat(el.value);
+  if (!isNaN(v) && v > lineQty) el.value = String(lineQty);
+}
+function salesOrderSyncServiceQtyCapsFromDom() {
+  var tb = gid('sales-order-lines-body');
+  if (!tb) return;
+  tb.querySelectorAll('tr.csm-sol-main .sol-qty').forEach(function(q) { salesOrderLineQtyChanged(q); });
+}
 function salesOrderFillLinesBody(orderOrNull) {
   var tb = gid('sales-order-lines-body');
   if (!tb) return;
   var lines = orderOrNull ? csmSalesNormalizeLinesFromOrder(orderOrNull) : [];
   if (!lines.length) {
     tb.innerHTML = buildSalesOrderLineEditorRow({});
+    salesOrderSyncServiceQtyCapsFromDom();
     return;
   }
   tb.innerHTML = lines.map(function(L) { return buildSalesOrderLineEditorRow(L); }).join('');
+  salesOrderSyncServiceQtyCapsFromDom();
 }
 function salesOrderAddLine() {
   var tb = gid('sales-order-lines-body');
   if (!tb) return;
   tb.insertAdjacentHTML('beforeend', buildSalesOrderLineEditorRow({}));
+  salesOrderSyncServiceQtyCapsFromDom();
 }
 function salesOrderRemoveLine(btn) {
   var tb = gid('sales-order-lines-body');
@@ -4588,36 +4784,21 @@ function salesOrderRemoveLine(btn) {
   if (sub && sub.classList.contains('csm-sol-sub')) sub.remove();
   tr.remove();
 }
-function salesOrderLineCnChanged(sel) {
-  var tr = sel.closest('tr');
-  if (!tr) return;
-  var pr = tr.querySelector('.sol-pr');
-  if (!pr) return;
-  var cn = (sel.value || '').trim().toUpperCase();
-  if (!cn) {
-    pr.innerHTML = buildProductSelectOptionsHtml('');
-    return;
-  }
-  var distinct = getDistinctPurchaseProductsForCn(cn);
-  if (distinct.length === 1) {
-    pr.innerHTML = buildProductSelectOptionsHtml(distinct[0]);
-  } else {
-    pr.innerHTML = buildProductSelectOptionsHtml('');
-    if (distinct.length > 1) toast('Multiple products for this container — pick product below.', 'ok');
-  }
-}
-function salesOrderReadLinesFromDom() {
+function salesOrderReadLinesFromDom(forSubmit) {
   var tb = gid('sales-order-lines-body');
   if (!tb) return { err: 'Missing line editor' };
+  forSubmit = !!forSubmit;
   var out = [];
   var incomplete = false;
+  var submitWtIncomplete = false;
+  var svcQtyOver = false;
   var priceMismatch = false;
   var mult = 1 + VAT_RATE;
   var tol = 0.021;
   tb.querySelectorAll('tr.csm-sol-main').forEach(function(tr) {
     var sub = tr.nextElementSibling;
     if (!sub || !sub.classList || !sub.classList.contains('csm-sol-sub')) return;
-    var cnEl = tr.querySelector('.sol-cn');
+    var hidCn = tr.querySelector('.sol-cn-val');
     var prEl = tr.querySelector('.sol-pr');
     var qtyEl = tr.querySelector('.sol-qty');
     var incEl = tr.querySelector('.sol-price-incl');
@@ -4626,7 +4807,7 @@ function salesOrderReadLinesFromDom() {
     var workerQtyEl = sub.querySelector('.sol-worker-qty');
     var truckIdEl = sub.querySelector('.sol-truck-id');
     var truckQtyEl = sub.querySelector('.sol-truck-qty');
-    var cn = (cnEl && cnEl.value || '').trim().toUpperCase();
+    var cn = (hidCn && hidCn.value || '').trim().toUpperCase();
     var pr = canonicalProductName((prEl && prEl.value || '').trim());
     var qty = parseFloat(qtyEl && qtyEl.value);
     var sIn = incEl ? String(incEl.value || '').trim() : '';
@@ -4649,12 +4830,24 @@ function salesOrderReadLinesFromDom() {
       incomplete = true;
       return;
     }
-    if ((workerId && !(hasWorkerQty && workerQty > 0)) || (!workerId && hasWorkerQty && workerQty > 0)) {
+    var wPartial = (workerId && !(hasWorkerQty && workerQty > 0)) || (!workerId && hasWorkerQty && workerQty > 0);
+    var tPartial = (truckId && !(hasTruckQty && truckQty > 0)) || (!truckId && hasTruckQty && truckQty > 0);
+    if (wPartial || tPartial) {
       incomplete = true;
       return;
     }
-    if ((truckId && !(hasTruckQty && truckQty > 0)) || (!truckId && hasTruckQty && truckQty > 0)) {
-      incomplete = true;
+    var workerComplete = !!(workerId && hasWorkerQty && workerQty > 0);
+    var truckComplete = !!(truckId && hasTruckQty && truckQty > 0);
+    if (forSubmit && (!workerComplete || !truckComplete)) {
+      submitWtIncomplete = true;
+      return;
+    }
+    if (workerId && hasWorkerQty && workerQty > qty) {
+      svcQtyOver = true;
+      return;
+    }
+    if (truckId && hasTruckQty && truckQty > qty) {
+      svcQtyOver = true;
       return;
     }
     function withServices(base) {
@@ -4686,16 +4879,24 @@ function salesOrderReadLinesFromDom() {
     }
   });
   if (priceMismatch) return { err: 'Include VAT and Exclude VAT must match 5% VAT on each line (or clear one column).' };
-  if (incomplete) return { err: 'Each line needs container, product, qty, and at least one unit price. Worker/Truck must have both a selection and a qty.' };
+  if (svcQtyOver) return { err: 'Worker or truck boxes cannot exceed line Qty on a line.' };
+  if (submitWtIncomplete) return { err: 'To submit, every line needs a worker and a truck, each with a box count greater than 0 (not more than line Qty).' };
+  if (incomplete) return { err: 'Each line needs container, product, qty, and at least one unit price. If you enter worker or truck, set both name and boxes.' };
   if (!out.length) return { err: 'Add at least one complete line (container + product + qty + unit price).' };
   return { lines: out };
+}
+function salesOrderApplyCustomerLockState(locked) {
+  var inp = gid('sales-order-customer-search');
+  if (!inp) return;
+  inp.readOnly = !!locked;
+  inp.style.background = locked ? '#f5f5f5' : '';
+  inp.title = locked ? 'Customer cannot be changed after the order was saved as draft.' : '';
 }
 function openSalesOrderModal(id) {
   var m = gid('sales-order-modal');
   if (!m) return;
   m.classList.add('sh');
   gid('sales-order-id').value = id || '';
-  salesOrderCustomerComboPrepare();
   gid('sales-order-payment').value = 'cash_pending';
   var onDisp = gid('sales-order-order-no-display');
   var ctDisp = gid('sales-order-created-display');
@@ -4711,8 +4912,10 @@ function openSalesOrderModal(id) {
     if (onDisp) onDisp.textContent = o.orderNo || '\u2014';
     if (ctDisp) ctDisp.textContent = csmSalesFormatOrderCreated(o.createdAt);
     if (prSel) salesFillPaymentReceiverSelect(prSel, o.paymentReceiverId || '');
+    salesOrderApplyCustomerLockState(true);
   } else {
     salesOrderCustomerComboPrepare();
+    salesOrderApplyCustomerLockState(false);
     salesOrderFillLinesBody(null);
     if (onDisp) onDisp.textContent = csmSalesNextOrderNoForDate(csmSalesLocalYmdCompact(new Date()));
     if (ctDisp) ctDisp.textContent = csmSalesFormatOrderCreated(new Date().toISOString()) + ' \uFF08\u9884\u89C8\uFF0C\u4EE5\u4FDD\u5B58\u65F6\u4E3A\u51C6\uFF09';
@@ -4731,7 +4934,12 @@ function saveSalesOrderFromModal(submitAfter) {
   var customerId = (gid('sales-order-customer-id') && gid('sales-order-customer-id').value || '').trim();
   var cust = salesCustomers.find(function(c) { return c.id === customerId; });
   if (!cust) { toast('Select customer', 'err'); return; }
-  var rd = salesOrderReadLinesFromDom();
+  var payment = gid('sales-order-payment').value || '';
+  if (!payment) { toast('Select payment status', 'err'); return; }
+  var prEl = gid('sales-order-payment-receiver');
+  var prId = prEl ? String(prEl.value || '').trim() : '';
+  if (!prId) { toast('Select payment receiver', 'err'); return; }
+  var rd = salesOrderReadLinesFromDom(submitAfter);
   if (rd.err) { toast(rd.err, 'err'); return; }
   var newLines = rd.lines;
   if (getW1ProductsNormalized().length === 0) { toast('Add products in Settings → 品名管理 first', 'err'); return; }
@@ -4739,9 +4947,6 @@ function saveSalesOrderFromModal(submitAfter) {
     toast('\u6682\u65E0\u91C7\u8D2D\u8BB0\u5F55\u4E2D\u7684\u96C6\u88C5\u7BB1\u53F7\uFF0C\u8BF7\u5148\u5728 Warehouse1 \u91C7\u8D2D\u4E2D\u5F55\u5165', 'err');
     return;
   }
-  var payment = gid('sales-order-payment').value || 'cash_pending';
-  var prEl = gid('sales-order-payment-receiver');
-  var prId = prEl ? String(prEl.value || '').trim() : '';
   var tmpTotals = csmSalesLineNetVatTotal({ lines: newLines });
   if (!id) id = 'so_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   var existing = salesOrders.find(function(x) { return x.id === id; });
@@ -4878,8 +5083,13 @@ try { window.csmSalesOrderCbExclusive = csmSalesOrderCbExclusive; } catch (e) {}
 try { window.csmSalesToggleOrderSubRows = csmSalesToggleOrderSubRows; } catch (e) {}
 try { window.salesOrderAddLine = salesOrderAddLine; } catch (e) {}
 try { window.salesOrderRemoveLine = salesOrderRemoveLine; } catch (e) {}
-try { window.salesOrderLineCnChanged = salesOrderLineCnChanged; } catch (e) {}
+try { window.salesOrderLineCnSearchInput = salesOrderLineCnSearchInput; } catch (e) {}
+try { window.salesOrderLineCnSearchFocus = salesOrderLineCnSearchFocus; } catch (e) {}
+try { window.salesOrderLineCnSearchBlurSoon = salesOrderLineCnSearchBlurSoon; } catch (e) {}
+try { window.salesOrderLineCnDdPick = salesOrderLineCnDdPick; } catch (e) {}
 try { window.salesOrderLinePriceSync = salesOrderLinePriceSync; } catch (e) {}
+try { window.salesOrderLineQtyChanged = salesOrderLineQtyChanged; } catch (e) {}
+try { window.salesOrderServiceQtyInput = salesOrderServiceQtyInput; } catch (e) {}
 try { window.salesOrderCustomerComboOnInput = salesOrderCustomerComboOnInput; } catch (e) {}
 try { window.salesOrderCustomerComboOnFocus = salesOrderCustomerComboOnFocus; } catch (e) {}
 try { window.salesOrderCustomerComboOnBlurSoon = salesOrderCustomerComboOnBlurSoon; } catch (e) {}

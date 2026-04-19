@@ -4312,6 +4312,7 @@ function salesWorkerFormReset() {
   if (idEl) idEl.value = '';
   if (nameEl) nameEl.value = '';
   if (form) form.innerHTML = csmSalesRateFormHtml('sales-worker', {});
+  if (nameEl) try { nameEl.focus(); } catch (eF) {}
 }
 function salesTruckFormReset() {
   var idEl = gid('sales-truck-edit-id');
@@ -4320,6 +4321,7 @@ function salesTruckFormReset() {
   if (idEl) idEl.value = '';
   if (nameEl) nameEl.value = '';
   if (form) form.innerHTML = csmSalesRateFormHtml('sales-truck', {});
+  if (nameEl) try { nameEl.focus(); } catch (eF) {}
 }
 function renderSalesWorkersManageTable() {
   var tb = gid('tb-sales-workers');
@@ -4329,9 +4331,10 @@ function renderSalesWorkersManageTable() {
     return;
   }
   tb.innerHTML = salesWorkers.map(function(item) {
+    var wid = encodeURIComponent(String(item.id || ''));
     return '<tr><td style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(item.name || '') + '</td><td>' + csmSalesRateSummaryHtml(item.rates) + '</td><td>' +
-      '<button type="button" class="abtn" onclick="editSalesWorker(\'' + csmAttrEscape(item.id) + '\')">Edit</button> ' +
-      '<button type="button" class="abtn x" onclick="deleteSalesWorker(\'' + csmAttrEscape(item.id) + '\')">Del</button></td></tr>';
+      '<button type="button" class="abtn" data-sales-worker-id="' + wid + '" onclick="editSalesWorker(decodeURIComponent(this.getAttribute(\'data-sales-worker-id\')))">Edit</button> ' +
+      '<button type="button" class="abtn x" data-sales-worker-id="' + wid + '" onclick="deleteSalesWorker(decodeURIComponent(this.getAttribute(\'data-sales-worker-id\')))">Del</button></td></tr>';
   }).join('');
 }
 function renderSalesTrucksManageTable() {
@@ -4342,16 +4345,15 @@ function renderSalesTrucksManageTable() {
     return;
   }
   tb.innerHTML = salesTrucks.map(function(item) {
+    var tid = encodeURIComponent(String(item.id || ''));
     return '<tr><td style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(item.name || '') + '</td><td>' + csmSalesRateSummaryHtml(item.rates) + '</td><td>' +
-      '<button type="button" class="abtn" onclick="editSalesTruck(\'' + csmAttrEscape(item.id) + '\')">Edit</button> ' +
-      '<button type="button" class="abtn x" onclick="deleteSalesTruck(\'' + csmAttrEscape(item.id) + '\')">Del</button></td></tr>';
+      '<button type="button" class="abtn" data-sales-truck-id="' + tid + '" onclick="editSalesTruck(decodeURIComponent(this.getAttribute(\'data-sales-truck-id\')))">Edit</button> ' +
+      '<button type="button" class="abtn x" data-sales-truck-id="' + tid + '" onclick="deleteSalesTruck(decodeURIComponent(this.getAttribute(\'data-sales-truck-id\')))">Del</button></td></tr>';
   }).join('');
 }
 function renderSalesWorkerTruckManageUi() {
   renderSalesWorkersManageTable();
   renderSalesTrucksManageTable();
-  if (gid('sales-worker-rates-form') && !document.querySelector('.sales-worker-rate-input')) salesWorkerFormReset();
-  if (gid('sales-truck-rates-form') && !document.querySelector('.sales-truck-rate-input')) salesTruckFormReset();
 }
 function openSalesWorkerTruckModal() {
   var m = gid('sales-worker-truck-modal');

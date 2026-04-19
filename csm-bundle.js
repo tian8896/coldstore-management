@@ -235,7 +235,8 @@ function createPurchaseRecordFromSupplierRec(rec, id, item) {
     bl: rec.bl || '',
     etd: rec.etd || '',
     eta: rec.eta || '',
-    sourceSupplierRecId: rec.id || ''
+    sourceSupplierRecId: rec.id || '',
+    remarks: String(rec.remarks || '').trim()
   };
 }
 function makePurchaseRecordId() {
@@ -746,6 +747,8 @@ function openSupplierFormBody() {
   gid('supplier-bl').value = '';
   gid('supplier-etd').value = '';
   gid('supplier-eta').value = '';
+  var srm = gid('supplier-remark');
+  if (srm) srm.value = '';
   gid('supplier-modal-title').textContent = '📦 添加采购记录 / Add Purchase Record';
   gid('supplierModal').classList.add('sh');
 }
@@ -769,6 +772,7 @@ function saveSupplierRec() {
   var bl = (gid('supplier-bl').value || '').trim();
   var etd = (gid('supplier-etd').value || '').trim();
   var eta = (gid('supplier-eta').value || '').trim();
+  var remarks = (gid('supplier-remark') && gid('supplier-remark').value != null) ? String(gid('supplier-remark').value).trim() : '';
   var itemResult = collectSupplierFormItems();
   var supplierItems = itemResult.items;
   var product = supplierItems.map(function(item) { return item.product; }).join(' / ');
@@ -826,6 +830,7 @@ function saveSupplierRec() {
     bl: bl,
     etd: etd,
     eta: eta,
+    remarks: remarks,
     addedBy: currentUserEmail,
     ownerUid: currentUser,
     addTime: new Date().toISOString(),
@@ -935,8 +940,9 @@ function confirmSupplierRec(id) {
     var nowIso = new Date().toISOString();
     var writes = [];
     if (existingPurchases.length) {
+      var adoptRemarks = String(rec.remarks || '').trim();
       existingPurchases.forEach(function(item) {
-        writes.push(purchaseRef.child(item.id).update({ seq: seq }));
+        writes.push(purchaseRef.child(item.id).update({ seq: seq, remarks: adoptRemarks }));
       });
     } else {
       supplierItems.forEach(function(item) {
@@ -989,6 +995,8 @@ function editSupplierRec(id) {
     gid('supplier-bl').value = rec.bl || '';
     gid('supplier-etd').value = rec.etd || '';
     gid('supplier-eta').value = rec.eta || '';
+    var srmE = gid('supplier-remark');
+    if (srmE) srmE.value = rec.remarks || '';
     gid('supplier-modal-title').textContent = '✏️ 编辑采购记录 / Edit Purchase Record';
     gid('supplierModal').classList.add('sh');
   }
@@ -1175,6 +1183,8 @@ function openSupplierCNDetail(id) {
   html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">供应商</td><td style="padding:6px">' + (rec.supplier || '-') + '</td></tr>';
   html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">采购日期</td><td style="padding:6px">' + (rec.purchaseDate || '-') + (rec.purchaseTime ? ' ' + rec.purchaseTime : '') + '</td></tr>';
   html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">总数量</td><td style="padding:6px">' + getSupplierQtyTotal(rec) + '</td></tr>';
+  var supRem = String(rec.remarks || '').trim();
+  html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888;vertical-align:top">备注</td><td style="padding:6px;white-space:pre-wrap;font-family:var(--csm-font-en);font-weight:700">' + (supRem ? csmEscapeHtml(supRem) : '<span style="color:#999">—</span>') + '</td></tr>';
   html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">船名</td><td style="padding:6px">' + (rec.shipname || '-') + '</td></tr>';
   html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">船公司</td><td style="padding:6px">' + (rec.shipCompany || '-') + '</td></tr>';
   html += '<tr style="border-bottom:1px solid #eee"><td style="padding:6px;color:#888">提单号</td><td style="padding:6px">' + (rec.bl || '-') + '</td></tr>';
@@ -1538,6 +1548,14 @@ function showPurchaseCnDetail(cn) {
   html += '<div class="mr"><span class="ml">冷库记录数</span><span class="mv">' + breakdown.rows.length + '</span></div>';
   html += '<div class="mr"><span class="ml">冷库费状态</span><span class="mv">' + (breakdown.allCheckedOut ? '<span style="color:#2e7d32;font-weight:bold">已全部出库</span>' : '<span style="color:#ff9900;font-weight:bold">未全部出库</span>') + '</span></div>';
   html += '<div class="mr" style="grid-column:1 / -1"><span class="ml">冷库费总和</span><span class="mv" style="color:#0066cc;font-weight:bold;font-size:18px">' + (breakdown.allCheckedOut ? breakdown.totalFee.toFixed(2) + ' AED' : '-') + '</span></div>';
+  var cnRemarkParts = [];
+  purchaseItems.forEach(function(it) {
+    var t = String(it.remarks || '').trim();
+    if (t && cnRemarkParts.indexOf(t) === -1) cnRemarkParts.push(t);
+  });
+  if (cnRemarkParts.length) {
+    html += '<div class="mr" style="grid-column:1 / -1"><span class="ml">备注 / Remarks</span><span class="mv" style="display:block;margin-top:4px;white-space:pre-wrap;font-weight:700;font-family:var(--csm-font-en)">' + csmEscapeHtml(cnRemarkParts.join('\n')) + '</span></div>';
+  }
   html += '</div>';
   if (purchaseItems.length) {
     html += '<div style="margin-top:14px;border-top:1px solid #ddd;padding-top:12px">';

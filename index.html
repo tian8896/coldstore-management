@@ -91,6 +91,9 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 #tc-sales > #sales-panel-customers,
 #tc-sales > #sales-panel-orders{min-width:0;max-width:100%;width:100%}
 #tc-sales #sales-panel-orders > .tw.tw-sales-dense{overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+/* Sales sub-nav: English Arial + bold + title case (override .btn uppercase) */
+#tc-sales .csm-sales-subnav .btn{font-family:var(--csm-font-en);font-weight:700;text-transform:none;letter-spacing:.02em}
+#tc-sales .csm-sales-subnav .btn .csm-sales-subnav-en{font-family:var(--csm-font-en);font-weight:700}
 .bdg{display:inline-block;padding:5px 10px;border-radius:3px;font-size:13px;font-weight:700;font-family:var(--csm-font-en)}
 .bdg-a{background:var(--am15);color:var(--am);border:1px solid rgba(210,153,34,.3)}
 .bdg-d{background:var(--gr15);color:var(--gr);border:1px solid rgba(63,185,80,.3)}
@@ -103,6 +106,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 /* Stacked above sales-order-modal when both open (Manage receivers) */
 #sales-payment-receivers-modal.sh{z-index:1100}
 #sales-worker-truck-modal.sh{z-index:1100}
+#sales-order-upwt-modal.sh{z-index:1100}
 /* Sales order modal line editor: worker/truck row must wrap; qty needs fixed flex basis */
 #sales-order-modal table.csm-sales-order-lines-table td{white-space:normal!important}
 #sales-order-modal table.csm-sales-order-lines-table tr.csm-sol-sub td{padding:8px 10px!important;overflow:visible!important;vertical-align:top!important}
@@ -326,7 +330,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260419zb" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260419ze" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -1046,11 +1050,11 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 
   <div class="tc" id="tc-sales">
     <p style="font-size:13px;color:#555;margin:0 0 12px;line-height:1.6">销售系统：客户信息、集装箱销售订单、付款状态与财务统计。订单需<strong>确认</strong>后进入「财务记录」。</p>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;border-bottom:1px solid #e0e0e0;padding-bottom:10px">
-      <button type="button" class="btn btn-s" id="sales-sub-btn-dash" onclick="swSalesSub('dash')">财务统计 Dashboard</button>
-      <button type="button" class="btn btn-g" id="sales-sub-btn-cust" onclick="swSalesSub('customers')">客户管理 Customers</button>
-      <button type="button" class="btn btn-g" id="sales-sub-btn-orders" onclick="swSalesSub('orders')">销售订单 Orders</button>
-      <button type="button" class="btn btn-g" id="sales-worker-truck-btn" onclick="openSalesWorkerTruckModal()">工人管理 Worker / Truck</button>
+    <div class="csm-sales-subnav" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;border-bottom:1px solid #e0e0e0;padding-bottom:10px">
+      <button type="button" class="btn btn-s" id="sales-sub-btn-dash" onclick="swSalesSub('dash')">财务统计 <span class="csm-sales-subnav-en">Dashboard</span></button>
+      <button type="button" class="btn btn-g" id="sales-sub-btn-cust" onclick="swSalesSub('customers')">客户管理 <span class="csm-sales-subnav-en">Customers</span></button>
+      <button type="button" class="btn btn-g" id="sales-sub-btn-orders" onclick="swSalesSub('orders')">销售订单 <span class="csm-sales-subnav-en">Orders</span></button>
+      <button type="button" class="btn btn-g" id="sales-worker-truck-btn" onclick="openSalesWorkerTruckModal()">工人管理 <span class="csm-sales-subnav-en">Worker / Truck</span></button>
     </div>
     <div id="sales-panel-dash">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px">
@@ -1084,6 +1088,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <button type="button" class="btn btn-g" onclick="salesBatchCancel()">Cancel</button>
         <button type="button" class="btn btn-p" onclick="salesBatchSubmit()">Submit</button>
         <button type="button" class="btn btn-s" onclick="salesBatchConfirm()">Confirm</button>
+        <button type="button" class="btn btn-g" onclick="openSalesOrderUpdateWorkerModal()"><span class="csm-sales-subnav-en">Update Worker</span></button>
         <label style="font-size:13px;color:#666;margin-left:4px">状态 Status</label>
         <select id="sales-order-filter" onchange="salesOrdersFilterChange()" style="padding:6px 10px;border:1px solid #ccc;border-radius:4px">
           <option value="">全部 All</option>
@@ -1091,7 +1096,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           <option value="submitted">Submitted</option>
           <option value="confirmed">Confirmed</option>
         </select>
-        <span style="flex-basis:100%;font-size:12px;color:#666;margin-top:2px">每次最多勾选一条 · At most one row for Cancel / Submit / Confirm</span>
+        <span style="flex-basis:100%;font-size:12px;color:#666;margin-top:2px">每次最多勾选一条 · At most one row for Cancel / Submit / Confirm / Update Worker (<strong>draft</strong> only)</span>
       </div>
       <div class="tw tw-sales-dense"><table><thead><tr>
         <th class="csm-sel-th" title="选择">选</th>
@@ -1237,6 +1242,31 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <button type="button" class="btn btn-s" onclick="saveSalesOrderFromModal(false)">Save draft</button>
       <button type="button" class="btn btn-p" onclick="saveSalesOrderFromModal(true)">Submit 提交</button>
       <button type="button" class="btn btn-g" onclick="clSalesOrderModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="mov" id="sales-order-upwt-modal">
+  <div class="mdl" style="width:min(920px,96vw);max-width:96vw;max-height:88vh;overflow-y:auto">
+    <h3 style="text-transform:none;letter-spacing:.5px;font-family:var(--csm-font-en);font-weight:700">Update Worker / Truck</h3>
+    <p style="font-size:13px;color:#666;margin:0 0 12px;font-family:var(--csm-font-en);font-weight:700">Order <span id="sales-upwt-order-no"></span></p>
+    <input type="hidden" id="sales-upwt-order-id" value="">
+    <div class="tw" style="overflow-x:auto;margin-bottom:14px;border:1px solid #ddd;border-radius:6px">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:var(--csm-font-en);font-weight:700">
+        <thead><tr style="background:#f5f5f5">
+          <th style="padding:8px;text-align:left;border-bottom:1px solid #ddd">Container</th>
+          <th style="padding:8px;text-align:left;border-bottom:1px solid #ddd">Product</th>
+          <th style="padding:8px;text-align:left;border-bottom:1px solid #ddd;width:72px">Qty</th>
+          <th style="padding:8px;text-align:left;border-bottom:1px solid #ddd">Worker</th>
+          <th style="padding:8px;text-align:left;border-bottom:1px solid #ddd">Truck</th>
+        </tr></thead>
+        <tbody id="sales-upwt-lines-body"></tbody>
+      </table>
+    </div>
+    <p style="font-size:12px;color:#666;margin:0 0 12px;line-height:1.45;font-family:var(--csm-font-en);font-weight:700"><strong>Draft orders only.</strong> Edit worker and truck per line. If you choose a worker or truck, set Qty &gt; 0 and not more than line Qty. Leave both empty to clear.</p>
+    <div class="brow" style="flex-wrap:wrap;gap:8px">
+      <button type="button" class="btn btn-s" onclick="saveSalesOrderUpdateWorkerTruckFromModal()" style="font-family:var(--csm-font-en);font-weight:700">Save</button>
+      <button type="button" class="btn btn-g" onclick="clSalesOrderUpwtModal()" style="font-family:var(--csm-font-en);font-weight:700">Close</button>
     </div>
   </div>
 </div>

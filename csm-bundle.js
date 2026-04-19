@@ -3502,6 +3502,163 @@ function csmSalesBuildServiceSelectHtml(list, selectedId, placeholder) {
   }
   return html;
 }
+function csmSalesApplyWorkerTruckRatesToLines(linesArr) {
+  return (linesArr || []).map(function(L) {
+    var workerEnt = L.workerId ? salesWorkers.find(function(x) { return x.id === L.workerId; }) : null;
+    var truckEnt = L.truckId ? salesTrucks.find(function(x) { return x.id === L.truckId; }) : null;
+    var workerRate = workerEnt ? csmSalesServiceRate(workerEnt, L.productName) : 0;
+    var truckRate = truckEnt ? csmSalesServiceRate(truckEnt, L.productName) : 0;
+    var workerQty = parseFloat(L.workerQty) || 0;
+    var truckQty = parseFloat(L.truckQty) || 0;
+    return Object.assign({}, L, {
+      workerName: workerEnt ? csmSalesServiceEntryDisplay(workerEnt) : '',
+      workerRate: workerRate,
+      workerAmount: csmSalesRound2(workerRate * workerQty),
+      truckName: truckEnt ? csmSalesServiceEntryDisplay(truckEnt) : '',
+      truckRate: truckRate,
+      truckAmount: csmSalesRound2(truckRate * truckQty)
+    });
+  });
+}
+function csmSalesBuildUpwtRowHtml(L, idx) {
+  var workerQtyDisp = L.workerQty != null && L.workerQty !== '' ? String(L.workerQty) : '';
+  var truckQtyDisp = L.truckQty != null && L.truckQty !== '' ? String(L.truckQty) : '';
+  return '<tr data-upwt-i="' + idx + '">' +
+    '<td style="padding:8px;border-bottom:1px solid #eee;vertical-align:middle">' + csmEscapeHtml(L.containerNo) + '</td>' +
+    '<td style="padding:8px;border-bottom:1px solid #eee;vertical-align:middle">' + w1ProductHtml(L.productName) + '</td>' +
+    '<td style="padding:8px;border-bottom:1px solid #eee;vertical-align:middle">' + csmEscapeHtml(String(L.quantity)) + '</td>' +
+    '<td style="padding:8px;border-bottom:1px solid #eee;vertical-align:top">' +
+    '<div class="upwt-svc-fields" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;max-width:100%">' +
+    '<select class="upwt-worker-id" style="flex:1;min-width:120px;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">' +
+    csmSalesBuildServiceSelectHtml(salesWorkers, L.workerId, 'Select worker') + '</select>' +
+    '<input type="number" class="upwt-worker-qty" min="0" step="any" value="' + (workerQtyDisp === '' ? '' : csmEscapeHtml(workerQtyDisp)) + '" placeholder="Qty" title="Worker Qty (not more than line Qty)" style="width:96px;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">' +
+    '</div></td>' +
+    '<td style="padding:8px;border-bottom:1px solid #eee;vertical-align:top">' +
+    '<div class="upwt-svc-fields" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;max-width:100%">' +
+    '<select class="upwt-truck-id" style="flex:1;min-width:120px;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">' +
+    csmSalesBuildServiceSelectHtml(salesTrucks, L.truckId, 'Select truck') + '</select>' +
+    '<input type="number" class="upwt-truck-qty" min="0" step="any" value="' + (truckQtyDisp === '' ? '' : csmEscapeHtml(truckQtyDisp)) + '" placeholder="Qty" title="Truck Qty (not more than line Qty)" style="width:96px;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">' +
+    '</div></td>' +
+    '</tr>';
+}
+function salesUpwtReadLinesFromDom(baseLines) {
+  var tb = gid('sales-upwt-lines-body');
+  if (!tb) return { err: 'Missing editor' };
+  var out = [];
+  var err = '';
+  for (var i = 0; i < baseLines.length; i++) {
+    var L = baseLines[i];
+    var tr = tb.querySelector('tr[data-upwt-i="' + i + '"]');
+    if (!tr) {
+      err = 'Editor row mismatch.';
+      break;
+    }
+    var workerIdEl = tr.querySelector('.upwt-worker-id');
+    var workerQtyEl = tr.querySelector('.upwt-worker-qty');
+    var truckIdEl = tr.querySelector('.upwt-truck-id');
+    var truckQtyEl = tr.querySelector('.upwt-truck-qty');
+    var workerId = (workerIdEl && workerIdEl.value || '').trim();
+    var workerQtyRaw = workerQtyEl ? String(workerQtyEl.value || '').trim() : '';
+    var truckId = (truckIdEl && truckIdEl.value || '').trim();
+    var truckQtyRaw = truckQtyEl ? String(truckQtyEl.value || '').trim() : '';
+    var workerQty = parseFloat(workerQtyRaw);
+    var truckQty = parseFloat(truckQtyRaw);
+    var hasWorkerQty = workerQtyRaw !== '' && !isNaN(workerQty) && workerQty >= 0;
+    var hasTruckQty = truckQtyRaw !== '' && !isNaN(truckQty) && truckQty >= 0;
+    var wPartial = (workerId && !(hasWorkerQty && workerQty > 0)) || (!workerId && hasWorkerQty && workerQty > 0);
+    var tPartial = (truckId && !(hasTruckQty && truckQty > 0)) || (!truckId && hasTruckQty && truckQty > 0);
+    if (wPartial || tPartial) {
+      err = 'If you enter worker or truck, set both name and Qty on each line.';
+      break;
+    }
+    var lineQty = parseFloat(L.quantity) || 0;
+    if (workerId && hasWorkerQty && workerQty > lineQty) {
+      err = 'Worker Qty cannot exceed line Qty.';
+      break;
+    }
+    if (truckId && hasTruckQty && truckQty > lineQty) {
+      err = 'Truck Qty cannot exceed line Qty.';
+      break;
+    }
+    out.push(Object.assign({}, L, {
+      workerId: workerId,
+      workerQty: workerId ? workerQty : 0,
+      truckId: truckId,
+      truckQty: truckId ? truckQty : 0
+    }));
+  }
+  if (err) return { err: err };
+  return { lines: out };
+}
+function openSalesOrderUpdateWorkerModal() {
+  if (!salesOrdersRef) { toast('Database not connected', 'err'); return; }
+  var ids = csmSalesGetSelectedOrderIds();
+  if (!ids.length) { toast('Select one order', 'err'); return; }
+  if (!csmSalesRequireAtMostOneSelection(ids)) return;
+  var o = salesOrders.find(function(x) { return x.id === ids[0]; });
+  if (!o || o.voided) { toast('Order not found or voided', 'err'); return; }
+  if (String(o.orderStatus || '').toLowerCase() !== 'draft') {
+    toast('Worker / Truck can only be updated when the order is draft.', 'err');
+    return;
+  }
+  var lines = csmSalesNormalizeLinesFromOrder(o);
+  if (!lines.length) { toast('This order has no product lines.', 'err'); return; }
+  var hid = gid('sales-upwt-order-id');
+  var noEl = gid('sales-upwt-order-no');
+  var body = gid('sales-upwt-lines-body');
+  if (!hid || !body) return;
+  hid.value = o.id;
+  if (noEl) noEl.textContent = o.orderNo || o.id;
+  body.innerHTML = lines.map(function(L, i) { return csmSalesBuildUpwtRowHtml(L, i); }).join('');
+  var m = gid('sales-order-upwt-modal');
+  if (m) m.classList.add('sh');
+}
+function clSalesOrderUpwtModal() {
+  var m = gid('sales-order-upwt-modal');
+  if (m) m.classList.remove('sh');
+}
+function saveSalesOrderUpdateWorkerTruckFromModal() {
+  if (!salesOrdersRef) { toast('Database not connected', 'err'); return; }
+  var id = (gid('sales-upwt-order-id') && gid('sales-upwt-order-id').value || '').trim();
+  if (!id) return;
+  var o = salesOrders.find(function(x) { return x.id === id; });
+  if (!o || o.voided) { toast('Order not found or voided', 'err'); return; }
+  if (String(o.orderStatus || '').toLowerCase() !== 'draft') {
+    toast('Worker / Truck can only be updated when the order is draft.', 'err');
+    return;
+  }
+  var baseLines = csmSalesNormalizeLinesFromOrder(o);
+  var rd = salesUpwtReadLinesFromDom(baseLines);
+  if (rd.err) { toast(rd.err, 'err'); return; }
+  var newLines = csmSalesApplyWorkerTruckRatesToLines(rd.lines);
+  var L0 = newLines[0];
+  var nowIso = new Date().toISOString();
+  var patch = {
+    lines: newLines,
+    updatedAt: nowIso,
+    containerNo: L0.containerNo,
+    productName: L0.productName,
+    quantity: L0.quantity,
+    unitPrice: L0.unitPrice,
+    vatMode: (L0.vatMode === 'included' || L0.vatMode === 'excluded') ? L0.vatMode : (o.vatMode || 'excluded'),
+    workerId: L0.workerId || '',
+    workerName: L0.workerName || '',
+    workerQty: L0.workerQty || 0,
+    workerRate: L0.workerRate || 0,
+    workerAmount: L0.workerAmount || 0,
+    truckId: L0.truckId || '',
+    truckName: L0.truckName || '',
+    truckQty: L0.truckQty || 0,
+    truckRate: L0.truckRate || 0,
+    truckAmount: L0.truckAmount || 0
+  };
+  csmSalesPurchaseDeltaForLinesSave(o, newLines).then(function() {
+    return salesOrdersRef.child(id).update(patch);
+  }).then(function() {
+    toast('Worker / Truck updated', 'ok');
+    clSalesOrderUpwtModal();
+  }).catch(function(e) { toast('Save failed: ' + (e.message || e), 'err'); });
+}
 function csmSalesServiceCellHtml(name, qty) {
   qty = parseFloat(qty) || 0;
   var nm = String(name || '').trim();
@@ -4968,22 +5125,7 @@ function saveSalesOrderFromModal(submitAfter) {
     orderNoVal = csmSalesNextOrderNoForDate(ymdToday);
     createdVal = nowIso;
   }
-  newLines = newLines.map(function(L) {
-    var workerEnt = L.workerId ? salesWorkers.find(function(x) { return x.id === L.workerId; }) : null;
-    var truckEnt = L.truckId ? salesTrucks.find(function(x) { return x.id === L.truckId; }) : null;
-    var workerRate = workerEnt ? csmSalesServiceRate(workerEnt, L.productName) : 0;
-    var truckRate = truckEnt ? csmSalesServiceRate(truckEnt, L.productName) : 0;
-    var workerQty = parseFloat(L.workerQty) || 0;
-    var truckQty = parseFloat(L.truckQty) || 0;
-    return Object.assign({}, L, {
-      workerName: workerEnt ? csmSalesServiceEntryDisplay(workerEnt) : '',
-      workerRate: workerRate,
-      workerAmount: csmSalesRound2(workerRate * workerQty),
-      truckName: truckEnt ? csmSalesServiceEntryDisplay(truckEnt) : '',
-      truckRate: truckRate,
-      truckAmount: csmSalesRound2(truckRate * truckQty)
-    });
-  });
+  newLines = csmSalesApplyWorkerTruckRatesToLines(newLines);
   var L0 = newLines[0];
   var orderVatMode = (L0 && (L0.vatMode === 'included' || L0.vatMode === 'excluded')) ? L0.vatMode : 'excluded';
   var rec = {
@@ -5074,6 +5216,9 @@ try { window.toggleNewUserPassword = toggleNewUserPassword; } catch (e) {}
 try { window.salesBatchCancel = salesBatchCancel; } catch (e) {}
 try { window.salesBatchSubmit = salesBatchSubmit; } catch (e) {}
 try { window.salesBatchConfirm = salesBatchConfirm; } catch (e) {}
+try { window.openSalesOrderUpdateWorkerModal = openSalesOrderUpdateWorkerModal; } catch (e) {}
+try { window.clSalesOrderUpwtModal = clSalesOrderUpwtModal; } catch (e) {}
+try { window.saveSalesOrderUpdateWorkerTruckFromModal = saveSalesOrderUpdateWorkerTruckFromModal; } catch (e) {}
 try { window.csmSalesOrdersGoPage = csmSalesOrdersGoPage; } catch (e) {}
 try { window.csmSalesOrdersSetPageSize = csmSalesOrdersSetPageSize; } catch (e) {}
 try { window.salesOrdersFilterChange = salesOrdersFilterChange; } catch (e) {}

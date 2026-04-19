@@ -3728,7 +3728,7 @@ function salesBatchSubmit() {
     var o0 = toSubmit[si];
     var lines0 = csmSalesNormalizeLinesFromOrder(o0);
     if (!lines0.length || !lines0.every(function(L) { return csmSalesLineWorkerTruckValidForSubmit(L); })) {
-      toast('Cannot submit: order ' + (o0.orderNo || o0.id) + ' needs worker and truck (box counts > 0 and not more than line Qty) on every line.', 'err');
+      toast('Cannot submit: order ' + (o0.orderNo || o0.id) + ' needs worker and truck (Qty > 0 and not more than line Qty) on every line.', 'err');
       return;
     }
   }
@@ -4656,11 +4656,11 @@ function buildSalesOrderLineEditorRow(line) {
   var svc = '<div class="csm-sol-svc-grid">' +
     '<div class="csm-sol-svc-col"><div style="font-size:11px;color:#555;margin-bottom:6px">Worker</div><div class="csm-sol-svc-fields">' +
     '<select class="sol-worker-id">' + csmSalesBuildServiceSelectHtml(salesWorkers, line.workerId, 'Select worker') + '</select>' +
-    '<input type="number" class="sol-worker-qty" min="0" step="any" value="' + (workerQty === '' ? '' : csmEscapeHtml(String(workerQty))) + '" placeholder="Boxes" inputmode="decimal" oninput="salesOrderServiceQtyInput(this)" title="Number of boxes (not more than line Qty; worker rate is AED per box for this product)">' +
+    '<input type="number" class="sol-worker-qty" min="0" step="any" value="' + (workerQty === '' ? '' : csmEscapeHtml(String(workerQty))) + '" placeholder="Qty" inputmode="decimal" oninput="salesOrderServiceQtyInput(this)" title="Worker Qty (not more than line Qty; rate is AED per box for this product)">' +
     '</div></div>' +
     '<div class="csm-sol-svc-col"><div style="font-size:11px;color:#555;margin-bottom:6px">Truck</div><div class="csm-sol-svc-fields">' +
     '<select class="sol-truck-id">' + csmSalesBuildServiceSelectHtml(salesTrucks, line.truckId, 'Select truck') + '</select>' +
-    '<input type="number" class="sol-truck-qty" min="0" step="any" value="' + (truckQty === '' ? '' : csmEscapeHtml(String(truckQty))) + '" placeholder="Boxes" inputmode="decimal" oninput="salesOrderServiceQtyInput(this)" title="Number of boxes (not more than line Qty; truck rate is AED per box for this product)">' +
+    '<input type="number" class="sol-truck-qty" min="0" step="any" value="' + (truckQty === '' ? '' : csmEscapeHtml(String(truckQty))) + '" placeholder="Qty" inputmode="decimal" oninput="salesOrderServiceQtyInput(this)" title="Truck Qty (not more than line Qty; rate is AED per box for this product)">' +
     '</div></div></div>';
   return '<tr class="csm-sol-main"' + basisAttr + '>' +
     buildSalesOrderLineCnCellHtml(cn) +
@@ -4879,9 +4879,9 @@ function salesOrderReadLinesFromDom(forSubmit) {
     }
   });
   if (priceMismatch) return { err: 'Include VAT and Exclude VAT must match 5% VAT on each line (or clear one column).' };
-  if (svcQtyOver) return { err: 'Worker or truck boxes cannot exceed line Qty on a line.' };
-  if (submitWtIncomplete) return { err: 'To submit, every line needs a worker and a truck, each with a box count greater than 0 (not more than line Qty).' };
-  if (incomplete) return { err: 'Each line needs container, product, qty, and at least one unit price. If you enter worker or truck, set both name and boxes.' };
+  if (svcQtyOver) return { err: 'Worker or truck Qty cannot exceed line Qty on a line.' };
+  if (submitWtIncomplete) return { err: 'To submit, every line needs a worker and a truck, each with Qty greater than 0 (not more than line Qty).' };
+  if (incomplete) return { err: 'Each line needs container, product, qty, and at least one unit price. If you enter worker or truck, set both name and Qty.' };
   if (!out.length) return { err: 'Add at least one complete line (container + product + qty + unit price).' };
   return { lines: out };
 }

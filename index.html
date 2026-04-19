@@ -56,6 +56,17 @@ header p{color:var(--tx);font-size:17px;font-weight:bold;margin-top:4px;letter-s
 #tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table>thead>tr>th span{font-size:11px;color:#666;font-weight:700;text-transform:none}
 /* Supplier portal purchase table: English Arial + bold + title case (override global th uppercase) */
 #supplierView .tw table>thead>tr>th{font-family:var(--csm-font-en);font-weight:700;text-transform:none;letter-spacing:.02em}
+/* Logistics, records, checkout, stats tables + modal .tw tables + purchase/supplier modals + user tables: English Arial bold title case */
+#logisticsView .tw > table > thead > tr > th,
+#tc-records .tw > table > thead > tr > th,
+#tc-checkout .tw > table > thead > tr > th,
+#tc-stats .tw > table > thead > tr > th,
+.mov .mdl .tw > table > thead > tr > th,
+#purchaseModal #purchaseItemsTable > thead > tr > th,
+#supplierModal table > thead > tr > th,
+#user-list table > tr:first-child > th,
+#userMgmtModal #userListContainer table > tr:first-child > th,
+#modal-mdl table > thead > tr > th{font-family:var(--csm-font-en);font-weight:700;text-transform:none;letter-spacing:.02em}
 table{width:max-content;min-width:100%;border-collapse:collapse;font-size:14px}
 th{background:var(--bg2);padding:12px 14px;text-align:left;font-size:14px;font-family:var(--csm-font-en);font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--tx);border-bottom:2px solid var(--bd);white-space:nowrap}
 td{padding:11px 14px;border-bottom:1px solid rgba(48,54,61,.5);color:var(--tx);white-space:nowrap;font-size:14px;font-family:var(--csm-font-en);font-weight:700}
@@ -342,7 +353,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260419zh" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260419payconf" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -1012,7 +1023,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
       <button type="button" id="btn-clear-checkout" class="btn" style="background:#cc0000;color:#fff;border-color:#cc0000" onclick="showClearModal('checkout')">🗑️ 清空记录</button>
     </div>
-    <div class="tw"><table><thead><tr><th style="font-family:Arial;font-size:14px">Seq No<br><span style="text-transform:capitalize;font-size:11px;color:#666">序列号</span></th><th style="font-family:Arial;font-size:14px">集装箱号<br><span style="text-transform:capitalize">Container</span></th><th style="font-family:Arial;font-size:14px">供应商<br><span style="text-transform:capitalize">Supplier</span></th><th style="font-family:Arial;font-size:14px">品名<br><span style="text-transform:capitalize">Product</span></th><th style="font-family:Arial;font-size:14px">周/日期<br><span style="text-transform:capitalize">Week/Date</span></th><th style="font-family:Arial;font-size:14px">托盘数<br><span style="text-transform:capitalize">Pallets</span></th><th style="font-family:Arial;font-size:14px">出库托盘<br><span style="text-transform:capitalize">Out Pallets</span></th><th style="font-family:Arial;font-size:14px">出库件数<br><span style="text-transform:capitalize">Out Items</span></th><th style="font-family:Arial;font-size:14px">剩余件数<br><span style="text-transform:capitalize">Rem Items</span></th><th style="font-family:Arial;font-size:14px">入库件数<br><span style="text-transform:capitalize">In Items</span></th><th style="font-family:Arial;font-size:14px">单价<br><span style="text-transform:capitalize">Price</span></th><th style="font-family:Arial;font-size:14px">金额<br><span style="text-transform:capitalize">Amount</span></th><th style="font-family:Arial;font-size:14px">5% VAT</th><th style="font-family:Arial;font-size:14px">合计<br><span style="text-transform:capitalize">Total</span></th><th style="font-family:Arial;font-size:14px">操作<br><span style="text-transform:capitalize">Action</span></th></tr></thead><tbody id="tb-checkout"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th style="font-family:Arial;font-size:14px">Seq No<br><span style="text-transform:capitalize;font-size:11px;color:#666">序列号</span></th><th style="font-family:Arial;font-size:14px">集装箱号<br><span style="text-transform:capitalize">Container</span></th><th style="font-family:Arial;font-size:14px">供应商<br><span style="text-transform:capitalize">Supplier</span></th><th style="font-family:Arial;font-size:14px">品名<br><span style="text-transform:capitalize">Product</span></th><th style="font-family:Arial;font-size:14px">周/日期<br><span style="text-transform:capitalize">Week/Date</span></th><th style="font-family:Arial;font-size:14px">托盘数<br><span style="text-transform:capitalize">Pallets</span></th><th style="font-family:Arial;font-size:14px">出库托盘<br><span style="text-transform:capitalize">Out Pallets</span></th><th style="font-family:Arial;font-size:14px">出库件数<br><span style="text-transform:capitalize">Out Items</span></th><th style="font-family:Arial;font-size:14px">剩余件数<br><span style="text-transform:capitalize">Rem. Items</span></th><th style="font-family:Arial;font-size:14px">入库件数<br><span style="text-transform:capitalize">In Items</span></th><th style="font-family:Arial;font-size:14px">单价<br><span style="text-transform:capitalize">Price</span></th><th style="font-family:Arial;font-size:14px">金额<br><span style="text-transform:capitalize">Amount</span></th><th style="font-family:Arial;font-size:14px">5% VAT</th><th style="font-family:Arial;font-size:14px">合计<br><span style="text-transform:capitalize">Total</span></th><th style="font-family:Arial;font-size:14px">操作<br><span style="text-transform:capitalize">Action</span></th></tr></thead><tbody id="tb-checkout"></tbody></table></div>
     <div class="es" id="es-checkout" style="display:none"><div class="em">📭</div><div>暂无出库记录 / No Checkout Records</div></div>
   </div>
 
@@ -1115,13 +1126,14 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <th>Order No.<br><span style="font-size:11px;color:#888;font-weight:700">订单号</span></th>
         <th>Created<br><span style="font-size:11px;color:#888;font-weight:700">生成时间</span></th>
         <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net Unit (AED)</th><th>5% VAT (AED)</th><th>Total (AED)</th><th>Worker</th><th>Truck</th><th>Payment</th><th>Receiver</th><th>Status</th><th>Actions</th>
+        <th>Payment confirm<br><span style="font-size:11px;color:#888;font-weight:700">付款确认</span></th>
       </tr></thead><tbody id="tb-sales-orders"></tbody><tfoot><tr>
         <td colspan="6"></td>
         <td id="sales-orders-foot-qty" style="text-align:right;font-variant-numeric:tabular-nums">0</td>
         <td colspan="2"></td>
         <td id="sales-orders-foot-vat" style="text-align:right;font-variant-numeric:tabular-nums">0.00</td>
         <td id="sales-orders-foot-total" style="text-align:right;font-variant-numeric:tabular-nums">0.00</td>
-        <td colspan="6"></td>
+        <td colspan="7"></td>
       </tr></tfoot></table></div>
       <div id="sales-orders-pager" class="csm-sales-pager" role="navigation" aria-label="Orders pagination">
         <span id="sales-orders-pager-range"></span>
@@ -1150,13 +1162,14 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <th>Order No.<br><span style="font-size:11px;color:#888;font-weight:700">订单号</span></th>
       <th>Created<br><span style="font-size:11px;color:#888;font-weight:700">生成时间</span></th>
       <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net Unit (AED)</th><th>5% VAT (AED)</th><th>Total (AED)</th><th>Worker</th><th>Truck</th><th>Receiver</th><th>Payment (Fin.)</th>
+      <th>Payment confirm<br><span style="font-size:11px;color:#888;font-weight:700">付款确认</span></th>
     </tr></thead><tbody id="tb-sales-finance"></tbody><tfoot><tr>
         <td colspan="6"></td>
         <td id="sales-finance-foot-qty" style="text-align:right;font-variant-numeric:tabular-nums">0</td>
         <td colspan="2"></td>
         <td id="sales-finance-foot-vat" style="text-align:right;font-variant-numeric:tabular-nums">0.00</td>
         <td id="sales-finance-foot-total" style="text-align:right;font-variant-numeric:tabular-nums">0.00</td>
-        <td></td><td></td><td></td><td></td>
+        <td></td><td></td><td></td><td></td><td></td>
       </tr></tfoot></table></div>
     <div id="sales-finance-pager" class="csm-sales-pager" role="navigation" aria-label="Finance orders pagination">
       <span id="sales-finance-pager-range"></span>

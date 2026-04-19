@@ -1424,10 +1424,10 @@ function renderUserMgmtList() {
   
   var html = '<table style="width:100%;border-collapse:collapse;font-size:14px">';
   html += '<tr style="background:#f5f5f5;border-bottom:2px solid #ddd">';
-  html += '<th style="padding:10px;text-align:left">邮箱</th>';
-  html += '<th style="padding:10px;text-align:center">角色</th>';
-  html += '<th style="padding:10px;text-align:left">供应商名称</th>';
-  html += '<th style="padding:10px;text-align:center">操作</th>';
+  html += '<th style="padding:10px;text-align:left;font-family:var(--csm-font-en);font-weight:700;text-transform:none">邮箱</th>';
+  html += '<th style="padding:10px;text-align:center;font-family:var(--csm-font-en);font-weight:700;text-transform:none">角色</th>';
+  html += '<th style="padding:10px;text-align:left;font-family:var(--csm-font-en);font-weight:700;text-transform:none">供应商名称</th>';
+  html += '<th style="padding:10px;text-align:center;font-family:var(--csm-font-en);font-weight:700;text-transform:none">操作</th>';
   html += '</tr>';
   
   allUsers.forEach(function(user) {
@@ -1688,8 +1688,8 @@ function getContainerColdFeeBreakdown(cn) {
 /** Unified container detail HTML (W1 + supplier): English, Arial bold, title-case labels. */
 function htmlContainerDetailUnified(d) {
   d = d || {};
-  var ARI = 'font-family:Arial,Helvetica,sans-serif;font-weight:700';
-  var Ls = ARI + ';font-size:14px;text-transform:capitalize;color:#333;width:34%;vertical-align:top;padding:8px 10px;border-bottom:1px solid #eee';
+  var ARI = 'font-family:var(--csm-font-en);font-weight:700';
+  var Ls = ARI + ';font-size:14px;text-transform:none;color:#333;width:34%;vertical-align:top;padding:8px 10px;border-bottom:1px solid #eee';
   var Vs = ARI + ';font-size:15px;padding:8px 10px;border-bottom:1px solid #eee;color:#111;line-height:1.4';
   function row(label, valueHtml) {
     return '<tr><td style="' + Ls + '">' + csmEscapeHtml(label) + '</td><td style="' + Vs + '">' + valueHtml + '</td></tr>';
@@ -1707,20 +1707,20 @@ function htmlContainerDetailUnified(d) {
   html += row('Gross Weight (Mt)', wp.grossWeightMt === '' || wp.grossWeightMt == null ? '<span style="color:#999">—</span>' : csmEscapeHtml(String(wp.grossWeightMt)) + ' MT');
   var up = (wp.tradeTerm ? csmEscapeHtml(wp.tradeTerm) + ' · ' : '') + (wp.unitPriceUsdMt === '' || wp.unitPriceUsdMt == null ? '<span style="color:#999">—</span>' : csmEscapeHtml(String(wp.unitPriceUsdMt)) + ' USD/MT');
   html += row('Unit Price', up);
-  html += row('Total (Usd)', wp.totalAmountUsd === '' || wp.totalAmountUsd == null ? '<span style="color:#999">—</span>' : csmEscapeHtml(String(wp.totalAmountUsd)) + ' USD');
-  html += row('Total (Aed)', wp.totalAmountAed === '' || wp.totalAmountAed == null ? '<span style="color:#999">—</span>' : csmEscapeHtml(String(wp.totalAmountAed)) + ' AED');
+  html += row('Total (USD)', wp.totalAmountUsd === '' || wp.totalAmountUsd == null ? '<span style="color:#999">—</span>' : csmEscapeHtml(String(wp.totalAmountUsd)) + ' USD');
+  html += row('Total (AED)', wp.totalAmountAed === '' || wp.totalAmountAed == null ? '<span style="color:#999">—</span>' : csmEscapeHtml(String(wp.totalAmountAed)) + ' AED');
   html += row('Remarks', d.remarksHtml || '<span style="color:#999">—</span>');
   html += row('Ship Name', csmEscapeHtml(String(d.shipname || '—')));
   html += row('Shipping Company', csmEscapeHtml(String(d.shipCompany || '—')));
   html += row('B/L No.', csmEscapeHtml(String(d.bl || '—')));
-  html += row('Etd', csmEscapeHtml(String(d.etd || '—')));
-  html += row('Eta', csmEscapeHtml(String(d.eta || '—')));
+  html += row('ETD', csmEscapeHtml(String(d.etd || '—')));
+  html += row('ETA', csmEscapeHtml(String(d.eta || '—')));
   html += '</table>';
-  html += '<div style="margin-top:14px;font-size:15px;' + ARI + ';text-transform:capitalize;margin-bottom:8px;color:#0d47a1">Product Items</div>';
+  html += '<div style="margin-top:14px;font-size:15px;' + ARI + ';text-transform:none;margin-bottom:8px;color:#0d47a1">Product Items</div>';
   html += '<table style="width:100%;border-collapse:collapse;font-size:14px;' + ARI + '"><thead><tr style="background:#f5f5f5">';
-  html += '<th style="padding:8px;border:1px solid #ddd;text-align:left;text-transform:capitalize">Product</th>';
-  html += '<th style="padding:8px;border:1px solid #ddd;text-align:center;width:80px;text-transform:capitalize">Qty</th>';
-  html += '<th style="padding:8px;border:1px solid #ddd;text-transform:capitalize">Purchase Date</th></tr></thead><tbody>';
+  html += '<th style="padding:8px;border:1px solid #ddd;text-align:left;text-transform:none">Product</th>';
+  html += '<th style="padding:8px;border:1px solid #ddd;text-align:center;width:80px;text-transform:none">Qty</th>';
+  html += '<th style="padding:8px;border:1px solid #ddd;text-transform:none">Purchase Date</th></tr></thead><tbody>';
   (d.productRows || []).forEach(function(pr) {
     html += '<tr><td style="padding:8px;border:1px solid #ddd;text-transform:capitalize">' + w1ProductHtml(pr.product) + '</td>' +
       '<td style="padding:8px;border:1px solid #ddd;text-align:center">' + (pr.qty || 0) + '</td>' +
@@ -1733,11 +1733,11 @@ function htmlContainerDetailUnified(d) {
   if (d.feeSection) {
     if (d.feeSection.type === 'table' && d.feeSection.rows && d.feeSection.rows.length) {
       html += '<div style="margin-top:14px;padding:12px;background:#e8f5e9;border-radius:6px;border:1px solid #4caf50">';
-      html += '<div style="' + ARI + ';font-size:15px;color:#1b5e20;text-transform:capitalize;margin-bottom:8px">' + csmEscapeHtml(d.feeSection.title || 'W1 Fee Lines') + '</div>';
+      html += '<div style="' + ARI + ';font-size:15px;color:#1b5e20;text-transform:none;margin-bottom:8px">' + csmEscapeHtml(d.feeSection.title || 'W1 Fee Lines') + '</div>';
       html += '<table style="width:100%;border-collapse:collapse;font-size:14px;' + ARI + '"><thead><tr style="background:#e8f5e9">';
-      html += '<th style="padding:8px;border:1px solid #c8e6c9;text-transform:capitalize">Product</th>';
-      html += '<th style="padding:8px;border:1px solid #c8e6c9;text-align:center;width:72px;text-transform:capitalize">Qty</th>';
-      html += '<th style="padding:8px;border:1px solid #c8e6c9;text-transform:capitalize">Fees (Aed)</th></tr></thead><tbody>';
+      html += '<th style="padding:8px;border:1px solid #c8e6c9;text-transform:none">Product</th>';
+      html += '<th style="padding:8px;border:1px solid #c8e6c9;text-align:center;width:72px;text-transform:none">Qty</th>';
+      html += '<th style="padding:8px;border:1px solid #c8e6c9;text-transform:none">Fees (AED)</th></tr></thead><tbody>';
       d.feeSection.rows.forEach(function(r) {
         html += '<tr><td style="padding:8px;border:1px solid #c8e6c9;text-transform:capitalize">' + w1ProductHtml(r.product) + '</td>' +
           '<td style="padding:8px;border:1px solid #c8e6c9;text-align:center">' + (r.qty || 0) + '</td>' +
@@ -1749,19 +1749,19 @@ function htmlContainerDetailUnified(d) {
     }
   }
   var br = d.coldBreakdown || { rows: [], totalFee: 0, allCheckedOut: false };
-  html += '<div style="margin-top:14px;font-size:15px;' + ARI + ';text-transform:capitalize;margin-bottom:8px;color:#01579b">Cold Storage</div>';
+  html += '<div style="margin-top:14px;font-size:15px;' + ARI + ';text-transform:none;margin-bottom:8px;color:#01579b">Cold Storage</div>';
   if (br.rows && br.rows.length) {
     html += '<div style="' + ARI + ';font-size:13px;margin-bottom:6px;color:#444">Rows: ' + br.rows.length + ' · Status: ' + (br.allCheckedOut ? '<span style="color:#2e7d32">All Checked Out</span>' : '<span style="color:#ff9900">Not All Checked Out</span>') +
-      ' · Total Fee (Aed): <span style="color:#0066cc">' + (br.allCheckedOut ? br.totalFee.toFixed(2) : '—') + '</span></div>';
+      ' · Total Fee (AED): <span style="color:#0066cc">' + (br.allCheckedOut ? br.totalFee.toFixed(2) : '—') + '</span></div>';
     html += '<table style="width:100%;border-collapse:collapse;font-size:13px;' + ARI + '"><thead><tr style="background:#e3f2fd">';
-    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:capitalize">Store</th>';
-    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:capitalize">Product</th>';
-    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:capitalize">Plt In/Rem</th>';
-    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:capitalize">Itm In/Rem</th>';
-    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:capitalize">Check-in</th>';
-    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:capitalize">Check-out</th>';
-    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:capitalize">Status</th>';
-    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:capitalize">Fee (Aed)</th></tr></thead><tbody>';
+    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:none">Store</th>';
+    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:none">Product</th>';
+    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:none">Pallets In/Rem</th>';
+    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:none">Items In/Rem</th>';
+    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:none">Check-in</th>';
+    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:none">Check-out</th>';
+    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:none">Status</th>';
+    html += '<th style="padding:6px;border:1px solid #90caf9;text-transform:none">Fee (AED)</th></tr></thead><tbody>';
     br.rows.forEach(function(row) {
       html += '<tr>' +
         '<td style="padding:6px;border:1px solid #90caf9;text-align:center">' + getStoreDisplayName(row.store) + '</td>' +
@@ -1945,7 +1945,7 @@ var data = [];  var cnGroups = {};  recs.filter(function(r) { return r.type === 
 // 添加没有出库记录的入库集装箱（只显示当前冷库的）  
 var allInRecs = recs.filter(function(r) { return !r.type && r.store === currentColdStore; });  allInRecs.forEach(function(inRec) {    if (!cnGroups[inRec.cn]) {      cnGroups[inRec.cn] = { recs: [], inRec: inRec };    } else if (!cnGroups[inRec.cn].inRec) {      cnGroups[inRec.cn].inRec = inRec;    }  });  
 // 表头  
-data.push(['Seq No', 'Container', 'Supplier', 'Product', 'Week / Date', 'Pallets', 'Out Pallets', 'Out Items', 'Rem Items', 'In Items', 'Unit Price', 'Amount', '5% VAT', 'Total']);  
+data.push(['Seq No', 'Container', 'Supplier', 'Product', 'Week / Date', 'Pallets', 'Out Pallets', 'Out Items', 'Rem. Items', 'In Items', 'Unit Price', 'Amount', '5% VAT', 'Total']);  
 // 按集装箱号排序  
 Object.keys(cnGroups).sort().forEach(function(cn) {    var group = cnGroups[cn];    var inRec = group.inRec;    var outRecs = (group.recs || []).sort(function(a, b) { return new Date(a.dep) - new Date(b.dep); });    if (!inRec) return;    
 // 应用搜索筛选    
@@ -2000,10 +2000,10 @@ function showDet(id) {
       html += '<div style="margin-top:14px;border-top:1px solid #ddd;padding-top:12px">';
       html += '<div style="font-size:11px;color:#666;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">出库记录 (' + outRecs.length + ' 次)</div>';
       html += '<table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #ddd">';
-      html += '<tr style="background:#f5f5f5"><th style="padding:6px;border:1px solid #ddd">#</th>';
-      html += '<th style="padding:6px;border:1px solid #ddd">出库日期</th>';
-      html += '<th style="padding:6px;border:1px solid #ddd">托盘</th>';
-      html += '<th style="padding:6px;border:1px solid #ddd">件数</th></tr>';
+      html += '<tr style="background:#f5f5f5"><th style="padding:6px;border:1px solid #ddd;font-family:var(--csm-font-en);font-weight:700;text-transform:none">#</th>';
+      html += '<th style="padding:6px;border:1px solid #ddd;font-family:var(--csm-font-en);font-weight:700;text-transform:none">出库日期</th>';
+      html += '<th style="padding:6px;border:1px solid #ddd;font-family:var(--csm-font-en);font-weight:700;text-transform:none">托盘</th>';
+      html += '<th style="padding:6px;border:1px solid #ddd;font-family:var(--csm-font-en);font-weight:700;text-transform:none">件数</th></tr>';
       outRecs.forEach(function(or, i) {
         html += '<tr><td style="padding:6px;border:1px solid #ddd;text-align:center">' + (i + 1) + '</td>';
         html += '<td style="padding:6px;border:1px solid #ddd">' + fdt(or.dep) + '</td>';
@@ -2734,10 +2734,10 @@ function renderUserList(users) {
   }
   var html = '<table style="width:100%;border-collapse:collapse;font-size:12px">';
   html += '<tr style="background:#f5f5f5">';
-  html += '<th style="padding:8px;text-align:left;border:1px solid #ddd">邮箱</th>';
-  html += '<th style="padding:8px;text-align:center;border:1px solid #ddd">角色</th>';
-  html += '<th style="padding:8px;text-align:left;border:1px solid #ddd">供应商名称</th>';
-  html += '<th style="padding:8px;text-align:center;border:1px solid #ddd">操作</th>';
+  html += '<th style="padding:8px;text-align:left;border:1px solid #ddd;font-family:var(--csm-font-en);font-weight:700;text-transform:none">邮箱</th>';
+  html += '<th style="padding:8px;text-align:center;border:1px solid #ddd;font-family:var(--csm-font-en);font-weight:700;text-transform:none">角色</th>';
+  html += '<th style="padding:8px;text-align:left;border:1px solid #ddd;font-family:var(--csm-font-en);font-weight:700;text-transform:none">供应商名称</th>';
+  html += '<th style="padding:8px;text-align:center;border:1px solid #ddd;font-family:var(--csm-font-en);font-weight:700;text-transform:none">操作</th>';
   html += '</tr>';
   users.forEach(function(user) {
     var isCurrentUser = user.uid === currentUser;
@@ -3700,10 +3700,50 @@ function csmSalesLocalYmd(d) {
 }
 function csmSalesPayLabel(code, forFinance) {
   var c = String(code || '');
+  if (c === 'paid') return 'Paid';
   if (c === 'cash') return 'Cash';
   if (c === 'cash_pending') return 'Cash pending';
   if (c === 'credit') return 'Credit';
   return c || '-';
+}
+/** Last column on confirmed orders: Paid (cash or already marked), or Paid Confirm button. */
+function csmSalesPaymentConfirmCellHtml(o) {
+  if (!o || o.voided) return '\u2014';
+  if (String(o.orderStatus || '').toLowerCase() !== 'confirmed') return '\u2014';
+  var ps = String(o.paymentStatus || '');
+  if (ps === 'paid' || ps === 'cash') {
+    return '<span style="font-family:var(--csm-font-en);font-weight:700;color:#2e7d32">Paid</span>';
+  }
+  if (ps === 'cash_pending' || ps === 'credit') {
+    var sid = String(o.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return '<button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="salesConfirmPaymentPaid(\'' + sid + '\')">Paid Confirm</button>';
+  }
+  return '<span style="color:#888">\u2014</span>';
+}
+function salesConfirmPaymentPaid(id) {
+  if (!isAdmin) { toast('Admin only', 'err'); return; }
+  if (!salesOrdersRef) { toast('Database not connected', 'err'); return; }
+  var o = salesOrders.find(function(x) { return x.id === id; });
+  if (!o || o.voided || String(o.orderStatus || '').toLowerCase() !== 'confirmed') {
+    toast('Order not found or not confirmed', 'err');
+    return;
+  }
+  var ps = String(o.paymentStatus || '');
+  if (ps !== 'cash_pending' && ps !== 'credit') {
+    toast('Only Cash pending or Credit can be marked paid here', 'err');
+    return;
+  }
+  var nowIso = new Date().toISOString();
+  salesOrdersRef.child(id).update({
+    paymentStatus: 'paid',
+    paymentConfirmedAt: nowIso,
+    paymentConfirmedBy: currentUserEmail || currentUser || '',
+    updatedAt: nowIso
+  }).then(function() {
+    toast('Payment set to Paid', 'ok');
+  }).catch(function(e) {
+    toast(e.message || String(e), 'err');
+  });
 }
 function csmSalesOrderStatusCellHtml(o) {
   if (!o || o.voided) {
@@ -3927,7 +3967,10 @@ function renderSalesDashCards() {
   var conf = salesOrders.filter(function(o) { return o.orderStatus === 'confirmed' && !o.voided; });
   var sumConf = conf.reduce(function(s, o) { return s + csmSalesLineTotalForDisplay(o); }, 0);
   if (el2) el2.textContent = sumConf.toFixed(2);
-  var unpaid = conf.filter(function(o) { return o.paymentStatus === 'credit' || o.paymentStatus === 'cash_pending'; });
+  var unpaid = conf.filter(function(o) {
+    var p = String(o.paymentStatus || '');
+    return p === 'credit' || p === 'cash_pending';
+  });
   var sumUnpaid = unpaid.reduce(function(s, o) { return s + csmSalesLineTotalForDisplay(o); }, 0);
   if (el3) el3.textContent = sumUnpaid.toFixed(2);
 }
@@ -4074,7 +4117,7 @@ function renderSalesOrdersTable() {
   if (ps !== 10 && ps !== 20 && ps !== 50 && ps !== 100) ps = 20;
   salesOrdersPageSize = ps;
   if (!rows.length) {
-    tb.innerHTML = '<tr><td colspan="17" style="text-align:center;color:#888">No orders</td></tr>';
+    tb.innerHTML = '<tr><td colspan="18" style="text-align:center;color:#888">No orders</td></tr>';
     updOrdSummary(0, 0, 0, 0, 0);
     csmSalesBindOrdersPager(0);
     return;
@@ -4156,12 +4199,12 @@ function renderSalesOrdersTable() {
           '<td>' + aL.total.toFixed(2) + '</td>' +
           '<td>' + csmSalesServiceCellHtml(L.workerName, L.workerQty) + '</td>' +
           '<td>' + csmSalesServiceCellHtml(L.truckName, L.truckQty) + '</td>' +
-          '<td colspan="4"></td>' +
+          '<td colspan="5"></td>' +
           '</tr>';
       }
     }
     return '<tr class="' + trClassName + '"><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb"' + cbDis + ' onchange="csmSalesOrderCbExclusive(this)" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + cnCell + '</td><td>' + prodCell + '</td><td>' + csmEscapeHtml(String(q0)) + '</td><td>' +
-      csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty) + '</td><td>' + csmSalesPayLabel(o.paymentStatus, false) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + statusCell + '</td><td>' + actions + '</td></tr>' + subHtml;
+      csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, false)) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + statusCell + '</td><td>' + actions + '</td><td>' + csmSalesPaymentConfirmCellHtml(o) + '</td></tr>' + subHtml;
   }).join('');
   csmSalesBindOrdersPager(totalRows);
 }
@@ -4175,7 +4218,10 @@ function renderSalesFinanceTable() {
   var conf = salesOrders.filter(function(o) { return o.orderStatus === 'confirmed' && !o.voided; });
   if (elLines) elLines.textContent = String(conf.length);
   var sum = conf.reduce(function(s, o) { return s + csmSalesLineTotalForDisplay(o); }, 0);
-  var sumUn = conf.filter(function(o) { return o.paymentStatus === 'credit' || o.paymentStatus === 'cash_pending'; })
+  var sumUn = conf.filter(function(o) {
+    var p = String(o.paymentStatus || '');
+    return p === 'credit' || p === 'cash_pending';
+  })
     .reduce(function(s, o) { return s + csmSalesLineTotalForDisplay(o); }, 0);
   if (elTot) elTot.textContent = sum.toFixed(2);
   if (elUn) elUn.textContent = sumUn.toFixed(2);
@@ -4188,7 +4234,7 @@ function renderSalesFinanceTable() {
     if (ft) ft.textContent = csmSalesRound2(stt).toFixed(2);
   }
   if (!conf.length) {
-    tb.innerHTML = '<tr><td colspan="15" style="text-align:center;color:#888">No confirmed orders</td></tr>';
+    tb.innerHTML = '<tr><td colspan="16" style="text-align:center;color:#888">No confirmed orders</td></tr>';
     updFinSummary(0, 0, 0, 0, 0);
     csmSalesBindFinancePager(0);
     return;
@@ -4259,13 +4305,13 @@ function renderSalesFinanceTable() {
           '<td>' + aL.total.toFixed(2) + '</td>' +
           '<td>' + csmSalesServiceCellHtml(L.workerName, L.workerQty) + '</td>' +
           '<td>' + csmSalesServiceCellHtml(L.truckName, L.truckQty) + '</td>' +
-          '<td></td><td></td>' +
+          '<td></td><td></td><td></td>' +
           '</tr>';
       }
     }
     return '<tr><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + cnCell + '</td><td>' + prodCell + '</td><td>' + csmEscapeHtml(String(q0)) + '</td><td>' +
       csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' +
-      csmSalesLineTotalForDisplay(o).toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, true)) + '</td></tr>' + subHtml;
+      csmSalesLineTotalForDisplay(o).toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, true)) + '</td><td>' + csmSalesPaymentConfirmCellHtml(o) + '</td></tr>' + subHtml;
   }).join('');
   csmSalesBindFinancePager(totalRows);
 }
@@ -5216,6 +5262,7 @@ try { window.toggleNewUserPassword = toggleNewUserPassword; } catch (e) {}
 try { window.salesBatchCancel = salesBatchCancel; } catch (e) {}
 try { window.salesBatchSubmit = salesBatchSubmit; } catch (e) {}
 try { window.salesBatchConfirm = salesBatchConfirm; } catch (e) {}
+try { window.salesConfirmPaymentPaid = salesConfirmPaymentPaid; } catch (e) {}
 try { window.openSalesOrderUpdateWorkerModal = openSalesOrderUpdateWorkerModal; } catch (e) {}
 try { window.clSalesOrderUpwtModal = clSalesOrderUpwtModal; } catch (e) {}
 try { window.saveSalesOrderUpdateWorkerTruckFromModal = saveSalesOrderUpdateWorkerTruckFromModal; } catch (e) {}

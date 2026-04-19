@@ -3,8 +3,8 @@
 // ============================================================
 const SK = 'csm_warehouse1';const LOCAL_STORAGE_KEY = 'csm_records_v3';
 // Firebase 配置
-var firebaseConfig = {  apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',  authDomain: 'superharves-cold-store.firebaseapp.com',  databaseURL: 'https://superharves-cold-store-default-rtdb.firebaseio.com',  projectId: 'superharves-cold-store',  storageBucket: 'superharves-cold-store.firebasestorage.app',  messagingSenderId: '379038228954',  appId: '1:379038228954:web:e64fa3be3f2f49b3aae0e3'};var dbRef = null;var legacyDbRef = null;var purchaseRef = null;var salesCustomersRef = null;var salesPaymentReceiversRef = null;var salesOrdersRef = null;var settingsMetaRef = null;var auth = null;var primaryRecsVal = {};var legacyRecsVal = {};
-var salesCustomers = [];var salesPaymentReceivers = [];var salesOrders = [];var salesSubView = 'dash';var salesOrdersPage = 1;var salesOrdersPageSize = 20;var salesFinancePage = 1;var salesFinancePageSize = 20;
+var firebaseConfig = {  apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',  authDomain: 'superharves-cold-store.firebaseapp.com',  databaseURL: 'https://superharves-cold-store-default-rtdb.firebaseio.com',  projectId: 'superharves-cold-store',  storageBucket: 'superharves-cold-store.firebasestorage.app',  messagingSenderId: '379038228954',  appId: '1:379038228954:web:e64fa3be3f2f49b3aae0e3'};var dbRef = null;var legacyDbRef = null;var purchaseRef = null;var salesCustomersRef = null;var salesPaymentReceiversRef = null;var salesWorkersRef = null;var salesTrucksRef = null;var salesOrdersRef = null;var settingsMetaRef = null;var auth = null;var primaryRecsVal = {};var legacyRecsVal = {};
+var salesCustomers = [];var salesPaymentReceivers = [];var salesWorkers = [];var salesTrucks = [];var salesOrders = [];var salesSubView = 'dash';var salesOrdersPage = 1;var salesOrdersPageSize = 20;var salesFinancePage = 1;var salesFinancePageSize = 20;
 // 冷库费率（可配置，默认值）
 // HK Store (store 1): 38 AED/托盘/周 + 5% VAT
 // Primer / Super / Cold Store 4 (store 2–4): 60 AED/托盘/周 + 5% VAT
@@ -185,6 +185,18 @@ function attachDataListenersForRole() {
           refreshSalesUi();
         });
       }
+      if (salesWorkersRef) {
+        bindValueListener(salesWorkersRef, function(snap) {
+          salesWorkers = csmSalesObjToArr(snap.val(), false);
+          refreshSalesUi();
+        });
+      }
+      if (salesTrucksRef) {
+        bindValueListener(salesTrucksRef, function(snap) {
+          salesTrucks = csmSalesObjToArr(snap.val(), false);
+          refreshSalesUi();
+        });
+      }
       bindValueListener(salesOrdersRef, function(snap) {
         salesOrders = csmSalesObjToArr(snap.val(), true);
         refreshSalesUi();
@@ -317,7 +329,7 @@ function backfillPurchaseSeq() {  if (!purchaseRef || !seqCounterRef) return;  v
 // ============================================================
 (function () {  function csmBoot() {    initFirebase();    setDefTimes();    loadSettings();    try { syncAllProductSelects(); } catch (eBootSync) {}  }  if (document.readyState === 'loading') {    window.addEventListener('DOMContentLoaded', csmBoot);  } else {    csmBoot();  }})();function initFirebase() {  if (typeof firebase !== 'undefined' && firebase.initializeApp) {    initApp();    return;  }  var ver = '10.14.1';  var bases = ['https://cdn.jsdelivr.net/npm/firebase@' + ver + '/', 'https://www.gstatic.com/firebasejs/' + ver + '/'];  function loadScriptsSequential(urls, i, onOk, onFail) {    if (i >= urls.length) { onOk(); return; }    var s = document.createElement('script');    s.src = urls[i];    s.onload = function() { loadScriptsSequential(urls, i + 1, onOk, onFail); };    s.onerror = function() { onFail(); };    document.head.appendChild(s);  }  function tryBase(bi) {    if (bi >= bases.length) {      toast('❌ Firebase 无法加载，请换网络或稍后再试', 'err');      showLoginModal();      return;    }    var b = bases[bi];    var urls = [b + 'firebase-app-compat.js', b + 'firebase-database-compat.js', b + 'firebase-auth-compat.js'];    loadScriptsSequential(urls, 0, function() { initApp(); }, function() { tryBase(bi + 1); });  }  tryBase(0);}function initApp() {  if (window.__csmInitDone) return;  window.__csmInitDone = true;  
 // 加载保存的费率  
-loadRates();  try {    if (!firebase.apps || !firebase.apps.length) { firebase.initializeApp(firebaseConfig); }    auth = firebase.auth();    try { window.csmAuth = auth; } catch (e1) {}    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function () {});    dbRef = firebase.database().ref(SK);    purchaseRef = firebase.database().ref('csm_purchase');    supplierRef = firebase.database().ref('csm_supplier_recs');    salesCustomersRef = firebase.database().ref('csm_sales_w1/customers');    salesPaymentReceiversRef = firebase.database().ref('csm_sales_w1/payment_receivers');    salesOrdersRef = firebase.database().ref('csm_sales_w1/orders');    legacyDbRef = (SK !== LOCAL_STORAGE_KEY) ? firebase.database().ref(LOCAL_STORAGE_KEY) : null;    settingsMetaRef = firebase.database().ref('csm_meta/settings');    
+loadRates();  try {    if (!firebase.apps || !firebase.apps.length) { firebase.initializeApp(firebaseConfig); }    auth = firebase.auth();    try { window.csmAuth = auth; } catch (e1) {}    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function () {});    dbRef = firebase.database().ref(SK);    purchaseRef = firebase.database().ref('csm_purchase');    supplierRef = firebase.database().ref('csm_supplier_recs');    salesCustomersRef = firebase.database().ref('csm_sales_w1/customers');    salesPaymentReceiversRef = firebase.database().ref('csm_sales_w1/payment_receivers');    salesWorkersRef = firebase.database().ref('csm_sales_w1/workers');    salesTrucksRef = firebase.database().ref('csm_sales_w1/trucks');    salesOrdersRef = firebase.database().ref('csm_sales_w1/orders');    legacyDbRef = (SK !== LOCAL_STORAGE_KEY) ? firebase.database().ref(LOCAL_STORAGE_KEY) : null;    settingsMetaRef = firebase.database().ref('csm_meta/settings');    
 // 初始化序号计数器引用（必须在这里做，避免 onAuthStateChanged 同步触发时 seqCounterRef 为 null）
 seqCounterRef = dbRef.parent.child('csm_seq_counter');    
 // Firebase Auth 状态监听    
@@ -3304,7 +3316,23 @@ function csmSalesNormalizeLinesFromOrder(o) {
     var u = parseFloat(L.unitPrice);
     if (!cn || !pr || !(q > 0) || !(u >= 0)) return;
     var vmLine = (L.vatMode === 'included' || L.vatMode === 'excluded') ? L.vatMode : csmSalesLineVatMode(null, o);
-    arr.push({ containerNo: cn, productName: pr, quantity: q, unitPrice: u, vatMode: vmLine });
+    arr.push({
+      containerNo: cn,
+      productName: pr,
+      quantity: q,
+      unitPrice: u,
+      vatMode: vmLine,
+      workerId: String(L.workerId || '').trim(),
+      workerName: String(L.workerName || '').trim(),
+      workerQty: parseFloat(L.workerQty) || 0,
+      workerRate: parseFloat(L.workerRate) || 0,
+      workerAmount: parseFloat(L.workerAmount) || 0,
+      truckId: String(L.truckId || '').trim(),
+      truckName: String(L.truckName || '').trim(),
+      truckQty: parseFloat(L.truckQty) || 0,
+      truckRate: parseFloat(L.truckRate) || 0,
+      truckAmount: parseFloat(L.truckAmount) || 0
+    });
   });
   if (!arr.length) {
     var cn0 = String(o.containerNo || '').trim().toUpperCase();
@@ -3312,7 +3340,23 @@ function csmSalesNormalizeLinesFromOrder(o) {
     var q0 = parseFloat(o.quantity);
     var u0 = parseFloat(o.unitPrice);
     if (cn0 && pr0 && q0 > 0 && (u0 >= 0 || u0 === 0)) {
-      arr.push({ containerNo: cn0, productName: pr0, quantity: q0, unitPrice: u0, vatMode: csmSalesLineVatMode(null, o) });
+      arr.push({
+        containerNo: cn0,
+        productName: pr0,
+        quantity: q0,
+        unitPrice: u0,
+        vatMode: csmSalesLineVatMode(null, o),
+        workerId: String(o.workerId || '').trim(),
+        workerName: String(o.workerName || '').trim(),
+        workerQty: parseFloat(o.workerQty) || 0,
+        workerRate: parseFloat(o.workerRate) || 0,
+        workerAmount: parseFloat(o.workerAmount) || 0,
+        truckId: String(o.truckId || '').trim(),
+        truckName: String(o.truckName || '').trim(),
+        truckQty: parseFloat(o.truckQty) || 0,
+        truckRate: parseFloat(o.truckRate) || 0,
+        truckAmount: parseFloat(o.truckAmount) || 0
+      });
     }
   }
   return arr;
@@ -3419,6 +3463,54 @@ function csmSalesOrderReceiverDisplay(o) {
   }
   return '';
 }
+function csmSalesProductRateKey(product) {
+  return canonicalProductName(String(product || '').trim());
+}
+function csmSalesNormalizeRateMap(raw) {
+  var out = {};
+  Object.keys(raw || {}).forEach(function(k) {
+    var key = csmSalesProductRateKey(k);
+    var val = parseFloat(raw[k]);
+    if (!key || !(val >= 0)) return;
+    out[key] = val;
+  });
+  return out;
+}
+function csmSalesServiceEntryDisplay(entry) {
+  return entry ? String(entry.name || '').trim() : '';
+}
+function csmSalesServiceRate(entry, product) {
+  if (!entry) return 0;
+  var rates = csmSalesNormalizeRateMap(entry.rates);
+  var key = csmSalesProductRateKey(product);
+  return key && rates[key] >= 0 ? rates[key] : 0;
+}
+function csmSalesBuildServiceSelectHtml(list, selectedId, placeholder) {
+  var sid = String(selectedId || '').trim();
+  var html = '<option value="">' + csmEscapeHtml(placeholder || '—') + '</option>';
+  var found = false;
+  (list || []).forEach(function(item) {
+    var id = String(item.id || '').trim();
+    if (!id) return;
+    var isSel = sid && id === sid;
+    if (isSel) found = true;
+    html += '<option value="' + csmAttrEscape(id) + '"' + (isSel ? ' selected' : '') + '>' + csmEscapeHtml(csmSalesServiceEntryDisplay(item) || id) + '</option>';
+  });
+  if (sid && !found) {
+    html += '<option value="' + csmAttrEscape(sid) + '" selected>' + csmEscapeHtml(sid) + '</option>';
+  }
+  return html;
+}
+function csmSalesServiceCellHtml(name, qty, rate, amount) {
+  qty = parseFloat(qty) || 0;
+  rate = parseFloat(rate) || 0;
+  amount = parseFloat(amount) || 0;
+  if (!name && !(qty > 0)) return '<span style="color:#999">—</span>';
+  return '<div style="font-family:var(--csm-font-en);font-weight:700;line-height:1.35">' +
+    '<div>' + csmEscapeHtml(name || '—') + '</div>' +
+    '<div style="font-size:11px;color:#666">Qty: ' + csmEscapeHtml(String(qty || 0)) + ' · Rate: ' + rate.toFixed(2) + ' · Amt: ' + amount.toFixed(2) + '</div>' +
+    '</div>';
+}
 function csmSalesNetUnitAndVat(o) {
   var lines = csmSalesNormalizeLinesFromOrder(o);
   if (lines.length) {
@@ -3521,6 +3613,7 @@ function refreshSalesUi() {
   if (soModal && prSel && soModal.classList.contains('sh')) {
     var cur = prSel.value;
     salesFillPaymentReceiverSelect(prSel, cur);
+    salesOrderRefreshServiceSelectorsInDom();
   }
   if (soModal && soModal.classList.contains('sh')) {
     var cid = gid('sales-order-customer-id');
@@ -3529,6 +3622,10 @@ function refreshSalesUi() {
   var prM = gid('sales-payment-receivers-modal');
   if (prM && prM.classList.contains('sh')) {
     renderSalesPaymentReceiversManageTable();
+  }
+  var wtM = gid('sales-worker-truck-modal');
+  if (wtM && wtM.classList.contains('sh')) {
+    renderSalesWorkerTruckManageUi();
   }
 }
 function swSalesSub(view) {
@@ -3793,7 +3890,7 @@ function renderSalesOrdersTable() {
   if (ps !== 10 && ps !== 20 && ps !== 50 && ps !== 100) ps = 20;
   salesOrdersPageSize = ps;
   if (!rows.length) {
-    tb.innerHTML = '<tr><td colspan="15" style="text-align:center;color:#888">No orders</td></tr>';
+    tb.innerHTML = '<tr><td colspan="17" style="text-align:center;color:#888">No orders</td></tr>';
     updOrdSummary(0, 0, 0, 0, 0);
     csmSalesBindOrdersPager(0);
     return;
@@ -3873,12 +3970,14 @@ function renderSalesOrdersTable() {
           '<td>' + csmEscapeHtml(nvL.netUnit.toFixed(2)) + '</td>' +
           '<td>' + csmEscapeHtml(nvL.vatAmt.toFixed(2)) + '</td>' +
           '<td>' + aL.total.toFixed(2) + '</td>' +
+          '<td>' + csmSalesServiceCellHtml(L.workerName, L.workerQty, L.workerRate, L.workerAmount) + '</td>' +
+          '<td>' + csmSalesServiceCellHtml(L.truckName, L.truckQty, L.truckRate, L.truckAmount) + '</td>' +
           '<td colspan="4"></td>' +
           '</tr>';
       }
     }
     return '<tr class="' + trClassName + '"><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb"' + cbDis + ' onchange="csmSalesOrderCbExclusive(this)" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + cnCell + '</td><td>' + prodCell + '</td><td>' + csmEscapeHtml(String(q0)) + '</td><td>' +
-      csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesPayLabel(o.paymentStatus, false) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + statusCell + '</td><td>' + actions + '</td></tr>' + subHtml;
+      csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty, L0.workerRate, L0.workerAmount) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty, L0.truckRate, L0.truckAmount) + '</td><td>' + csmSalesPayLabel(o.paymentStatus, false) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + statusCell + '</td><td>' + actions + '</td></tr>' + subHtml;
   }).join('');
   csmSalesBindOrdersPager(totalRows);
 }
@@ -3905,7 +4004,7 @@ function renderSalesFinanceTable() {
     if (ft) ft.textContent = csmSalesRound2(stt).toFixed(2);
   }
   if (!conf.length) {
-    tb.innerHTML = '<tr><td colspan="13" style="text-align:center;color:#888">No confirmed orders</td></tr>';
+    tb.innerHTML = '<tr><td colspan="15" style="text-align:center;color:#888">No confirmed orders</td></tr>';
     updFinSummary(0, 0, 0, 0, 0);
     csmSalesBindFinancePager(0);
     return;
@@ -3974,13 +4073,15 @@ function renderSalesFinanceTable() {
           '<td>' + csmEscapeHtml(nvL.netUnit.toFixed(2)) + '</td>' +
           '<td>' + csmEscapeHtml(nvL.vatAmt.toFixed(2)) + '</td>' +
           '<td>' + aL.total.toFixed(2) + '</td>' +
+          '<td>' + csmSalesServiceCellHtml(L.workerName, L.workerQty, L.workerRate, L.workerAmount) + '</td>' +
+          '<td>' + csmSalesServiceCellHtml(L.truckName, L.truckQty, L.truckRate, L.truckAmount) + '</td>' +
           '<td></td><td></td>' +
           '</tr>';
       }
     }
     return '<tr><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + cnCell + '</td><td>' + prodCell + '</td><td>' + csmEscapeHtml(String(q0)) + '</td><td>' +
       csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' +
-      csmSalesLineTotalForDisplay(o).toFixed(2) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, true)) + '</td></tr>' + subHtml;
+      csmSalesLineTotalForDisplay(o).toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty, L0.workerRate, L0.workerAmount) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty, L0.truckRate, L0.truckAmount) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, true)) + '</td></tr>' + subHtml;
   }).join('');
   csmSalesBindFinancePager(totalRows);
 }
@@ -4172,6 +4273,152 @@ function deleteSalesPaymentReceiver(id) {
   if (!confirm('Delete this payment receiver?')) return;
   salesPaymentReceiversRef.child(id).remove().then(function() { toast('Deleted', 'ok'); }).catch(function() { toast('Delete failed', 'err'); });
 }
+function csmSalesRateFormHtml(prefix, rates) {
+  var products = getW1ProductsNormalized();
+  if (!products.length) {
+    return '<div style="font-size:12px;color:#888;font-family:var(--csm-font-en);font-weight:700">No products yet. Add products in Settings first.</div>';
+  }
+  rates = csmSalesNormalizeRateMap(rates);
+  return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px">' + products.map(function(product) {
+    var key = csmSalesProductRateKey(product);
+    var val = rates[key];
+    return '<label style="display:block;font-size:12px;color:#555;font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(product) +
+      '<input type="number" min="0" step="any" class="' + prefix + '-rate-input" data-product="' + csmAttrEscape(product) + '" value="' + (val >= 0 ? csmEscapeHtml(String(val)) : '') + '" placeholder="AED per qty" style="width:100%;margin-top:4px;padding:7px 8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></label>';
+  }).join('') + '</div>';
+}
+function csmSalesRateFormRead(prefix) {
+  var out = {};
+  document.querySelectorAll('.' + prefix + '-rate-input').forEach(function(inp) {
+    var product = csmSalesProductRateKey(inp.getAttribute('data-product'));
+    var val = parseFloat(inp.value);
+    if (!product || !(val >= 0)) return;
+    out[product] = val;
+  });
+  return out;
+}
+function csmSalesRateSummaryHtml(rates) {
+  var norm = csmSalesNormalizeRateMap(rates);
+  var keys = Object.keys(norm);
+  if (!keys.length) return '<span style="color:#999">—</span>';
+  keys.sort(function(a, b) { return String(a).localeCompare(String(b)); });
+  return keys.map(function(k) {
+    return '<div style="font-family:var(--csm-font-en);font-weight:700;line-height:1.35">' + csmEscapeHtml(k) + ': ' + norm[k].toFixed(2) + '</div>';
+  }).join('');
+}
+function salesWorkerFormReset() {
+  var idEl = gid('sales-worker-edit-id');
+  var nameEl = gid('sales-worker-name');
+  var form = gid('sales-worker-rates-form');
+  if (idEl) idEl.value = '';
+  if (nameEl) nameEl.value = '';
+  if (form) form.innerHTML = csmSalesRateFormHtml('sales-worker', {});
+}
+function salesTruckFormReset() {
+  var idEl = gid('sales-truck-edit-id');
+  var nameEl = gid('sales-truck-name');
+  var form = gid('sales-truck-rates-form');
+  if (idEl) idEl.value = '';
+  if (nameEl) nameEl.value = '';
+  if (form) form.innerHTML = csmSalesRateFormHtml('sales-truck', {});
+}
+function renderSalesWorkersManageTable() {
+  var tb = gid('tb-sales-workers');
+  if (!tb) return;
+  if (!salesWorkers.length) {
+    tb.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#888;font-family:var(--csm-font-en);font-weight:700">No workers yet.</td></tr>';
+    return;
+  }
+  tb.innerHTML = salesWorkers.map(function(item) {
+    return '<tr><td style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(item.name || '') + '</td><td>' + csmSalesRateSummaryHtml(item.rates) + '</td><td>' +
+      '<button type="button" class="abtn" onclick="editSalesWorker(\'' + csmAttrEscape(item.id) + '\')">Edit</button> ' +
+      '<button type="button" class="abtn x" onclick="deleteSalesWorker(\'' + csmAttrEscape(item.id) + '\')">Del</button></td></tr>';
+  }).join('');
+}
+function renderSalesTrucksManageTable() {
+  var tb = gid('tb-sales-trucks');
+  if (!tb) return;
+  if (!salesTrucks.length) {
+    tb.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#888;font-family:var(--csm-font-en);font-weight:700">No trucks yet.</td></tr>';
+    return;
+  }
+  tb.innerHTML = salesTrucks.map(function(item) {
+    return '<tr><td style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(item.name || '') + '</td><td>' + csmSalesRateSummaryHtml(item.rates) + '</td><td>' +
+      '<button type="button" class="abtn" onclick="editSalesTruck(\'' + csmAttrEscape(item.id) + '\')">Edit</button> ' +
+      '<button type="button" class="abtn x" onclick="deleteSalesTruck(\'' + csmAttrEscape(item.id) + '\')">Del</button></td></tr>';
+  }).join('');
+}
+function renderSalesWorkerTruckManageUi() {
+  renderSalesWorkersManageTable();
+  renderSalesTrucksManageTable();
+  if (gid('sales-worker-rates-form') && !document.querySelector('.sales-worker-rate-input')) salesWorkerFormReset();
+  if (gid('sales-truck-rates-form') && !document.querySelector('.sales-truck-rate-input')) salesTruckFormReset();
+}
+function openSalesWorkerTruckModal() {
+  var m = gid('sales-worker-truck-modal');
+  if (!m) return;
+  renderSalesWorkerTruckManageUi();
+  salesWorkerFormReset();
+  salesTruckFormReset();
+  m.classList.add('sh');
+}
+function clSalesWorkerTruckModal() {
+  var m = gid('sales-worker-truck-modal');
+  if (m) m.classList.remove('sh');
+}
+function editSalesWorker(id) {
+  var item = salesWorkers.find(function(x) { return x.id === id; });
+  if (!item) return;
+  gid('sales-worker-edit-id').value = id;
+  gid('sales-worker-name').value = item.name || '';
+  gid('sales-worker-rates-form').innerHTML = csmSalesRateFormHtml('sales-worker', item.rates);
+}
+function editSalesTruck(id) {
+  var item = salesTrucks.find(function(x) { return x.id === id; });
+  if (!item) return;
+  gid('sales-truck-edit-id').value = id;
+  gid('sales-truck-name').value = item.name || '';
+  gid('sales-truck-rates-form').innerHTML = csmSalesRateFormHtml('sales-truck', item.rates);
+}
+function saveSalesWorkerFromModal() {
+  if (!salesWorkersRef) { toast('Database not connected', 'err'); return; }
+  var id = String(gid('sales-worker-edit-id').value || '').trim();
+  var name = String(gid('sales-worker-name').value || '').trim();
+  if (!name) { toast('Worker name required', 'err'); return; }
+  if (!id) id = 'swk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  salesWorkersRef.child(id).set({ name: name, rates: csmSalesRateFormRead('sales-worker'), updatedAt: new Date().toISOString() }).then(function() {
+    toast('Worker saved', 'ok');
+    salesWorkerFormReset();
+  }).catch(function(e) { toast('Save failed: ' + (e.message || e), 'err'); });
+}
+function saveSalesTruckFromModal() {
+  if (!salesTrucksRef) { toast('Database not connected', 'err'); return; }
+  var id = String(gid('sales-truck-edit-id').value || '').trim();
+  var name = String(gid('sales-truck-name').value || '').trim();
+  if (!name) { toast('Truck name required', 'err'); return; }
+  if (!id) id = 'stk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  salesTrucksRef.child(id).set({ name: name, rates: csmSalesRateFormRead('sales-truck'), updatedAt: new Date().toISOString() }).then(function() {
+    toast('Truck saved', 'ok');
+    salesTruckFormReset();
+  }).catch(function(e) { toast('Save failed: ' + (e.message || e), 'err'); });
+}
+function deleteSalesWorker(id) {
+  if (!id || !salesWorkersRef) return;
+  var used = salesOrders.some(function(o) {
+    return !o.voided && csmSalesNormalizeLinesFromOrder(o).some(function(L) { return String(L.workerId || '') === String(id); });
+  });
+  if (used) { toast('Worker is used on an order', 'err'); return; }
+  if (!confirm('Delete this worker?')) return;
+  salesWorkersRef.child(id).remove().then(function() { toast('Deleted', 'ok'); }).catch(function() { toast('Delete failed', 'err'); });
+}
+function deleteSalesTruck(id) {
+  if (!id || !salesTrucksRef) return;
+  var used = salesOrders.some(function(o) {
+    return !o.voided && csmSalesNormalizeLinesFromOrder(o).some(function(L) { return String(L.truckId || '') === String(id); });
+  });
+  if (used) { toast('Truck is used on an order', 'err'); return; }
+  if (!confirm('Delete this truck?')) return;
+  salesTrucksRef.child(id).remove().then(function() { toast('Deleted', 'ok'); }).catch(function() { toast('Delete failed', 'err'); });
+}
 function getPurchaseCnListSorted() {
   var seen = {};
   var list = [];
@@ -4222,6 +4469,8 @@ function buildSalesOrderLineEditorRow(line) {
   var cn = line.containerNo || '';
   var pr = line.productName || '';
   var qty = line.quantity != null && line.quantity !== '' ? line.quantity : 1;
+  var workerQty = line.workerQty != null && line.workerQty !== '' ? line.workerQty : '';
+  var truckQty = line.truckQty != null && line.truckQty !== '' ? line.truckQty : '';
   var vm = (line.vatMode === 'included') ? 'included' : 'excluded';
   var up = line.unitPrice;
   var hasUp = up != null && up !== '' && !isNaN(parseFloat(up));
@@ -4247,8 +4496,28 @@ function buildSalesOrderLineEditorRow(line) {
     '<td style="padding:6px 8px;vertical-align:middle;width:80px"><input type="number" class="sol-qty" min="0.01" step="any" value="' + csmEscapeHtml(String(qty)) + '" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></td>' +
     '<td style="padding:6px 8px;vertical-align:middle;width:108px"><input type="number" class="sol-price-incl" min="0" step="any" value="' + (inclVal === '' ? '' : csmEscapeHtml(inclVal)) + '" oninput="salesOrderLinePriceSync(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700" title="Unit including 5% VAT \u2014 other column auto-fills"></td>' +
     '<td style="padding:6px 8px;vertical-align:middle;width:108px"><input type="number" class="sol-price-excl" min="0" step="any" value="' + (exclVal === '' ? '' : csmEscapeHtml(exclVal)) + '" oninput="salesOrderLinePriceSync(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700" title="Unit before 5% VAT \u2014 other column auto-fills"></td>' +
+    '<td style="padding:6px 8px;vertical-align:middle;min-width:180px"><select class="sol-worker-id" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;margin-bottom:6px">' + csmSalesBuildServiceSelectHtml(salesWorkers, line.workerId, 'Select worker') + '</select><input type="number" class="sol-worker-qty" min="0" step="any" value="' + (workerQty === '' ? '' : csmEscapeHtml(String(workerQty))) + '" placeholder="Worker qty" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></td>' +
+    '<td style="padding:6px 8px;vertical-align:middle;min-width:180px"><select class="sol-truck-id" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;margin-bottom:6px">' + csmSalesBuildServiceSelectHtml(salesTrucks, line.truckId, 'Select truck') + '</select><input type="number" class="sol-truck-qty" min="0" step="any" value="' + (truckQty === '' ? '' : csmEscapeHtml(String(truckQty))) + '" placeholder="Truck qty" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></td>' +
     '<td style="padding:6px 4px;vertical-align:middle;width:40px"><button type="button" class="abtn x" onclick="salesOrderRemoveLine(this)" title="Remove line">\u00d7</button></td>' +
     '</tr>';
+}
+function salesOrderRefreshServiceSelectorsInDom() {
+  var tb = gid('sales-order-lines-body');
+  if (!tb) return;
+  tb.querySelectorAll('tr').forEach(function(tr) {
+    var workerSel = tr.querySelector('.sol-worker-id');
+    var truckSel = tr.querySelector('.sol-truck-id');
+    if (workerSel) {
+      var workerVal = workerSel.value;
+      workerSel.innerHTML = csmSalesBuildServiceSelectHtml(salesWorkers, workerVal, 'Select worker');
+      if (workerVal) workerSel.value = workerVal;
+    }
+    if (truckSel) {
+      var truckVal = truckSel.value;
+      truckSel.innerHTML = csmSalesBuildServiceSelectHtml(salesTrucks, truckVal, 'Select truck');
+      if (truckVal) truckSel.value = truckVal;
+    }
+  });
 }
 function salesOrderLinePriceSync(el) {
   var tr = el && el.closest && el.closest('tr');
@@ -4338,6 +4607,10 @@ function salesOrderReadLinesFromDom() {
     var qtyEl = tr.querySelector('.sol-qty');
     var incEl = tr.querySelector('.sol-price-incl');
     var excEl = tr.querySelector('.sol-price-excl');
+    var workerIdEl = tr.querySelector('.sol-worker-id');
+    var workerQtyEl = tr.querySelector('.sol-worker-qty');
+    var truckIdEl = tr.querySelector('.sol-truck-id');
+    var truckQtyEl = tr.querySelector('.sol-truck-qty');
     var cn = (cnEl && cnEl.value || '').trim().toUpperCase();
     var pr = canonicalProductName((prEl && prEl.value || '').trim());
     var qty = parseFloat(qtyEl && qtyEl.value);
@@ -4345,37 +4618,60 @@ function salesOrderReadLinesFromDom() {
     var sEx = excEl ? String(excEl.value || '').trim() : '';
     var nIn = parseFloat(sIn);
     var nEx = parseFloat(sEx);
+    var workerId = (workerIdEl && workerIdEl.value || '').trim();
+    var workerQtyRaw = workerQtyEl ? String(workerQtyEl.value || '').trim() : '';
+    var workerQty = parseFloat(workerQtyRaw);
+    var truckId = (truckIdEl && truckIdEl.value || '').trim();
+    var truckQtyRaw = truckQtyEl ? String(truckQtyEl.value || '').trim() : '';
+    var truckQty = parseFloat(truckQtyRaw);
     var hasIn = sIn !== '' && !isNaN(nIn) && nIn >= 0;
     var hasEx = sEx !== '' && !isNaN(nEx) && nEx >= 0;
-    var any = cn || pr || (qty > 0) || hasIn || hasEx;
+    var hasWorkerQty = workerQtyRaw !== '' && !isNaN(workerQty) && workerQty >= 0;
+    var hasTruckQty = truckQtyRaw !== '' && !isNaN(truckQty) && truckQty >= 0;
+    var any = cn || pr || (qty > 0) || hasIn || hasEx || workerId || hasWorkerQty || truckId || hasTruckQty;
     if (!any) return;
     if (!cn || !pr || !(qty > 0)) {
       incomplete = true;
       return;
     }
+    if ((workerId && !(hasWorkerQty && workerQty > 0)) || (!workerId && hasWorkerQty && workerQty > 0)) {
+      incomplete = true;
+      return;
+    }
+    if ((truckId && !(hasTruckQty && truckQty > 0)) || (!truckId && hasTruckQty && truckQty > 0)) {
+      incomplete = true;
+      return;
+    }
+    function withServices(base) {
+      base.workerId = workerId;
+      base.workerQty = workerId ? workerQty : 0;
+      base.truckId = truckId;
+      base.truckQty = truckId ? truckQty : 0;
+      return base;
+    }
     if (hasIn && hasEx) {
       var basis = (tr.getAttribute('data-price-basis') || '').trim().toLowerCase();
       if (basis === 'included') {
-        out.push({ containerNo: cn, productName: pr, quantity: qty, unitPrice: nIn, vatMode: 'included' });
+        out.push(withServices({ containerNo: cn, productName: pr, quantity: qty, unitPrice: nIn, vatMode: 'included' }));
       } else if (basis === 'excluded') {
-        out.push({ containerNo: cn, productName: pr, quantity: qty, unitPrice: nEx, vatMode: 'excluded' });
+        out.push(withServices({ containerNo: cn, productName: pr, quantity: qty, unitPrice: nEx, vatMode: 'excluded' }));
       } else if (Math.abs(nEx - csmSalesRound2(nIn / mult)) <= tol) {
-        out.push({ containerNo: cn, productName: pr, quantity: qty, unitPrice: nIn, vatMode: 'included' });
+        out.push(withServices({ containerNo: cn, productName: pr, quantity: qty, unitPrice: nIn, vatMode: 'included' }));
       } else if (Math.abs(nIn - csmSalesRound2(nEx * mult)) <= tol) {
-        out.push({ containerNo: cn, productName: pr, quantity: qty, unitPrice: nEx, vatMode: 'excluded' });
+        out.push(withServices({ containerNo: cn, productName: pr, quantity: qty, unitPrice: nEx, vatMode: 'excluded' }));
       } else {
         priceMismatch = true;
       }
     } else if (hasIn) {
-      out.push({ containerNo: cn, productName: pr, quantity: qty, unitPrice: nIn, vatMode: 'included' });
+      out.push(withServices({ containerNo: cn, productName: pr, quantity: qty, unitPrice: nIn, vatMode: 'included' }));
     } else if (hasEx) {
-      out.push({ containerNo: cn, productName: pr, quantity: qty, unitPrice: nEx, vatMode: 'excluded' });
+      out.push(withServices({ containerNo: cn, productName: pr, quantity: qty, unitPrice: nEx, vatMode: 'excluded' }));
     } else {
       incomplete = true;
     }
   });
   if (priceMismatch) return { err: 'Include VAT and Exclude VAT must match 5% VAT on each line (or clear one column).' };
-  if (incomplete) return { err: 'Each line needs container, product, qty, and at least one unit price (both columns link by 5% VAT).' };
+  if (incomplete) return { err: 'Each line needs container, product, qty, and at least one unit price. Worker/Truck must have both a selection and a qty.' };
   if (!out.length) return { err: 'Add at least one complete line (container + product + qty + unit price).' };
   return { lines: out };
 }
@@ -4452,6 +4748,22 @@ function saveSalesOrderFromModal(submitAfter) {
     orderNoVal = csmSalesNextOrderNoForDate(ymdToday);
     createdVal = nowIso;
   }
+  newLines = newLines.map(function(L) {
+    var workerEnt = L.workerId ? salesWorkers.find(function(x) { return x.id === L.workerId; }) : null;
+    var truckEnt = L.truckId ? salesTrucks.find(function(x) { return x.id === L.truckId; }) : null;
+    var workerRate = workerEnt ? csmSalesServiceRate(workerEnt, L.productName) : 0;
+    var truckRate = truckEnt ? csmSalesServiceRate(truckEnt, L.productName) : 0;
+    var workerQty = parseFloat(L.workerQty) || 0;
+    var truckQty = parseFloat(L.truckQty) || 0;
+    return Object.assign({}, L, {
+      workerName: workerEnt ? csmSalesServiceEntryDisplay(workerEnt) : '',
+      workerRate: workerRate,
+      workerAmount: csmSalesRound2(workerRate * workerQty),
+      truckName: truckEnt ? csmSalesServiceEntryDisplay(truckEnt) : '',
+      truckRate: truckRate,
+      truckAmount: csmSalesRound2(truckRate * truckQty)
+    });
+  });
   var L0 = newLines[0];
   var orderVatMode = (L0 && (L0.vatMode === 'included' || L0.vatMode === 'excluded')) ? L0.vatMode : 'excluded';
   var rec = {
@@ -4462,6 +4774,16 @@ function saveSalesOrderFromModal(submitAfter) {
     productName: L0.productName,
     quantity: L0.quantity,
     unitPrice: L0.unitPrice,
+    workerId: L0.workerId || '',
+    workerName: L0.workerName || '',
+    workerQty: L0.workerQty || 0,
+    workerRate: L0.workerRate || 0,
+    workerAmount: L0.workerAmount || 0,
+    truckId: L0.truckId || '',
+    truckName: L0.truckName || '',
+    truckQty: L0.truckQty || 0,
+    truckRate: L0.truckRate || 0,
+    truckAmount: L0.truckAmount || 0,
     lines: newLines,
     vatMode: orderVatMode,
     paymentStatus: payment,
@@ -4551,3 +4873,13 @@ try { window.openSalesPaymentReceiversModal = openSalesPaymentReceiversModal; } 
 try { window.clSalesPaymentReceiversModal = clSalesPaymentReceiversModal; } catch (e) {}
 try { window.addSalesPaymentReceiver = addSalesPaymentReceiver; } catch (e) {}
 try { window.deleteSalesPaymentReceiver = deleteSalesPaymentReceiver; } catch (e) {}
+try { window.openSalesWorkerTruckModal = openSalesWorkerTruckModal; } catch (e) {}
+try { window.clSalesWorkerTruckModal = clSalesWorkerTruckModal; } catch (e) {}
+try { window.salesWorkerFormReset = salesWorkerFormReset; } catch (e) {}
+try { window.salesTruckFormReset = salesTruckFormReset; } catch (e) {}
+try { window.saveSalesWorkerFromModal = saveSalesWorkerFromModal; } catch (e) {}
+try { window.saveSalesTruckFromModal = saveSalesTruckFromModal; } catch (e) {}
+try { window.editSalesWorker = editSalesWorker; } catch (e) {}
+try { window.editSalesTruck = editSalesTruck; } catch (e) {}
+try { window.deleteSalesWorker = deleteSalesWorker; } catch (e) {}
+try { window.deleteSalesTruck = deleteSalesTruck; } catch (e) {}

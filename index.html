@@ -315,7 +315,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260419s" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260419t" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -1039,6 +1039,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <button type="button" class="btn btn-s" id="sales-sub-btn-dash" onclick="swSalesSub('dash')">财务统计 Dashboard</button>
       <button type="button" class="btn btn-g" id="sales-sub-btn-cust" onclick="swSalesSub('customers')">客户管理 Customers</button>
       <button type="button" class="btn btn-g" id="sales-sub-btn-orders" onclick="swSalesSub('orders')">销售订单 Orders</button>
+      <button type="button" class="btn btn-g" id="sales-worker-truck-btn" onclick="openSalesWorkerTruckModal()">工人管理 Worker / Truck</button>
     </div>
     <div id="sales-panel-dash">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px">
@@ -1085,14 +1086,14 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <th class="csm-sel-th" title="选择">选</th>
         <th>Order No.<br><span style="font-size:11px;color:#888">订单号</span></th>
         <th>Created<br><span style="font-size:11px;color:#888">生成时间</span></th>
-        <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net unit (AED)</th><th>5%VAT (AED)</th><th>Total (AED)</th><th>Payment</th><th>Receiver</th><th>Status</th><th>Actions</th>
+        <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net unit (AED)</th><th>5%VAT (AED)</th><th>Total (AED)</th><th>Worker</th><th>Truck</th><th>Payment</th><th>Receiver</th><th>Status</th><th>Actions</th>
       </tr></thead><tbody id="tb-sales-orders"></tbody><tfoot><tr>
         <td colspan="6"></td>
         <td id="sales-orders-foot-qty" style="text-align:right;font-variant-numeric:tabular-nums">0</td>
         <td colspan="2"></td>
         <td id="sales-orders-foot-vat" style="text-align:right;font-variant-numeric:tabular-nums">0.00</td>
         <td id="sales-orders-foot-total" style="text-align:right;font-variant-numeric:tabular-nums">0.00</td>
-        <td colspan="4"></td>
+        <td colspan="6"></td>
       </tr></tfoot></table></div>
       <div id="sales-orders-pager" class="csm-sales-pager" role="navigation" aria-label="Orders pagination">
         <span id="sales-orders-pager-range"></span>
@@ -1120,14 +1121,14 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <th class="csm-sel-th" title="选择">选</th>
       <th>Order No.<br><span style="font-size:11px;color:#888">订单号</span></th>
       <th>Created<br><span style="font-size:11px;color:#888">生成时间</span></th>
-      <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net unit (AED)</th><th>5%VAT (AED)</th><th>Total (AED)</th><th>Receiver</th><th>Payment (fin.)</th>
+      <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net unit (AED)</th><th>5%VAT (AED)</th><th>Total (AED)</th><th>Worker</th><th>Truck</th><th>Receiver</th><th>Payment (fin.)</th>
     </tr></thead><tbody id="tb-sales-finance"></tbody><tfoot><tr>
         <td colspan="6"></td>
         <td id="sales-finance-foot-qty" style="text-align:right;font-variant-numeric:tabular-nums">0</td>
         <td colspan="2"></td>
         <td id="sales-finance-foot-vat" style="text-align:right;font-variant-numeric:tabular-nums">0.00</td>
         <td id="sales-finance-foot-total" style="text-align:right;font-variant-numeric:tabular-nums">0.00</td>
-        <td></td><td></td>
+        <td></td><td></td><td></td><td></td>
       </tr></tfoot></table></div>
     <div id="sales-finance-pager" class="csm-sales-pager" role="navigation" aria-label="Finance orders pagination">
       <span id="sales-finance-pager-range"></span>
@@ -1198,7 +1199,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <div class="fg"><label>Order lines * <span style="font-size:12px;color:#666;font-weight:700">(container + product + qty + unit price per line)</span></label>
       <div style="overflow-x:auto;border:1px solid #ddd;border-radius:6px;margin-top:6px">
         <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:var(--csm-font-en);font-weight:700">
-          <thead><tr style="background:#f5f5f5"><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd">Container</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd">Product</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:80px">Qty</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:108px;font-size:12px">Include VAT<br><span style="font-weight:700">(AED)</span></th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:108px;font-size:12px">Exclude VAT<br><span style="font-weight:700">(AED)</span></th><th style="width:40px;border-bottom:1px solid #ddd"></th></tr></thead>
+          <thead><tr style="background:#f5f5f5"><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd">Container</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd">Product</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:80px">Qty</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:108px;font-size:12px">Include VAT<br><span style="font-weight:700">(AED)</span></th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:108px;font-size:12px">Exclude VAT<br><span style="font-weight:700">(AED)</span></th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;min-width:180px">Worker<br><span style="font-weight:700;font-size:11px">Select + Qty</span></th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;min-width:180px">Truck<br><span style="font-weight:700;font-size:11px">Select + Qty</span></th><th style="width:40px;border-bottom:1px solid #ddd"></th></tr></thead>
           <tbody id="sales-order-lines-body"></tbody>
         </table>
       </div>
@@ -1242,6 +1243,52 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <th style="font-family:var(--csm-font-en);font-weight:700">Name</th><th style="width:100px;font-family:var(--csm-font-en);font-weight:700">Action</th>
     </tr></thead><tbody id="tb-sales-payment-receivers"></tbody></table></div>
     <div class="brow"><button type="button" class="btn btn-g" onclick="clSalesPaymentReceiversModal()" style="font-family:var(--csm-font-en);font-weight:700">Close</button></div>
+  </div>
+</div>
+
+<div class="mov" id="sales-worker-truck-modal">
+  <div class="mdl" style="width:980px;max-width:96vw;max-height:88vh;overflow-y:auto">
+    <h3>Worker / Truck Management</h3>
+    <p style="font-size:12px;color:#666;margin:0 0 12px;font-family:var(--csm-font-en);font-weight:700">Add, edit, or delete workers and trucks. Set a different rate for each product. Order line amount = rate x quantity.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div style="min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+          <strong style="font-family:var(--csm-font-en);font-weight:700">Workers</strong>
+          <button type="button" class="btn btn-s" onclick="salesWorkerFormReset()">New Worker</button>
+        </div>
+        <input type="hidden" id="sales-worker-edit-id">
+        <div class="fg" style="margin-bottom:8px"><label>Worker Name *</label>
+          <input type="text" id="sales-worker-name" placeholder="Worker name" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+        </div>
+        <div id="sales-worker-rates-form" style="margin-bottom:10px"></div>
+        <div class="brow" style="margin-top:8px;margin-bottom:10px">
+          <button type="button" class="btn btn-s" onclick="saveSalesWorkerFromModal()">Save Worker</button>
+          <button type="button" class="btn btn-g" onclick="salesWorkerFormReset()">Clear</button>
+        </div>
+        <div class="tw"><table><thead><tr>
+          <th>Name</th><th>Rates</th><th style="width:120px">Action</th>
+        </tr></thead><tbody id="tb-sales-workers"></tbody></table></div>
+      </div>
+      <div style="min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+          <strong style="font-family:var(--csm-font-en);font-weight:700">Trucks</strong>
+          <button type="button" class="btn btn-s" onclick="salesTruckFormReset()">New Truck</button>
+        </div>
+        <input type="hidden" id="sales-truck-edit-id">
+        <div class="fg" style="margin-bottom:8px"><label>Truck Name *</label>
+          <input type="text" id="sales-truck-name" placeholder="Truck name" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+        </div>
+        <div id="sales-truck-rates-form" style="margin-bottom:10px"></div>
+        <div class="brow" style="margin-top:8px;margin-bottom:10px">
+          <button type="button" class="btn btn-s" onclick="saveSalesTruckFromModal()">Save Truck</button>
+          <button type="button" class="btn btn-g" onclick="salesTruckFormReset()">Clear</button>
+        </div>
+        <div class="tw"><table><thead><tr>
+          <th>Name</th><th>Rates</th><th style="width:120px">Action</th>
+        </tr></thead><tbody id="tb-sales-trucks"></tbody></table></div>
+      </div>
+    </div>
+    <div class="brow"><button type="button" class="btn btn-g" onclick="clSalesWorkerTruckModal()">Close</button></div>
   </div>
 </div>
 

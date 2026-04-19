@@ -354,7 +354,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260419payconf" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260419invoice" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -1127,14 +1127,15 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <th>Order No.<br><span style="font-size:11px;color:#888;font-weight:700">订单号</span></th>
         <th>Created<br><span style="font-size:11px;color:#888;font-weight:700">生成时间</span></th>
         <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net Unit (AED)</th><th>5% VAT (AED)</th><th>Total (AED)</th><th>Worker</th><th>Truck</th><th>Payment</th><th>Receiver</th><th>Status</th><th>Actions</th>
-        <th>Payment confirm<br><span style="font-size:11px;color:#888;font-weight:700">付款确认</span></th>
+        <th>Payment Confirm<br><span style="font-size:11px;color:#888;font-weight:700">付款确认</span></th>
+        <th>Print<br><span style="font-size:11px;color:#888;font-weight:700">打印</span></th>
       </tr></thead><tbody id="tb-sales-orders"></tbody><tfoot><tr>
         <td colspan="6"></td>
         <td id="sales-orders-foot-qty" style="text-align:right;font-variant-numeric:tabular-nums">0</td>
         <td colspan="2"></td>
         <td id="sales-orders-foot-vat" style="text-align:right;font-variant-numeric:tabular-nums">0.00</td>
         <td id="sales-orders-foot-total" style="text-align:right;font-variant-numeric:tabular-nums">0.00</td>
-        <td colspan="7"></td>
+        <td colspan="8"></td>
       </tr></tfoot></table></div>
       <div id="sales-orders-pager" class="csm-sales-pager" role="navigation" aria-label="Orders pagination">
         <span id="sales-orders-pager-range"></span>
@@ -1164,13 +1165,14 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <th>Created<br><span style="font-size:11px;color:#888;font-weight:700">生成时间</span></th>
       <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net Unit (AED)</th><th>5% VAT (AED)</th><th>Total (AED)</th><th>Worker</th><th>Truck</th><th>Receiver</th><th>Payment (Fin.)</th>
       <th>Payment Confirm<br><span style="font-size:11px;color:#888;font-weight:700">付款确认</span></th>
+      <th>Print<br><span style="font-size:11px;color:#888;font-weight:700">打印</span></th>
     </tr></thead><tbody id="tb-sales-finance"></tbody><tfoot><tr>
         <td colspan="6"></td>
         <td id="sales-finance-foot-qty" style="text-align:right;font-variant-numeric:tabular-nums">0</td>
         <td colspan="2"></td>
         <td id="sales-finance-foot-vat" style="text-align:right;font-variant-numeric:tabular-nums">0.00</td>
         <td id="sales-finance-foot-total" style="text-align:right;font-variant-numeric:tabular-nums">0.00</td>
-        <td></td><td></td><td></td><td></td><td></td>
+        <td></td><td></td><td></td><td></td><td></td><td></td>
       </tr></tfoot></table></div>
     <div id="sales-finance-pager" class="csm-sales-pager" role="navigation" aria-label="Finance orders pagination">
       <span id="sales-finance-pager-range"></span>

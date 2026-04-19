@@ -3745,6 +3745,73 @@ function salesConfirmPaymentPaid(id) {
     toast(e.message || String(e), 'err');
   });
 }
+function csmSalesPrintInvoiceCellHtml(o) {
+  if (!o || o.voided) return '\u2014';
+  if (String(o.orderStatus || '').toLowerCase() !== 'confirmed') return '\u2014';
+  var sid = String(o.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return '<button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700;font-size:12px;padding:4px 10px" onclick="salesPrintOrderInvoice(\'' + sid + '\')">Print</button>';
+}
+function salesPrintOrderInvoice(id) {
+  var o = salesOrders.find(function(x) { return x.id === id; });
+  if (!o || o.voided || String(o.orderStatus || '').toLowerCase() !== 'confirmed') {
+    toast('Order not found or not confirmed', 'err');
+    return;
+  }
+  var lines = csmSalesNormalizeLinesFromOrder(o);
+  var tot = csmSalesLineNetVatTotal(o);
+  var ht = gid('headerTitle');
+  var brand = (ht && ht.textContent) ? String(ht.textContent).trim().replace(/</g, '').replace(/>/g, '') : 'Sales';
+  var parts = [];
+  parts.push('<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>');
+  parts.push(csmEscapeHtml(o.orderNo || 'Invoice'));
+  parts.push('</title><style>body{font-family:Arial,Helvetica,sans-serif;font-weight:700;padding:24px;color:#1a1a1a;font-size:14px}');
+  parts.push('h1{font-size:20px;margin:0 0 8px}h2{font-size:14px;color:#555;margin:0 0 20px;font-weight:700}');
+  parts.push('.meta{margin:14px 0}.meta div{margin:5px 0}table{width:100%;border-collapse:collapse;margin-top:16px;font-size:12px}');
+  parts.push('th,td{border:1px solid #ccc;padding:6px 8px;text-align:left}th{background:#f5f5f5}');
+  parts.push('.num{text-align:right;font-variant-numeric:tabular-nums}.tot{margin-top:18px;max-width:380px;margin-left:auto}');
+  parts.push('.tot div{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #e0e0e0}');
+  parts.push('@media print{body{padding:10px}}</style></head><body>');
+  parts.push('<h1>Sales Invoice / 销售发票</h1><h2>' + csmEscapeHtml(brand) + '</h2>');
+  parts.push('<div class="meta">');
+  parts.push('<div><strong>Order No.</strong> ' + csmEscapeHtml(o.orderNo || '\u2014') + '</div>');
+  parts.push('<div><strong>Created</strong> ' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</div>');
+  parts.push('<div><strong>Confirmed</strong> ' + csmEscapeHtml(csmSalesFormatOrderCreated(o.confirmedAt)) + '</div>');
+  parts.push('<div><strong>Customer</strong> ' + csmEscapeHtml(o.customerName || '') + '</div>');
+  parts.push('<div><strong>Payment</strong> ' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, true)) + '</div>');
+  parts.push('<div><strong>Receiver</strong> ' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</div></div>');
+  parts.push('<table><thead><tr>');
+  parts.push('<th>Container</th><th>Product</th><th class="num">Qty</th><th class="num">Unit (AED)</th><th class="num">Net (AED)</th><th class="num">5% VAT</th><th class="num">Total (AED)</th><th>Worker</th><th>Truck</th></tr></thead><tbody>');
+  lines.forEach(function(L) {
+    var vm = csmSalesLineVatMode(L, o);
+    var nv = csmSalesNetUnitAndVatFromLine(L, vm);
+    var a = csmSalesComputeTotals(L.unitPrice, L.quantity, vm);
+    parts.push('<tr><td>' + csmEscapeHtml(L.containerNo || '') + '</td><td>' + csmEscapeHtml(L.productName || '') + '</td>');
+    parts.push('<td class="num">' + csmEscapeHtml(String(L.quantity != null ? L.quantity : '')) + '</td>');
+    parts.push('<td class="num">' + (parseFloat(L.unitPrice) || 0).toFixed(2) + '</td>');
+    parts.push('<td class="num">' + nv.netUnit.toFixed(2) + '</td><td class="num">' + nv.vatAmt.toFixed(2) + '</td><td class="num">' + a.total.toFixed(2) + '</td>');
+    parts.push('<td>' + csmEscapeHtml(String(L.workerName || '').trim() || '\u2014') + '</td><td>' + csmEscapeHtml(String(L.truckName || '').trim() || '\u2014') + '</td></tr>');
+  });
+  parts.push('</tbody></table>');
+  parts.push('<div class="tot"><div><span>Net (AED)</span><span>' + tot.net.toFixed(2) + '</span></div>');
+  parts.push('<div><span>5% VAT (AED)</span><span>' + tot.vat.toFixed(2) + '</span></div>');
+  parts.push('<div style="border-bottom:2px solid #333;padding-top:6px;margin-top:4px"><span>Total (AED)</span><span>' + tot.total.toFixed(2) + '</span></div></div>');
+  parts.push('<p style="margin-top:22px;font-size:11px;color:#666">Printed ' + csmEscapeHtml(csmSalesFormatOrderCreated(new Date().toISOString())) + '</p>');
+  parts.push('</body></html>');
+  var docHtml = parts.join('');
+  var w = window.open('', '_blank', 'noopener,noreferrer');
+  if (!w) {
+    toast('Pop-up blocked \u2014 allow pop-ups to print', 'err');
+    return;
+  }
+  w.document.write(docHtml);
+  w.document.close();
+  setTimeout(function() {
+    try {
+      w.focus();
+      w.print();
+    } catch (e2) {}
+  }, 350);
+}
 function csmSalesOrderStatusCellHtml(o) {
   if (!o || o.voided) {
     return '<span style="font-family:var(--csm-font-en);font-weight:700;color:inherit">void / \u4F5C\u5E9F</span>';
@@ -4117,7 +4184,7 @@ function renderSalesOrdersTable() {
   if (ps !== 10 && ps !== 20 && ps !== 50 && ps !== 100) ps = 20;
   salesOrdersPageSize = ps;
   if (!rows.length) {
-    tb.innerHTML = '<tr><td colspan="18" style="text-align:center;color:#888">No orders</td></tr>';
+    tb.innerHTML = '<tr><td colspan="19" style="text-align:center;color:#888">No orders</td></tr>';
     updOrdSummary(0, 0, 0, 0, 0);
     csmSalesBindOrdersPager(0);
     return;
@@ -4199,12 +4266,12 @@ function renderSalesOrdersTable() {
           '<td>' + aL.total.toFixed(2) + '</td>' +
           '<td>' + csmSalesServiceCellHtml(L.workerName, L.workerQty) + '</td>' +
           '<td>' + csmSalesServiceCellHtml(L.truckName, L.truckQty) + '</td>' +
-          '<td colspan="5"></td>' +
+          '<td colspan="6"></td>' +
           '</tr>';
       }
     }
     return '<tr class="' + trClassName + '"><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb"' + cbDis + ' onchange="csmSalesOrderCbExclusive(this)" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + cnCell + '</td><td>' + prodCell + '</td><td>' + csmEscapeHtml(String(q0)) + '</td><td>' +
-      csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, false)) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + statusCell + '</td><td>' + actions + '</td><td>' + csmSalesPaymentConfirmCellHtml(o) + '</td></tr>' + subHtml;
+      csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, false)) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + statusCell + '</td><td>' + actions + '</td><td>' + csmSalesPaymentConfirmCellHtml(o) + '</td><td>' + csmSalesPrintInvoiceCellHtml(o) + '</td></tr>' + subHtml;
   }).join('');
   csmSalesBindOrdersPager(totalRows);
 }
@@ -4234,7 +4301,7 @@ function renderSalesFinanceTable() {
     if (ft) ft.textContent = csmSalesRound2(stt).toFixed(2);
   }
   if (!conf.length) {
-    tb.innerHTML = '<tr><td colspan="16" style="text-align:center;color:#888">No confirmed orders</td></tr>';
+    tb.innerHTML = '<tr><td colspan="17" style="text-align:center;color:#888">No confirmed orders</td></tr>';
     updFinSummary(0, 0, 0, 0, 0);
     csmSalesBindFinancePager(0);
     return;
@@ -4305,13 +4372,13 @@ function renderSalesFinanceTable() {
           '<td>' + aL.total.toFixed(2) + '</td>' +
           '<td>' + csmSalesServiceCellHtml(L.workerName, L.workerQty) + '</td>' +
           '<td>' + csmSalesServiceCellHtml(L.truckName, L.truckQty) + '</td>' +
-          '<td></td><td></td><td></td>' +
+          '<td></td><td></td><td></td><td></td>' +
           '</tr>';
       }
     }
     return '<tr><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + cnCell + '</td><td>' + prodCell + '</td><td>' + csmEscapeHtml(String(q0)) + '</td><td>' +
       csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' +
-      csmSalesLineTotalForDisplay(o).toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, true)) + '</td><td>' + csmSalesPaymentConfirmCellHtml(o) + '</td></tr>' + subHtml;
+      csmSalesLineTotalForDisplay(o).toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, true)) + '</td><td>' + csmSalesPaymentConfirmCellHtml(o) + '</td><td>' + csmSalesPrintInvoiceCellHtml(o) + '</td></tr>' + subHtml;
   }).join('');
   csmSalesBindFinancePager(totalRows);
 }
@@ -5263,6 +5330,7 @@ try { window.salesBatchCancel = salesBatchCancel; } catch (e) {}
 try { window.salesBatchSubmit = salesBatchSubmit; } catch (e) {}
 try { window.salesBatchConfirm = salesBatchConfirm; } catch (e) {}
 try { window.salesConfirmPaymentPaid = salesConfirmPaymentPaid; } catch (e) {}
+try { window.salesPrintOrderInvoice = salesPrintOrderInvoice; } catch (e) {}
 try { window.openSalesOrderUpdateWorkerModal = openSalesOrderUpdateWorkerModal; } catch (e) {}
 try { window.clSalesOrderUpwtModal = clSalesOrderUpwtModal; } catch (e) {}
 try { window.saveSalesOrderUpdateWorkerTruckFromModal = saveSalesOrderUpdateWorkerTruckFromModal; } catch (e) {}

@@ -106,6 +106,11 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 .mr .mv{color:var(--tx)}
 .mr:last-child .mv{color:var(--ac);font-size:18px}
 .mdl .brow{margin-top:18px}
+/* Shared container / record detail modal: wider, scroll body, fits viewport */
+#modal-mdl.csm-detail-mdl{width:min(960px,96vw)!important;max-width:96vw!important;max-height:88vh!important;display:flex!important;flex-direction:column!important;padding:12px 16px!important;box-sizing:border-box;overflow:hidden!important}
+#modal-mdl.csm-detail-mdl h3{margin-bottom:8px;font-size:13px;letter-spacing:.5px;line-height:1.3;text-transform:none}
+#modal-mdl.csm-detail-mdl #mcon-scroll{flex:1 1 auto;min-height:0;max-height:calc(88vh - 110px);overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:2px}
+#modal-mdl.csm-detail-mdl .brow{margin-top:10px;flex-shrink:0}
 /* 所有弹窗（.mov）：英文以 Arial 为主，字重加粗；中文由系统黑体回退；!important 覆盖全局 .fg 等 monospace */
 .mov,.mov *{font-family:var(--csm-font-en)!important;font-weight:700!important}
 .tst{position:fixed;bottom:24px;right:24px;padding:12px 18px;border-radius:6px;font-size:13px;font-family:var(--csm-font-en);font-weight:700;letter-spacing:.5px;z-index:12000;animation:ti .3s ease;max-width:320px;line-height:1.6}
@@ -305,7 +310,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260419l" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260419m" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -1236,7 +1241,11 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 </div>
 
 <div class="mov" id="modal">
-  <div class="mdl"><h3>📋 集装箱详情 / Container Details</h3><div id="mcon"></div><div class="brow"><button class="btn btn-g" onclick="clModal()">关闭 Close</button></div></div>
+  <div class="mdl csm-detail-mdl" id="modal-mdl">
+    <h3 id="modal-title">Details</h3>
+    <div id="mcon-scroll"><div id="mcon"></div></div>
+    <div class="brow"><button type="button" class="btn btn-g" id="modal-close-btn" onclick="clModal()">Close</button></div>
+  </div>
 </div>
 
 <div class="mov" id="purchaseModal">

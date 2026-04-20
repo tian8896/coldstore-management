@@ -337,7 +337,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       if (le) { le.textContent = '请输入邮箱和密码'; le.style.color = '#cc0000'; le.style.display = 'block'; }
       return;
     }
-    if (window.__csmLoginSliderInited && !window.__csmLoginSlideVerified) {
+    if (!window.__csmLoginSlideVerified) {
       if (le) { le.textContent = '请先向右滑动完成验证'; le.style.color = '#cc0000'; le.style.display = 'block'; }
       return;
     }
@@ -923,7 +923,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
             <input type="number" id="supplier-unit-price-usd" step="0.01" min="0" placeholder="USD/MT" title="USD per metric ton" autocomplete="off" style="flex:1;min-width:160px;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
           </div>
         </div>
-        <div class="fg" style="margin:0"><label>总金额 Total amount <span style="font-size:11px;color:#666;font-weight:400">(USD 美元)</span></label>
+        <div class="fg" style="margin:0"><label>总金额 Total amount <span style="font-size:11px;color:#666;font-weight:400">(USD)</span> <span style="font-size:11px;color:#0a6080;font-weight:700;font-family:var(--csm-font-en)">Net MT × unit — Auto</span></label>
           <input type="number" id="supplier-total-usd" step="0.01" min="0" placeholder="USD" autocomplete="off" oninput="supplierUpdateAedFromUsd()" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
         </div>
         <div class="fg" style="margin:0"><label>迪拉姆换算 AED <span style="font-size:11px;color:#666;font-weight:400">(USD × 3.675)</span></label>
@@ -1136,6 +1136,24 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <div style="background:#fff3e0;border:1px solid #f57c00;border-radius:8px;padding:16px;text-align:center">
           <div style="font-size:12px;color:#666">Unpaid AED (Credit + Cash pending)</div>
           <div style="font-size:24px;font-weight:bold;color:#e65100" id="sales-dash-unpaid">0.00</div>
+        </div>
+      </div>
+      <div style="margin-top:18px;padding:16px;border:1px solid #c5e1a5;border-radius:10px;background:#f9fff4">
+        <div style="font-size:14px;font-weight:bold;margin-bottom:10px;font-family:var(--csm-font-en)">Customer AR · 客户货款</div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:10px">
+          <div class="fg" style="margin:0;flex:1;min-width:200px">
+            <label style="font-size:12px;color:#555;font-family:var(--csm-font-en);font-weight:700">Search / 搜索客户</label>
+            <input type="text" id="sales-dash-cust-search" placeholder="Type name, phone…" autocomplete="off" oninput="salesDashCustomerFilter(this)" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+          </div>
+          <div class="fg" style="margin:0;min-width:220px">
+            <label style="font-size:12px;color:#555;font-family:var(--csm-font-en);font-weight:700">Customer</label>
+            <select id="sales-dash-cust-select" onchange="renderSalesDashCustomerAr()" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></select>
+          </div>
+        </div>
+        <div id="sales-dash-cust-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:12px"></div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <button type="button" class="btn btn-s" onclick="openSalesCustomerPayModal('full')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Pay full · 未付订单</button>
+          <button type="button" class="btn btn-g" onclick="openSalesCustomerPayModal('partial')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Partial · 部分货款</button>
         </div>
       </div>
     </div>
@@ -1370,6 +1388,47 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   </div>
 </div>
 
+<div class="mov" id="sales-customer-pay-modal">
+  <div class="mdl" style="width:min(720px,96vw);max-height:88vh;overflow-y:auto">
+    <h3 style="font-family:var(--csm-font-en);font-weight:700;text-transform:none;margin-top:0">Customer payment · 客户收款</h3>
+    <input type="hidden" id="sales-pay-mode" value="full">
+    <p id="sales-pay-cust-label" style="font-size:14px;margin:0 0 10px;font-family:var(--csm-font-en);font-weight:700"></p>
+    <div class="tw tw-sales-dense" style="margin-bottom:12px;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:#f5f5f5">
+            <th style="padding:6px;border:1px solid #ddd;font-family:var(--csm-font-en);font-weight:700">Sel</th>
+            <th style="padding:6px;border:1px solid #ddd;font-family:var(--csm-font-en);font-weight:700">Order</th>
+            <th style="padding:6px;border:1px solid #ddd;font-family:var(--csm-font-en);font-weight:700">Total AED</th>
+            <th style="padding:6px;border:1px solid #ddd;font-family:var(--csm-font-en);font-weight:700">Remain</th>
+            <th id="sales-pay-th-partial" style="padding:6px;border:1px solid #ddd;font-family:var(--csm-font-en);font-weight:700;display:none">Pay now</th>
+          </tr>
+        </thead>
+        <tbody id="sales-pay-orders-tbody"></tbody>
+      </table>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="fg" style="margin:0"><label style="font-family:var(--csm-font-en);font-weight:700">Discount (AED)</label>
+        <input type="number" id="sales-pay-discount" step="0.01" min="0" value="0" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></div>
+      <div class="fg" style="margin:0"><label style="font-family:var(--csm-font-en);font-weight:700">Cash (AED)</label>
+        <input type="number" id="sales-pay-cash" step="0.01" min="0" value="0" oninput="csmSalesPayCashCheckChanged()" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></div>
+      <div class="fg" style="margin:0"><label style="font-family:var(--csm-font-en);font-weight:700">Cheque (AED)</label>
+        <input type="number" id="sales-pay-check" step="0.01" min="0" value="0" oninput="csmSalesPayCashCheckChanged()" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></div>
+      <div class="fg" style="margin:0"><label style="font-family:var(--csm-font-en);font-weight:700">Cheque date</label>
+        <input type="date" id="sales-pay-check-date" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></div>
+    </div>
+    <div class="fg" style="margin-bottom:12px">
+      <label style="font-family:var(--csm-font-en);font-weight:700">Actual received (AED) · 实际收款</label>
+      <input type="number" id="sales-pay-actual" step="0.01" min="0" readonly tabindex="-1" style="width:100%;padding:8px;border:1px solid #b2ebf2;border-radius:4px;background:#e0f7fa;font-family:var(--csm-font-en);font-weight:700">
+      <p style="font-size:11px;color:#666;margin:6px 0 0">Equals Cash + Cheque. Settlement: <span style="font-family:var(--csm-font-en);font-weight:700">Actual + Discount ≈ Amount applied</span></p>
+    </div>
+    <div class="brow" style="flex-wrap:wrap;gap:8px">
+      <button type="button" class="btn btn-s" onclick="csmSalesSubmitCustomerPayment()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Submit</button>
+      <button type="button" class="btn btn-g" onclick="clSalesCustomerPayModal()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div class="mov" id="sales-order-modal">
   <div class="mdl" style="width:760px;max-width:96vw;max-height:85vh;overflow-y:auto">
     <h3 style="text-transform:none;letter-spacing:.5px;font-family:var(--csm-font-en);font-weight:700">销售订单 <span style="font-family:var(--csm-font-en);font-weight:700">Sales Order</span></h3>
@@ -1587,7 +1646,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
             <input type="number" id="fp-unit-price-usd" step="0.01" min="0" placeholder="USD/MT" title="USD per metric ton" autocomplete="off" style="flex:1;min-width:160px;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
           </div>
         </div>
-        <div class="fg" style="margin:0"><label>总金额 Total amount <span style="font-size:11px;color:#666;font-weight:400">(USD 美元)</span></label>
+        <div class="fg" style="margin:0"><label>总金额 Total amount <span style="font-size:11px;color:#666;font-weight:400">(USD)</span> <span style="font-size:11px;color:#0a6080;font-weight:700;font-family:var(--csm-font-en)">Net MT × unit — Auto</span></label>
           <input type="number" id="fp-total-usd" step="0.01" min="0" placeholder="USD" autocomplete="off" oninput="fpUpdateAedFromUsd()" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
         </div>
         <div class="fg" style="margin:0"><label>迪拉姆换算 AED <span style="font-size:11px;color:#666;font-weight:400">(USD × 3.675)</span></label>

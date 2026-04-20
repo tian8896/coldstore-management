@@ -387,7 +387,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260420purchaseitems" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260420invoicenumber" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -864,6 +864,9 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <div class="fg" style="grid-column:1 / -1"><label>提单号 B/L No.</label>
         <input type="text" id="supplier-bl" placeholder="输入提单号" autocomplete="off" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
       </div>
+      <div class="fg" style="grid-column:1 / -1"><label>发票号 Invoice number</label>
+        <input type="text" id="supplier-invoice" placeholder="Optional" autocomplete="off" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+      </div>
       <div class="fg" style="grid-column:1 / -1;margin-bottom:4px">
         <label>品名明细 Product Items *</label>
         <div style="margin-top:6px;margin-bottom:8px">
@@ -1166,7 +1169,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <th class="csm-sel-th" title="选择">选</th>
         <th>Order No.<br><span style="font-size:11px;color:#888;font-weight:700">订单号</span></th>
         <th>Created<br><span style="font-size:11px;color:#888;font-weight:700">生成时间</span></th>
-        <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net Unit (AED)</th><th>5% VAT (AED)</th><th>Total (AED)</th><th>Worker</th><th>Truck</th><th>Payment</th><th>Receiver</th><th>Status</th><th>Actions</th>
+        <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net Unit (AED)</th><th>5% VAT (AED)</th><th>Total (AED)</th><th>Worker</th><th>Truck</th><th>Payment Method</th><th>Payment Status</th><th>Receiver</th><th>Status</th><th>Actions</th>
         <th>Payment Confirm<br><span style="font-size:11px;color:#888;font-weight:700">付款确认</span></th>
         <th>Print<br><span style="font-size:11px;color:#888;font-weight:700">打印</span></th>
       </tr></thead><tbody id="tb-sales-orders"></tbody><tfoot><tr>
@@ -1175,7 +1178,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <td colspan="2"></td>
         <td id="sales-orders-foot-vat" style="text-align:right;font-variant-numeric:tabular-nums">0.00</td>
         <td id="sales-orders-foot-total" style="text-align:right;font-variant-numeric:tabular-nums">0.00</td>
-        <td colspan="8"></td>
+        <td colspan="9"></td>
       </tr></tfoot></table></div>
       <div id="sales-orders-pager" class="csm-sales-pager" role="navigation" aria-label="Orders pagination">
         <span id="sales-orders-pager-range"></span>
@@ -1203,7 +1206,8 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <th class="csm-sel-th" title="选择">选</th>
       <th>Order No.<br><span style="font-size:11px;color:#888;font-weight:700">订单号</span></th>
       <th>Created<br><span style="font-size:11px;color:#888;font-weight:700">生成时间</span></th>
-      <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net Unit (AED)</th><th>5% VAT (AED)</th><th>Total (AED)</th><th>Worker</th><th>Truck</th><th>Receiver</th><th>Payment (Fin.)</th>
+      <th>Customer</th><th>Container</th><th>Product</th><th>Qty</th><th>Unit (AED)</th><th>Net Unit (AED)</th><th>5% VAT (AED)</th><th>Total (AED)</th><th>Worker</th><th>Truck</th><th>Receiver</th><th>Payment Method</th>
+      <th>Payment Status<br><span style="font-size:11px;color:#888;font-weight:700">付款状态</span></th>
       <th>Payment Confirm<br><span style="font-size:11px;color:#888;font-weight:700">付款确认</span></th>
       <th>Print<br><span style="font-size:11px;color:#888;font-weight:700">打印</span></th>
     </tr></thead><tbody id="tb-sales-finance"></tbody><tfoot><tr>
@@ -1212,7 +1216,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <td colspan="2"></td>
         <td id="sales-finance-foot-vat" style="text-align:right;font-variant-numeric:tabular-nums">0.00</td>
         <td id="sales-finance-foot-total" style="text-align:right;font-variant-numeric:tabular-nums">0.00</td>
-        <td></td><td></td><td></td><td></td><td></td><td></td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
       </tr></tfoot></table></div>
     <div id="sales-finance-pager" class="csm-sales-pager" role="navigation" aria-label="Finance orders pagination">
       <span id="sales-finance-pager-range"></span>
@@ -1291,7 +1295,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     </div>
     <p style="font-size:12px;color:#666;margin:0 0 8px;line-height:1.45;font-family:var(--csm-font-en);font-weight:700">Type in <strong>Include VAT</strong> or <strong>Exclude VAT</strong>; the other column fills automatically (5% VAT). The column you edit is the price saved for that line.</p>
     <p style="font-size:12px;color:#666;margin:0 0 8px;line-height:1.45;font-family:var(--csm-font-en);font-weight:700"><strong>Worker</strong> and <strong>Truck</strong> are optional while saving a <strong>draft</strong>. On <strong>Submit</strong>, every line must have a worker and a truck chosen, each with <strong>Qty</strong> greater than 0 and not greater than that line&rsquo;s product <strong>Qty</strong>. Rates stay in management; order lists show name and Qty only.</p>
-    <div class="fg"><label>Payment status *</label>
+    <div class="fg"><label>Payment Method *</label>
       <select id="sales-order-payment" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px">
         <option value="cash">Cash</option>
         <option value="cash_pending">Cash pending</option>
@@ -1429,6 +1433,9 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <div class="fg" style="grid-column:1 / -1"><label>提单号 B/L No.</label>
         <input type="text" id="fp-bl" placeholder="输入提单号" autocomplete="off" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
       </div>
+      <div class="fg" style="grid-column:1 / -1"><label>发票号 Invoice number</label>
+        <input type="text" id="fp-invoice" placeholder="Optional" autocomplete="off" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+      </div>
       <div class="fg" style="grid-column:1 / -1;margin-bottom:4px">
         <label>品名明细 Product Items *</label>
         <div style="margin-top:6px;margin-bottom:8px">
@@ -1520,6 +1527,9 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <input type="hidden" id="fe-id">
     <div class="fg"><label>集装箱号 Container No.</label>
       <input type="text" id="fe-cn" maxlength="11" style="text-transform:uppercase">
+    </div>
+    <div class="fg"><label>发票号 Invoice number</label>
+      <input type="text" id="fe-invoice" autocomplete="off" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
     </div>
     <div class="fg" style="position:relative"><label>供应商 Supplier</label>
       <input type="text" id="fe-supplier" oninput="showSuggestEdit(this,'supplier')" onfocus="showSuggestEdit(this,'supplier')" onblur="setTimeout(function(){hideSuggest('edit-supplier')},200)">

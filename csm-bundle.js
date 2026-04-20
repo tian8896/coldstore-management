@@ -285,6 +285,7 @@ function createPurchaseRecordFromSupplierRec(rec, id, item) {
     other: 0,
     shipname: rec.shipname || '',
     bl: String(rec.bl || '').trim().toUpperCase(),
+    invoiceNumber: String(rec.invoiceNumber || '').trim(),
     etd: rec.etd || '',
     eta: rec.eta || '',
     sourceSupplierRecId: rec.id || '',
@@ -435,7 +436,7 @@ function htmlPurchaseItemsBodySingleRow() {
     '</tr>';
 }
 function resetW1PurchaseFormFields(clearDate) {
-  var ids = ['fp-cn', 'fp-bl', 'fp-net-mt', 'fp-gross-mt', 'fp-unit-price-usd', 'fp-total-usd', 'fp-total-aed', 'fp-shipname', 'fp-remark'];
+  var ids = ['fp-cn', 'fp-bl', 'fp-invoice', 'fp-net-mt', 'fp-gross-mt', 'fp-unit-price-usd', 'fp-total-usd', 'fp-total-aed', 'fp-shipname', 'fp-remark'];
   ids.forEach(function(id) {
     var e = gid(id);
     if (e) e.value = '';
@@ -932,6 +933,7 @@ function openSupplierFormBody() {
   gid('supplier-shipname').value = '';
   refreshSupplierShipCompanyOptions('');
   gid('supplier-bl').value = '';
+  if (gid('supplier-invoice')) gid('supplier-invoice').value = '';
   gid('supplier-etd').value = '';
   gid('supplier-eta').value = '';
   var snm = gid('supplier-net-mt');
@@ -969,6 +971,7 @@ function saveSupplierRec() {
   var shipname = (gid('supplier-shipname').value || '').trim();
   var shipCompany = (gid('supplier-shipcompany') ? gid('supplier-shipcompany').value : '').trim();
   var bl = (gid('supplier-bl').value || '').trim().toUpperCase();
+  var invoiceNumber = gid('supplier-invoice') ? String(gid('supplier-invoice').value || '').trim() : '';
   var etd = (gid('supplier-etd').value || '').trim();
   var eta = (gid('supplier-eta').value || '').trim();
   var remarks = (gid('supplier-remark') && gid('supplier-remark').value != null) ? String(gid('supplier-remark').value).trim() : '';
@@ -1037,6 +1040,7 @@ function saveSupplierRec() {
     shipname: shipname,
     shipCompany: shipCompany,
     bl: bl,
+    invoiceNumber: invoiceNumber,
     etd: etd,
     eta: eta,
     remarks: remarks,
@@ -1156,11 +1160,13 @@ function confirmSupplierRec(id) {
     var writes = [];
     if (existingPurchases.length) {
       var adoptRemarks = String(rec.remarks || '').trim();
+      var adoptInvoice = String(rec.invoiceNumber || '').trim();
       var wpAdopt = supplierRecWeightPriceForPurchase(rec);
       existingPurchases.forEach(function(item) {
         writes.push(purchaseRef.child(item.id).update({
           seq: seq,
           remarks: adoptRemarks,
+          invoiceNumber: adoptInvoice,
           netWeightMt: wpAdopt.netWeightMt,
           grossWeightMt: wpAdopt.grossWeightMt,
           tradeTerm: wpAdopt.tradeTerm,
@@ -1218,6 +1224,7 @@ function editSupplierRec(id) {
     gid('supplier-shipname').value = rec.shipname || '';
     refreshSupplierShipCompanyOptions(rec.shipCompany || '');
     gid('supplier-bl').value = String(rec.bl || '').trim().toUpperCase();
+    if (gid('supplier-invoice')) gid('supplier-invoice').value = String(rec.invoiceNumber || '').trim();
     gid('supplier-etd').value = rec.etd || '';
     gid('supplier-eta').value = rec.eta || '';
     var snmE = gid('supplier-net-mt');
@@ -1456,6 +1463,7 @@ function openSupplierCNDetail(id) {
     shipname: rec.shipname,
     shipCompany: rec.shipCompany,
     bl: rec.bl,
+    invoiceNumber: rec.invoiceNumber,
     etd: rec.etd,
     eta: rec.eta,
     productRows: productRows,
@@ -1789,6 +1797,7 @@ function htmlContainerDetailUnified(d) {
   html += row('Ship Name', csmEscapeHtml(String(d.shipname || '—')));
   html += row('Shipping Company', csmEscapeHtml(String(d.shipCompany || '—')));
   html += row('B/L No.', csmEscapeHtml(String(d.bl || '—')));
+  html += row('Invoice Number', csmEscapeHtml(String(d.invoiceNumber || '—')));
   html += row('ETD', csmEscapeHtml(String(d.etd || '—')));
   html += row('ETA', csmEscapeHtml(String(d.eta || '—')));
   html += '</table>';
@@ -1892,6 +1901,12 @@ function showPurchaseCnDetail(cn) {
     if (t && cnRemarkParts.indexOf(t) === -1) cnRemarkParts.push(t);
   });
   var remarksHtml = cnRemarkParts.length ? '<span style="white-space:pre-wrap">' + csmEscapeHtml(cnRemarkParts.join('\n')) + '</span>' : '';
+  var invParts = [];
+  purchaseItems.forEach(function(it) {
+    var inv = String(it.invoiceNumber || '').trim();
+    if (inv && invParts.indexOf(inv) === -1) invParts.push(inv);
+  });
+  var invoiceDisplay = invParts.length ? invParts.join(' · ') : '';
   var wpCn = supplierRecWeightPriceForPurchase(base);
   var pDate = (base.purchaseDate || '') + (base.purchaseTime ? ' ' + String(base.purchaseTime) : '');
   var productRows = purchaseItems.map(function(item) {
@@ -1915,6 +1930,7 @@ function showPurchaseCnDetail(cn) {
     shipname: base.shipname,
     shipCompany: base.shipCompany,
     bl: base.bl,
+    invoiceNumber: invoiceDisplay,
     etd: base.etd,
     eta: base.eta,
     productRows: productRows,
@@ -2428,6 +2444,7 @@ function addPurchase() {
   var ptRaw = gid('fp-time') ? String(gid('fp-time').value || '').trim() : '';
   var purchaseTimeNorm = ptRaw ? csmPurchaseNormalizeTimePart(ptRaw) : '';
   var bl = gid('fp-bl') ? String(gid('fp-bl').value || '').trim().toUpperCase() : '';
+  var invoiceNumber = gid('fp-invoice') ? String(gid('fp-invoice').value || '').trim() : '';
   var etd = gid('fp-etd') ? gid('fp-etd').value : '';
   var eta = gid('fp-eta') ? gid('fp-eta').value : '';
   var remarks = gid('fp-remark') ? String(gid('fp-remark').value || '').trim() : '';
@@ -2472,6 +2489,7 @@ function addPurchase() {
       waste: 0,
       other: 0,
       bl: bl,
+      invoiceNumber: invoiceNumber,
       shipname: shipname,
       shipCompany: shipCompany,
       etd: etd,
@@ -3145,7 +3163,7 @@ function renderSettList(type) {
 // ============================================================
 // EDIT PURCHASE RECORD
 // ============================================================
-function openEditPurchase(id) {  var r = purchaseRecs.find(function(x) { return x.id === id; });  if (!r) return;  gid('fe-id').value = r.id;  gid('fe-cn').value = r.cn || '';  gid('fe-supplier').value = r.supplier || '';  var feP = gid('fe-product');  if (feP) feP.innerHTML = buildProductSelectOptionsHtml(r.product || '');  gid('fe-qty').value = r.qty || 0;  gid('fe-demurrage').value = r.demurrage || 0;  gid('fe-customs').value = r.customs || 0;  gid('fe-coldfee').value = r.coldFee || 0;  gid('fe-attestation').value = r.attestation || 0;  gid('fe-repack').value = r.repack || 0;  gid('fe-waste').value = r.waste || 0;  gid('fe-other').value = r.other || 0;  gid('editPurchaseModal').classList.add('sh');}function clEditPurchaseModal() {  gid('editPurchaseModal').classList.remove('sh');}function saveEditPurchase() {  var id = gid('fe-id').value;  var r = purchaseRecs.find(function(x) { return x.id === id; });  if (!r) return;  r.cn = (gid('fe-cn').value || '').trim().toUpperCase();  r.supplier = (gid('fe-supplier').value || '').trim();  if (getW1ProductsNormalized().length === 0) { toast('请先在「设置 → 品名管理」中添加品名', 'err'); return; }  var fePr = (gid('fe-product').value || '').trim();  if (!fePr) { toast('请选择品名', 'err'); return; }  r.product = canonicalProductName(fePr);  r.qty = parseFloat(gid('fe-qty').value) || 0;  r.demurrage = parseFloat(gid('fe-demurrage').value) || 0;  r.customs = parseFloat(gid('fe-customs').value) || 0;  r.coldFee = parseFloat(gid('fe-coldfee').value) || 0;  r.attestation = parseFloat(gid('fe-attestation').value) || 0;  r.repack = parseFloat(gid('fe-repack').value) || 0;  r.waste = parseFloat(gid('fe-waste').value) || 0;  r.other = parseFloat(gid('fe-other').value) || 0;  
+function openEditPurchase(id) {  var r = purchaseRecs.find(function(x) { return x.id === id; });  if (!r) return;  gid('fe-id').value = r.id;  gid('fe-cn').value = r.cn || '';  if (gid('fe-invoice')) gid('fe-invoice').value = String(r.invoiceNumber || '').trim();  gid('fe-supplier').value = r.supplier || '';  var feP = gid('fe-product');  if (feP) feP.innerHTML = buildProductSelectOptionsHtml(r.product || '');  gid('fe-qty').value = r.qty || 0;  gid('fe-demurrage').value = r.demurrage || 0;  gid('fe-customs').value = r.customs || 0;  gid('fe-coldfee').value = r.coldFee || 0;  gid('fe-attestation').value = r.attestation || 0;  gid('fe-repack').value = r.repack || 0;  gid('fe-waste').value = r.waste || 0;  gid('fe-other').value = r.other || 0;  gid('editPurchaseModal').classList.add('sh');}function clEditPurchaseModal() {  gid('editPurchaseModal').classList.remove('sh');}function saveEditPurchase() {  var id = gid('fe-id').value;  var r = purchaseRecs.find(function(x) { return x.id === id; });  if (!r) return;  r.cn = (gid('fe-cn').value || '').trim().toUpperCase();  r.supplier = (gid('fe-supplier').value || '').trim();  if (gid('fe-invoice')) r.invoiceNumber = String(gid('fe-invoice').value || '').trim();  if (getW1ProductsNormalized().length === 0) { toast('请先在「设置 → 品名管理」中添加品名', 'err'); return; }  var fePr = (gid('fe-product').value || '').trim();  if (!fePr) { toast('请选择品名', 'err'); return; }  r.product = canonicalProductName(fePr);  r.qty = parseFloat(gid('fe-qty').value) || 0;  r.demurrage = parseFloat(gid('fe-demurrage').value) || 0;  r.customs = parseFloat(gid('fe-customs').value) || 0;  r.coldFee = parseFloat(gid('fe-coldfee').value) || 0;  r.attestation = parseFloat(gid('fe-attestation').value) || 0;  r.repack = parseFloat(gid('fe-repack').value) || 0;  r.waste = parseFloat(gid('fe-waste').value) || 0;  r.other = parseFloat(gid('fe-other').value) || 0;  
 // 保存到 Firebase  
 if (purchaseRef) {    purchaseRef.child(id).set(r);  }  clEditPurchaseModal();  toast('✅ 采购记录已修改', 'ok');}
 // ============================================================
@@ -3774,23 +3792,50 @@ function csmSalesLocalYmd(d) {
   var da = ('0' + d.getDate()).slice(-2);
   return y + '-' + m + '-' + da;
 }
+/** Canonical method: cash | cash_pending | credit (legacy: paymentStatus may be 'paid' or method). */
+function csmSalesGetPaymentMethod(o) {
+  if (!o) return 'cash_pending';
+  var pm = String(o.paymentMethod || '').trim();
+  if (pm === 'cash' || pm === 'cash_pending' || pm === 'credit') return pm;
+  var ps = String(o.paymentStatus || '').trim();
+  if (ps === 'cash' || ps === 'cash_pending' || ps === 'credit') return ps;
+  if (ps === 'paid') return '';
+  return 'cash_pending';
+}
+function csmSalesPaymentMethodLabel(method) {
+  var m = String(method || '');
+  if (m === 'cash') return 'Cash';
+  if (m === 'cash_pending') return 'Cash pending';
+  if (m === 'credit') return 'Credit';
+  return m || '-';
+}
+/** True when amount is considered received: Cash, or Cash pending/Credit after Paid Confirm (or legacy paymentStatus paid). */
+function csmSalesIsPaymentFinanciallyPaid(o) {
+  if (!o) return false;
+  var method = csmSalesGetPaymentMethod(o);
+  if (method === 'cash') return true;
+  if (String(o.paymentPaidStatus || '').trim() === 'paid') return true;
+  if (String(o.paymentStatus || '').trim() === 'paid') return true;
+  return false;
+}
+function csmSalesPaymentStatusCellHtml(o) {
+  var paid = csmSalesIsPaymentFinanciallyPaid(o);
+  return '<span style="font-family:var(--csm-font-en);font-weight:700;color:' + (paid ? '#2e7d32' : '#c62828') + '">' + (paid ? 'Paid' : 'Unpaid') + '</span>';
+}
 function csmSalesPayLabel(code, forFinance) {
   var c = String(code || '');
   if (c === 'paid') return 'Paid';
-  if (c === 'cash') return 'Cash';
-  if (c === 'cash_pending') return 'Cash pending';
-  if (c === 'credit') return 'Credit';
-  return c || '-';
+  return csmSalesPaymentMethodLabel(c);
 }
 /** Last column on confirmed orders: Paid (cash or already marked), or Paid Confirm button. */
 function csmSalesPaymentConfirmCellHtml(o) {
   if (!o || o.voided) return '\u2014';
   if (String(o.orderStatus || '').toLowerCase() !== 'confirmed') return '\u2014';
-  var ps = String(o.paymentStatus || '');
-  if (ps === 'paid' || ps === 'cash') {
+  if (csmSalesIsPaymentFinanciallyPaid(o)) {
     return '<span style="font-family:var(--csm-font-en);font-weight:700;color:#2e7d32">Paid</span>';
   }
-  if (ps === 'cash_pending' || ps === 'credit') {
+  var method = csmSalesGetPaymentMethod(o);
+  if (method === 'cash_pending' || method === 'credit') {
     var sid = String(o.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     return '<button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="salesConfirmPaymentPaid(\'' + sid + '\')">Paid Confirm</button>';
   }
@@ -3804,14 +3849,16 @@ function salesConfirmPaymentPaid(id) {
     toast('Order not found or not confirmed', 'err');
     return;
   }
-  var ps = String(o.paymentStatus || '');
-  if (ps !== 'cash_pending' && ps !== 'credit') {
+  var method = csmSalesGetPaymentMethod(o);
+  if (method !== 'cash_pending' && method !== 'credit') {
     toast('Only Cash pending or Credit can be marked paid here', 'err');
     return;
   }
   var nowIso = new Date().toISOString();
   salesOrdersRef.child(id).update({
-    paymentStatus: 'paid',
+    paymentMethod: method,
+    paymentPaidStatus: 'paid',
+    paymentStatus: method,
     paymentConfirmedAt: nowIso,
     paymentConfirmedBy: currentUserEmail || currentUser || '',
     updatedAt: nowIso
@@ -3853,7 +3900,8 @@ function salesPrintOrderInvoice(id) {
   parts.push('<div><strong>Created</strong> ' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</div>');
   parts.push('<div><strong>Confirmed</strong> ' + csmEscapeHtml(csmSalesFormatOrderCreated(o.confirmedAt)) + '</div>');
   parts.push('<div><strong>Customer</strong> ' + csmEscapeHtml(o.customerName || '') + '</div>');
-  parts.push('<div><strong>Payment</strong> ' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, true)) + '</div>');
+  parts.push('<div><strong>Payment Method</strong> ' + csmEscapeHtml(csmSalesPaymentMethodLabel(csmSalesGetPaymentMethod(o))) + '</div>');
+  parts.push('<div><strong>Payment Status</strong> ' + csmEscapeHtml(csmSalesIsPaymentFinanciallyPaid(o) ? 'Paid' : 'Unpaid') + '</div>');
   parts.push('<div><strong>Receiver</strong> ' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</div></div>');
   parts.push('<table><thead><tr>');
   parts.push('<th>Container</th><th>Product</th><th class="num">Qty</th><th class="num">Unit (AED)</th><th class="num">Net (AED)</th><th class="num">5% VAT</th><th class="num">Total (AED)</th><th>Worker</th><th>Truck</th></tr></thead><tbody>');
@@ -4110,10 +4158,7 @@ function renderSalesDashCards() {
   var conf = salesOrders.filter(function(o) { return o.orderStatus === 'confirmed' && !o.voided; });
   var sumConf = conf.reduce(function(s, o) { return s + csmSalesLineTotalForDisplay(o); }, 0);
   if (el2) el2.textContent = sumConf.toFixed(2);
-  var unpaid = conf.filter(function(o) {
-    var p = String(o.paymentStatus || '');
-    return p === 'credit' || p === 'cash_pending';
-  });
+  var unpaid = conf.filter(function(o) { return !csmSalesIsPaymentFinanciallyPaid(o); });
   var sumUnpaid = unpaid.reduce(function(s, o) { return s + csmSalesLineTotalForDisplay(o); }, 0);
   if (el3) el3.textContent = sumUnpaid.toFixed(2);
 }
@@ -4260,7 +4305,7 @@ function renderSalesOrdersTable() {
   if (ps !== 10 && ps !== 20 && ps !== 50 && ps !== 100) ps = 20;
   salesOrdersPageSize = ps;
   if (!rows.length) {
-    tb.innerHTML = '<tr><td colspan="19" style="text-align:center;color:#888">No orders</td></tr>';
+    tb.innerHTML = '<tr><td colspan="20" style="text-align:center;color:#888">No orders</td></tr>';
     updOrdSummary(0, 0, 0, 0, 0);
     csmSalesBindOrdersPager(0);
     return;
@@ -4342,12 +4387,12 @@ function renderSalesOrdersTable() {
           '<td>' + aL.total.toFixed(2) + '</td>' +
           '<td>' + csmSalesServiceCellHtml(L.workerName, L.workerQty) + '</td>' +
           '<td>' + csmSalesServiceCellHtml(L.truckName, L.truckQty) + '</td>' +
-          '<td colspan="6"></td>' +
+          '<td colspan="7"></td>' +
           '</tr>';
       }
     }
     return '<tr class="' + trClassName + '"><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb"' + cbDis + ' onchange="csmSalesOrderCbExclusive(this)" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + cnCell + '</td><td>' + prodCell + '</td><td>' + csmEscapeHtml(String(q0)) + '</td><td>' +
-      csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, false)) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + statusCell + '</td><td>' + actions + '</td><td>' + csmSalesPaymentConfirmCellHtml(o) + '</td><td>' + csmSalesPrintInvoiceCellHtml(o) + '</td></tr>' + subHtml;
+      csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty) + '</td><td>' + csmEscapeHtml(csmSalesPaymentMethodLabel(csmSalesGetPaymentMethod(o))) + '</td><td>' + csmSalesPaymentStatusCellHtml(o) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + statusCell + '</td><td>' + actions + '</td><td>' + csmSalesPaymentConfirmCellHtml(o) + '</td><td>' + csmSalesPrintInvoiceCellHtml(o) + '</td></tr>' + subHtml;
   }).join('');
   csmSalesBindOrdersPager(totalRows);
 }
@@ -4361,10 +4406,7 @@ function renderSalesFinanceTable() {
   var conf = salesOrders.filter(function(o) { return o.orderStatus === 'confirmed' && !o.voided; });
   if (elLines) elLines.textContent = String(conf.length);
   var sum = conf.reduce(function(s, o) { return s + csmSalesLineTotalForDisplay(o); }, 0);
-  var sumUn = conf.filter(function(o) {
-    var p = String(o.paymentStatus || '');
-    return p === 'credit' || p === 'cash_pending';
-  })
+  var sumUn = conf.filter(function(o) { return !csmSalesIsPaymentFinanciallyPaid(o); })
     .reduce(function(s, o) { return s + csmSalesLineTotalForDisplay(o); }, 0);
   if (elTot) elTot.textContent = sum.toFixed(2);
   if (elUn) elUn.textContent = sumUn.toFixed(2);
@@ -4377,7 +4419,7 @@ function renderSalesFinanceTable() {
     if (ft) ft.textContent = csmSalesRound2(stt).toFixed(2);
   }
   if (!conf.length) {
-    tb.innerHTML = '<tr><td colspan="17" style="text-align:center;color:#888">No confirmed orders</td></tr>';
+    tb.innerHTML = '<tr><td colspan="18" style="text-align:center;color:#888">No confirmed orders</td></tr>';
     updFinSummary(0, 0, 0, 0, 0);
     csmSalesBindFinancePager(0);
     return;
@@ -4448,13 +4490,13 @@ function renderSalesFinanceTable() {
           '<td>' + aL.total.toFixed(2) + '</td>' +
           '<td>' + csmSalesServiceCellHtml(L.workerName, L.workerQty) + '</td>' +
           '<td>' + csmSalesServiceCellHtml(L.truckName, L.truckQty) + '</td>' +
-          '<td></td><td></td><td></td><td></td>' +
+          '<td></td><td></td><td></td><td></td><td></td>' +
           '</tr>';
       }
     }
     return '<tr><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + cnCell + '</td><td>' + prodCell + '</td><td>' + csmEscapeHtml(String(q0)) + '</td><td>' +
       csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' +
-      csmSalesLineTotalForDisplay(o).toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + csmEscapeHtml(csmSalesPayLabel(o.paymentStatus, true)) + '</td><td>' + csmSalesPaymentConfirmCellHtml(o) + '</td><td>' + csmSalesPrintInvoiceCellHtml(o) + '</td></tr>' + subHtml;
+      csmSalesLineTotalForDisplay(o).toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + csmEscapeHtml(csmSalesPaymentMethodLabel(csmSalesGetPaymentMethod(o))) + '</td><td>' + csmSalesPaymentStatusCellHtml(o) + '</td><td>' + csmSalesPaymentConfirmCellHtml(o) + '</td><td>' + csmSalesPrintInvoiceCellHtml(o) + '</td></tr>' + subHtml;
   }).join('');
   csmSalesBindFinancePager(totalRows);
 }
@@ -5254,7 +5296,7 @@ function openSalesOrderModal(id) {
     if (o.orderStatus !== 'draft') { toast('Only draft orders editable', 'err'); clSalesOrderModal(); return; }
     salesOrderCustomerComboSet(o.customerId || '');
     salesOrderFillLinesBody(o);
-    gid('sales-order-payment').value = o.paymentStatus || 'cash_pending';
+    gid('sales-order-payment').value = csmSalesGetPaymentMethod(o) || 'cash_pending';
     if (onDisp) onDisp.textContent = o.orderNo || '\u2014';
     if (ctDisp) ctDisp.textContent = csmSalesFormatOrderCreated(o.createdAt);
     if (prSel) salesFillPaymentReceiverSelect(prSel, o.paymentReceiverId || '');
@@ -5281,7 +5323,7 @@ function saveSalesOrderFromModal(submitAfter) {
   var cust = salesCustomers.find(function(c) { return c.id === customerId; });
   if (!cust) { toast('Select customer', 'err'); return; }
   var payment = gid('sales-order-payment').value || '';
-  if (!payment) { toast('Select payment status', 'err'); return; }
+  if (!payment) { toast('Select payment method', 'err'); return; }
   var prEl = gid('sales-order-payment-receiver');
   var prId = prEl ? String(prEl.value || '').trim() : '';
   if (!prId) { toast('Select payment receiver', 'err'); return; }
@@ -5317,6 +5359,7 @@ function saveSalesOrderFromModal(submitAfter) {
   newLines = csmSalesApplyWorkerTruckRatesToLines(newLines);
   var L0 = newLines[0];
   var orderVatMode = (L0 && (L0.vatMode === 'included' || L0.vatMode === 'excluded')) ? L0.vatMode : 'excluded';
+  var paidStatus = payment === 'cash' ? 'paid' : 'unpaid';
   var rec = {
     orderNo: orderNoVal,
     customerId: customerId,
@@ -5337,6 +5380,8 @@ function saveSalesOrderFromModal(submitAfter) {
     truckAmount: L0.truckAmount || 0,
     lines: newLines,
     vatMode: orderVatMode,
+    paymentMethod: payment,
+    paymentPaidStatus: paidStatus,
     paymentStatus: payment,
     paymentReceiverId: prId || '',
     paymentReceiverName: prName,

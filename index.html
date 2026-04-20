@@ -1181,7 +1181,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           <option value="submitted">Submitted</option>
           <option value="confirmed">Confirmed</option>
         </select>
-        <span style="flex-basis:100%;font-size:12px;color:#666;margin-top:2px">每次最多勾选一条 · At most one row for Cancel / Submit / Confirm / Update Worker (<strong>draft</strong> only)</span>
+        <span style="flex-basis:100%;font-size:12px;color:#666;margin-top:2px">每次最多勾选一条 · At most one row for Cancel / Submit / Confirm / Update Worker (<strong>draft or submitted</strong>)</span>
       </div>
       <div class="tw tw-sales-dense"><table><thead><tr>
         <th class="csm-sel-th" title="选择">选</th>
@@ -1452,7 +1452,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <button type="button" class="btn btn-s" onclick="salesOrderAddLine()" style="margin-top:8px">+ Add line</button>
     </div>
     <p style="font-size:12px;color:#666;margin:0 0 8px;line-height:1.45;font-family:var(--csm-font-en);font-weight:700">Type in <strong>Include VAT</strong> or <strong>Exclude VAT</strong>; the other column fills automatically (5% VAT). The column you edit is the price saved for that line.</p>
-    <p style="font-size:12px;color:#666;margin:0 0 8px;line-height:1.45;font-family:var(--csm-font-en);font-weight:700"><strong>Worker</strong> and <strong>Truck</strong> are optional while saving a <strong>draft</strong>. On <strong>Submit</strong>, every line must have a worker and a truck chosen, each with <strong>Qty</strong> greater than 0 and not greater than that line&rsquo;s product <strong>Qty</strong>. Rates stay in management; order lists show name and Qty only.</p>
+    <p style="font-size:12px;color:#666;margin:0 0 8px;line-height:1.45;font-family:var(--csm-font-en);font-weight:700"><strong>Worker</strong> and <strong>Truck</strong> may be left blank when you <strong>save draft</strong> or <strong>submit</strong>. Fill them before the order is <strong>confirmed</strong> (orders list → Confirm): every line must have a worker and a truck, each with <strong>Qty</strong> &gt; 0 and not more than that line&rsquo;s product <strong>Qty</strong>. Rates stay in management; order lists show name and Qty only.</p>
     <div class="fg"><label>Payment Method *</label>
       <select id="sales-order-payment" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px">
         <option value="cash">Cash</option>

@@ -3766,8 +3766,9 @@ function openSalesOrderUpdateWorkerModal() {
   if (!csmSalesRequireAtMostOneSelection(ids)) return;
   var o = salesOrders.find(function(x) { return x.id === ids[0]; });
   if (!o || o.voided) { toast('Order not found or voided', 'err'); return; }
-  if (String(o.orderStatus || '').toLowerCase() !== 'draft') {
-    toast('Worker / Truck can only be updated when the order is draft.', 'err');
+  var st = String(o.orderStatus || '').toLowerCase();
+  if (st !== 'draft' && st !== 'submitted') {
+    toast('Worker / Truck can be updated only for draft or submitted (not yet confirmed) orders.', 'err');
     return;
   }
   var lines = csmSalesNormalizeLinesFromOrder(o);
@@ -3792,8 +3793,9 @@ function saveSalesOrderUpdateWorkerTruckFromModal() {
   if (!id) return;
   var o = salesOrders.find(function(x) { return x.id === id; });
   if (!o || o.voided) { toast('Order not found or voided', 'err'); return; }
-  if (String(o.orderStatus || '').toLowerCase() !== 'draft') {
-    toast('Worker / Truck can only be updated when the order is draft.', 'err');
+  var st = String(o.orderStatus || '').toLowerCase();
+  if (st !== 'draft' && st !== 'submitted') {
+    toast('Worker / Truck can be updated only for draft or submitted (not yet confirmed) orders.', 'err');
     return;
   }
   var baseLines = csmSalesNormalizeLinesFromOrder(o);
@@ -4215,15 +4217,6 @@ function salesBatchSubmit() {
     if (!o || o.voided || o.orderStatus !== 'draft') return;
     toSubmit.push(o);
   });
-  var si;
-  for (si = 0; si < toSubmit.length; si++) {
-    var o0 = toSubmit[si];
-    var lines0 = csmSalesNormalizeLinesFromOrder(o0);
-    if (!lines0.length || !lines0.every(function(L) { return csmSalesLineWorkerTruckValidForSubmit(L); })) {
-      toast('Cannot submit: order ' + (o0.orderNo || o0.id) + ' needs worker and truck (Qty > 0 and not more than line Qty) on every line.', 'err');
-      return;
-    }
-  }
   var tasks = [];
   toSubmit.forEach(function(o) {
     tasks.push(salesOrdersRef.child(o.id).update({ orderStatus: 'submitted', updatedAt: new Date().toISOString() }));
@@ -4237,6 +4230,19 @@ function salesBatchConfirm() {
   var ids = csmSalesGetSelectedOrderIds();
   if (!ids.length) { toast('\u8BF7\u52FE\u9009\u8BA2\u5355', 'err'); return; }
   if (!csmSalesRequireAtMostOneSelection(ids)) return;
+  var oConfirm = salesOrders.find(function(x) { return x.id === ids[0]; });
+  if (oConfirm) {
+    var linesCheck = csmSalesNormalizeLinesFromOrder(oConfirm);
+    if (!linesCheck.length) {
+      toast('Cannot confirm: order has no lines.', 'err');
+      return;
+    }
+    var badLine = linesCheck.find(function(L) { return !csmSalesLineWorkerTruckValidForSubmit(L); });
+    if (badLine) {
+      toast('Cannot confirm: every line needs Worker and Truck, each with Qty > 0 and not more than line Qty. Fill them in the draft first.', 'err');
+      return;
+    }
+  }
   var nowIso = new Date().toISOString();
   var tasks = [];
   ids.forEach(function(id) {
@@ -5940,13 +5946,11 @@ function salesOrderRemoveLine(btn) {
   if (sub && sub.classList.contains('csm-sol-sub')) sub.remove();
   tr.remove();
 }
-function salesOrderReadLinesFromDom(forSubmit) {
+function salesOrderReadLinesFromDom() {
   var tb = gid('sales-order-lines-body');
   if (!tb) return { err: 'Missing line editor' };
-  forSubmit = !!forSubmit;
   var out = [];
   var incomplete = false;
-  var submitWtIncomplete = false;
   var svcQtyOver = false;
   var priceMismatch = false;
   var mult = 1 + VAT_RATE;
@@ -5992,12 +5996,6 @@ function salesOrderReadLinesFromDom(forSubmit) {
       incomplete = true;
       return;
     }
-    var workerComplete = !!(workerId && hasWorkerQty && workerQty > 0);
-    var truckComplete = !!(truckId && hasTruckQty && truckQty > 0);
-    if (forSubmit && (!workerComplete || !truckComplete)) {
-      submitWtIncomplete = true;
-      return;
-    }
     if (workerId && hasWorkerQty && workerQty > qty) {
       svcQtyOver = true;
       return;
@@ -6036,7 +6034,6 @@ function salesOrderReadLinesFromDom(forSubmit) {
   });
   if (priceMismatch) return { err: 'Include VAT and Exclude VAT must match 5% VAT on each line (or clear one column).' };
   if (svcQtyOver) return { err: 'Worker or truck Qty cannot exceed line Qty on a line.' };
-  if (submitWtIncomplete) return { err: 'To submit, every line needs a worker and a truck, each with Qty greater than 0 (not more than line Qty).' };
   if (incomplete) return { err: 'Each line needs container, product, qty, and at least one unit price. If you enter worker or truck, set both name and Qty.' };
   if (!out.length) return { err: 'Add at least one complete line (container + product + qty + unit price).' };
   return { lines: out };
@@ -6095,7 +6092,7 @@ function saveSalesOrderFromModal(submitAfter) {
   var prEl = gid('sales-order-payment-receiver');
   var prId = prEl ? String(prEl.value || '').trim() : '';
   if (!prId) { toast('Select payment receiver', 'err'); return; }
-  var rd = salesOrderReadLinesFromDom(submitAfter);
+  var rd = salesOrderReadLinesFromDom();
   if (rd.err) { toast(rd.err, 'err'); return; }
   var newLines = rd.lines;
   if (getW1ProductsNormalized().length === 0) { toast('Add products in Settings → 品名管理 first', 'err'); return; }

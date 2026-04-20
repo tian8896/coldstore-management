@@ -2446,7 +2446,7 @@ function selectColdStore(n) {  currentColdStore = n;  document.querySelectorAll(
 // ============================================================
 // TAB SWITCH
 // ============================================================
-function swTab(tab) {  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('ac'); });  document.querySelectorAll('.tc').forEach(function(t) { t.classList.remove('ac'); });  var tabNames = ['purchase', 'records', 'checkout', 'stats', 'sales'];  var idx = tabNames.indexOf(tab);  if (idx < 0) idx = 0;  var tabs = document.querySelectorAll('.tab');  if (tabs[idx]) tabs[idx].classList.add('ac');  var panel = document.getElementById('tc-' + tab);  if (panel) panel.classList.add('ac');  if (tab === 'sales') { try { refreshSalesUi(); swSalesSub(salesSubView || 'dash'); } catch (eS) {} }}
+function swTab(tab) {  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('ac'); });  document.querySelectorAll('.tc').forEach(function(t) { t.classList.remove('ac'); });  var tabNames = ['purchase', 'records', 'checkout', 'stats', 'sales', 'sales_finance'];  var idx = tabNames.indexOf(tab);  if (idx < 0) idx = 0;  var tabs = document.querySelectorAll('.tab');  if (tabs[idx]) tabs[idx].classList.add('ac');  var panel = document.getElementById('tc-' + tab);  if (panel) panel.classList.add('ac');  if (tab === 'sales') { try { refreshSalesUi(); swSalesSub(salesSubView || 'dash'); } catch (eS) {} }  if (tab === 'sales_finance') { try { renderFinCnReconTable(); } catch (eR) {} }}
 // ============================================================
 // PURCHASE RECORDS
 // ============================================================
@@ -4136,6 +4136,122 @@ function refreshSalesUi() {
     renderSalesWorkerTruckManageUi();
   }
   try { renderCompanyFinancialPending(); } catch (eFinP) {}
+  try {
+    var tcFin = document.getElementById('tc-sales_finance');
+    if (tcFin && tcFin.classList.contains('ac')) renderFinCnReconTable();
+  } catch (eRr) {}
+}
+function csmFinCnNormalize(cn) {
+  return String(cn || '').trim().toUpperCase();
+}
+function csmFinCnPurchaseByContainer() {
+  var byCn = {};
+  (purchaseRecs || []).forEach(function(p) {
+    var cn = csmFinCnNormalize(p.cn);
+    if (!cn) return;
+    if (!byCn[cn]) byCn[cn] = [];
+    byCn[cn].push(p);
+  });
+  return byCn;
+}
+function csmFinCnFuzzyMatch(cnList, q) {
+  q = csmFinCnNormalize(q);
+  if (!q) return cnList.slice();
+  return cnList.filter(function(cn) { return cn.indexOf(q) !== -1; });
+}
+function csmFinCnLineSubsetTotalAed(o, linesSubset) {
+  if (!o || !linesSubset || !linesSubset.length) return 0;
+  var total = 0;
+  linesSubset.forEach(function(L) {
+    var vm = csmSalesLineVatMode(L, o);
+    var a = csmSalesComputeTotals(L.unitPrice, L.quantity, vm);
+    total += a.total;
+  });
+  return csmSalesRound2(total);
+}
+function csmFinCnSalesOrdersForContainer(cn) {
+  var u = csmFinCnNormalize(cn);
+  var out = [];
+  (salesOrders || []).forEach(function(o) {
+    if (!o || o.voided) return;
+    var lines = csmSalesNormalizeLinesFromOrder(o);
+    var matchLines = lines.filter(function(L) { return L.containerNo === u; });
+    if (!matchLines.length) return;
+    out.push({ order: o, lines: matchLines });
+  });
+  out.sort(function(a, b) {
+    return String(b.order.createdAt || '').localeCompare(String(a.order.createdAt || ''));
+  });
+  return out;
+}
+function renderFinCnReconTable() {
+  if (!isAdmin && !isStaff) return;
+  var tb = gid('tb-fin-cn-recon');
+  var empty = gid('fin-cn-recon-empty');
+  if (!tb) return;
+  var byCn = csmFinCnPurchaseByContainer();
+  var cns = Object.keys(byCn).sort();
+  var q = gid('fin-cn-recon-search') ? String(gid('fin-cn-recon-search').value || '').trim() : '';
+  cns = csmFinCnFuzzyMatch(cns, q);
+  if (!cns.length) {
+    tb.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  tb.innerHTML = cns.map(function(cn) {
+    var rows = byCn[cn];
+    var purchaseHtml = rows.map(function(r) {
+      var seq = (r.seq != null && r.seq !== '') ? String(r.seq) : '\u2014';
+      var sup = csmEscapeHtml(String(r.supplier || '\u2014'));
+      var pr = csmEscapeHtml(String(r.product || '\u2014'));
+      var qty = r.qty != null ? String(r.qty) : '\u2014';
+      var dt = csmEscapeHtml(String(r.purchaseDate || '\u2014'));
+      return '<div style="font-size:12px;line-height:1.35;border-bottom:1px solid #eee;padding:4px 0;font-family:var(--csm-font-en);font-weight:700">' +
+        '<span style="color:#666">Seq</span> ' + csmEscapeHtml(seq) +
+        ' \u00b7 <span style="color:#666">Supplier</span> ' + sup +
+        ' \u00b7 <span style="color:#666">Product</span> ' + pr +
+        ' \u00b7 <span style="color:#666">Qty</span> ' + csmEscapeHtml(qty) +
+        ' \u00b7 <span style="color:#666">Date</span> ' + dt + '</div>';
+    }).join('');
+    var cnEsc = csmAttrEscape(cn);
+    return '<tr><td style="font-family:var(--csm-font-en);font-weight:700;white-space:nowrap;vertical-align:top">' + csmEscapeHtml(cn) + '</td>' +
+      '<td style="max-width:420px;vertical-align:top">' + purchaseHtml + '</td>' +
+      '<td style="vertical-align:middle"><button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" data-cn="' + cnEsc + '" onclick="openFinCnReconDetailModal(this)">Details</button></td></tr>';
+  }).join('');
+}
+function openFinCnReconDetailModal(el) {
+  var cn = el && el.getAttribute('data-cn');
+  if (!cn) return;
+  var m = gid('fin-cn-recon-detail-modal');
+  var title = gid('fin-cn-recon-detail-title');
+  var tbody = gid('tb-fin-cn-recon-detail');
+  if (!m || !tbody) return;
+  if (title) title.textContent = 'Container ' + cn + ' \u2014 Sales orders';
+  var list = csmFinCnSalesOrdersForContainer(cn);
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;padding:16px;font-family:var(--csm-font-en);font-weight:700">No sales orders for this container.</td></tr>';
+  } else {
+    tbody.innerHTML = list.map(function(item) {
+      var o = item.order;
+      var Ls = item.lines;
+      var lineTxt = Ls.map(function(L) {
+        return csmEscapeHtml(L.productName) + ' \u00d7 ' + csmEscapeHtml(String(L.quantity)) + ' @ ' + csmSalesRound2(parseFloat(L.unitPrice) || 0).toFixed(2);
+      }).join('; ');
+      var sub = csmFinCnLineSubsetTotalAed(o, Ls);
+      return '<tr><td style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(o.orderNo || o.id) + '</td>' +
+        '<td style="font-size:12px">' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td>' +
+        '<td>' + csmEscapeHtml(o.customerName || '') + '</td>' +
+        '<td>' + csmEscapeHtml(o.orderStatus || '') + '</td>' +
+        '<td style="font-size:12px;max-width:280px">' + lineTxt + '</td>' +
+        '<td style="text-align:right;font-variant-numeric:tabular-nums">' + sub.toFixed(2) + '</td></tr>';
+    }).join('');
+  }
+  m.classList.add('sh');
+}
+function clFinCnReconDetailModal() {
+  var m = gid('fin-cn-recon-detail-modal');
+  if (m) m.classList.remove('sh');
 }
 function swSalesSub(view) {
   salesSubView = view || 'dash';
@@ -4157,6 +4273,11 @@ function swSalesSub(view) {
       if (fs === 'wt' || fs === 'orders') finSubView = fs;
     } catch (eFs) {}
     try { swFinSub(finSubView || 'orders'); } catch (eFin) {}
+  } else {
+    try {
+      var tbs = document.querySelectorAll('.tab');
+      tbs.forEach(function(t, i) { t.classList.toggle('ac', i === 4); });
+    } catch (eTopTab) {}
   }
 }
 function csmSalesGetSelectedOrderIds() {
@@ -6285,3 +6406,6 @@ try { window.csmFinWtConfirmApply = csmFinWtConfirmApply; } catch (e) {}
 try { window.renderCompanyFinancialPending = renderCompanyFinancialPending; } catch (e) {}
 try { window.csmFinPendingToggle = csmFinPendingToggle; } catch (e) {}
 try { window.csmFinWtQuickApprove = csmFinWtQuickApprove; } catch (e) {}
+try { window.renderFinCnReconTable = renderFinCnReconTable; } catch (e) {}
+try { window.openFinCnReconDetailModal = openFinCnReconDetailModal; } catch (e) {}
+try { window.clFinCnReconDetailModal = clFinCnReconDetailModal; } catch (e) {}

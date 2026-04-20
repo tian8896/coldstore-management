@@ -110,9 +110,11 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 /* Sales > Orders: flex item min-width so wide table triggers horizontal scroll inside .tw */
 #tc-sales > #sales-panel-dash,
 #tc-sales > #sales-panel-customers,
-#tc-sales > #sales-panel-orders{min-width:0;max-width:100%;width:100%}
+#tc-sales > #sales-panel-orders,
+#tc-sales_finance{min-width:0;max-width:100%;width:100%}
 #tc-sales #sales-panel-orders > .tw.tw-sales-dense,
-#tc-sales #sales-panel-dash .tw.tw-sales-dense{overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+#tc-sales #sales-panel-dash .tw.tw-sales-dense,
+#tc-sales_finance .tw.tw-sales-dense{overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
 /* Sales sub-nav & orders toolbar: Arial + bold + title case (override .btn uppercase) */
 #tc-sales .csm-sales-subnav .btn,
 #tc-sales #sales-orders-toolbar .btn{font-family:var(--csm-font-en);font-weight:700;text-transform:none;letter-spacing:.02em}
@@ -120,6 +122,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 #tc-sales #sales-orders-toolbar .btn .csm-sales-subnav-en{font-family:var(--csm-font-en);font-weight:700}
 /* Sales tables (orders + finance tab, customers): Arial + bold + title case — override global th uppercase */
 #tc-sales .tw-sales-dense table > thead > tr > th,
+#tc-sales_finance .tw-sales-dense table > thead > tr > th,
 #tc-sales #sales-panel-customers .tw table > thead > tr > th{font-family:var(--csm-font-en);font-weight:700;text-transform:none;letter-spacing:.02em}
 .bdg{display:inline-block;padding:5px 10px;border-radius:3px;font-size:13px;font-weight:700;font-family:var(--csm-font-en)}
 .bdg-a{background:var(--am15);color:var(--am);border:1px solid rgba(210,153,34,.3)}
@@ -387,7 +390,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260420finpending" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260421cnrecon" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -1010,6 +1013,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <div class="tab" onclick="swTab('checkout')">📤 出库记录 Checkout</div>
     <div class="tab" onclick="swTab('stats')">📊 统计报表 Stats</div>
     <div class="tab" onclick="swTab('sales')">📑 销售记录 Sales</div>
+    <div class="tab" onclick="swTab('sales_finance')">💼 财务记录 Finance</div>
   </div>
 
   <div class="tc ac" id="tc-purchase">
@@ -1115,7 +1119,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   </div>
 
   <div class="tc" id="tc-sales">
-    <p style="font-size:13px;color:#555;margin:0 0 12px;line-height:1.6">销售系统：客户信息、集装箱销售订单、付款状态与财务统计。订单<strong>确认</strong>后，在「财务统计」中查看已确认订单明细与装卸结算。</p>
+    <p style="font-size:13px;color:#555;margin:0 0 12px;line-height:1.6">销售系统：客户信息、集装箱销售订单、付款状态与财务统计。订单<strong>确认</strong>后，在「财务统计」中查看已确认订单明细与装卸结算。集装箱对账单请打开顶部「财务记录」标签。</p>
     <div class="csm-sales-subnav" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;border-bottom:1px solid #e0e0e0;padding-bottom:10px">
       <button type="button" class="btn btn-s" id="sales-sub-btn-dash" onclick="swSalesSub('dash')">财务统计 <span class="csm-sales-subnav-en">Dashboard</span></button>
       <button type="button" class="btn btn-g" id="sales-sub-btn-cust" onclick="swSalesSub('customers')">客户管理 <span class="csm-sales-subnav-en">Customers</span></button>
@@ -1305,6 +1309,23 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       </div>
     </div>
   </div>
+
+  <div class="tc" id="tc-sales_finance">
+    <p style="font-size:13px;color:#555;margin:0 0 14px;line-height:1.6;font-family:var(--csm-font-en);font-weight:700">Finance · 财务记录：按采购数据对账集装箱，查看对应销售订单。</p>
+    <div class="brow" style="flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:14px">
+      <button type="button" class="btn btn-s" id="fin-cn-recon-tab-btn" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none" disabled>集装箱对账单 · Container reconciliation</button>
+    </div>
+    <div class="fg" style="margin-bottom:14px;max-width:420px">
+      <label style="font-family:var(--csm-font-en);font-weight:700;font-size:12px;color:#555">模糊搜索箱号 / Fuzzy search by container no.</label>
+      <input type="text" id="fin-cn-recon-search" placeholder="e.g. ABCD 1234567" autocomplete="off" oninput="renderFinCnReconTable()" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+    </div>
+    <div class="tw tw-sales-dense"><table><thead><tr>
+      <th style="min-width:120px">Container<br><span style="font-size:11px;color:#888;font-weight:700">集装箱号</span></th>
+      <th>Purchase records<br><span style="font-size:11px;color:#888;font-weight:700">采购记录</span></th>
+      <th style="width:110px">Actions</th>
+    </tr></thead><tbody id="tb-fin-cn-recon"></tbody></table></div>
+    <div class="es" id="fin-cn-recon-empty" style="display:none;margin-top:16px"><div class="em">📭</div><div style="font-family:var(--csm-font-en);font-weight:700">No matching containers from purchase data.</div></div>
+  </div>
 </div>
 </div>
 </div>
@@ -1350,6 +1371,23 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <p style="margin:0 0 8px;font-family:var(--csm-font-en);font-weight:700">About this domain</p>
       <p style="font-size:13px;color:#555;line-height:1.6;margin:0">Company-level modules (ledger, AR/AP, reports) can be added here. Operational cold-store data stays in W1/W2; this queue reads payment batches by reference only.</p>
       <p style="font-size:12px;color:#888;margin:8px 0 0">Independent from W1/W2 ops tables; ties via batch IDs and snapshots.</p>
+    </div>
+  </div>
+</div>
+
+<div class="mov" id="fin-cn-recon-detail-modal">
+  <div class="mdl" style="width:min(760px,96vw);max-height:88vh;overflow-y:auto">
+    <h3 id="fin-cn-recon-detail-title" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none;margin-top:0">Sales orders</h3>
+    <div class="tw tw-sales-dense" style="margin-bottom:12px"><table style="width:100%"><thead><tr>
+      <th>Order No.</th>
+      <th>Created</th>
+      <th>Customer</th>
+      <th>Status</th>
+      <th>Lines (this CN)</th>
+      <th style="text-align:right">Subtotal AED</th>
+    </tr></thead><tbody id="tb-fin-cn-recon-detail"></tbody></table></div>
+    <div class="brow" style="justify-content:flex-end">
+      <button type="button" class="btn btn-g" onclick="clFinCnReconDetailModal()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Close</button>
     </div>
   </div>
 </div>

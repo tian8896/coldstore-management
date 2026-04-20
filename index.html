@@ -130,6 +130,12 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 .abtn.x:hover{border-color:var(--rd);color:var(--rd)}
 .mov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
 .mov.sh{display:flex}
+/* 登录：全屏天蓝背景 + Super Harvest 品牌（覆盖默认 .mov 暗色底） */
+#loginModal.login-modal-sky{position:fixed!important;inset:0!important;min-height:100vh;min-height:100dvh;width:100%!important;background:linear-gradient(165deg,#c5efff 0%,#7ec8e8 38%,#4db3d9 72%,#6ec9e0 100%)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;flex-direction:column;justify-content:center;align-items:center;padding:max(16px,env(safe-area-inset-top)) 18px max(20px,env(safe-area-inset-bottom));box-sizing:border-box;overflow-y:auto;overflow-x:hidden}
+#loginModal.login-modal-sky::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 120% 70% at 50% -15%,rgba(255,255,255,.45),transparent 52%);pointer-events:none;z-index:0}
+#loginModal.login-modal-sky .login-sky-stack{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;max-width:460px;gap:22px}
+#loginModal .login-brand-super{font-family:var(--csm-font-en);font-weight:700;font-size:clamp(32px,8vw,54px);letter-spacing:.08em;color:#fff;text-shadow:0 3px 28px rgba(0,70,110,.38);margin:0;line-height:1.12;text-align:center}
+#loginModal .login-mdl-card{width:100%!important;max-width:420px!important;background:rgba(255,255,255,.97)!important;border:1px solid rgba(255,255,255,.92)!important;border-radius:16px!important;box-shadow:0 18px 50px rgba(0,95,130,.3)!important;padding:28px 24px!important}
 /* Stacked above sales-order-modal when both open (Manage receivers) */
 #sales-payment-receivers-modal.sh{z-index:1100}
 #sales-worker-truck-modal.sh{z-index:1100}
@@ -267,9 +273,11 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 </head>
 <body>
 <!-- 登录弹窗：默认显示，避免 Firebase 脚本未加载时无法出现；登录成功后由脚本隐藏 -->
-<div class="mov sh" id="loginModal" style="display:flex;z-index:10050">
-  <div class="mdl" style="width:400px;max-width:94vw;text-align:center">
-    <h3 style="margin-bottom:20px">🏭 冷库管理系统登录</h3>
+<div class="mov sh login-modal-sky" id="loginModal" style="display:flex;z-index:10050">
+  <div class="login-sky-stack">
+    <h1 class="login-brand-super">Super Harvest</h1>
+    <div class="mdl login-mdl-card" style="text-align:center">
+    <h3 style="margin-bottom:18px;font-size:17px;color:#333">🏭 冷库管理系统登录</h3>
     <div id="login-session-notice" class="login-session-notice" role="status" aria-live="polite"></div>
     <div class="fg"><label>邮箱 Email</label>
       <input type="email" id="login-username" placeholder="输入邮箱" autocomplete="username" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px">
@@ -294,6 +302,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <div id="login-error" style="color:#cc0000;font-size:13px;margin:8px 0;display:none;min-height:1.2em;word-break:break-word"></div>
     <p id="login-hint" style="font-size:11px;color:#666;margin-top:6px;line-height:1.5">① 用户资料在 <strong>Realtime Database</strong>，路径 <code style="font-size:10px">csm_users/&lt;UID&gt;</code>，<code style="font-size:10px">role</code>：admin / staff（大丰收员工）/ logistics / supplier。② Firebase 控制台 → 身份验证 → 设置 → <strong>已授权网域</strong> 须添加 <code style="font-size:10px">tian8896.github.io</code>（仅域名，勿带 <code style="font-size:10px">/coldstore-management</code> 路径）。③ 数据库规则须允许已登录用户读取 <code style="font-size:10px">csm_users</code>、<code style="font-size:10px">csm_meta</code>。④ <strong>同一浏览器</strong>（含所有标签页）仅保留<strong>一个</strong> Firebase 登录；再登其他账号会<strong>替换</strong>当前会话，无法同时保持两个账号。需两账号并行请使用<strong>无痕窗口</strong>、<strong>另一浏览器</strong>或<strong>新的浏览器用户配置</strong>。⑤ 仍失败时 F12 控制台执行 <code style="font-size:10px">csmDiagnoseLogin()</code> 查看读写结果。</p>
     <button type="button" class="btn btn-s" id="btn-login-submit" style="width:100%;padding:12px;font-size:16px;margin-top:10px">登录 Login</button>
+    </div>
   </div>
 </div>
 <!-- 必须先加载 Firebase，再同步加载主逻辑脚本。勿用 document.write。主包命名为 csm-bundle.js（避免部分拦截器屏蔽 app.js）。fork 请改下一行 src -->

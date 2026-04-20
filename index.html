@@ -59,8 +59,11 @@ body.csm-supplier-ui #suiteWarehouse1 > .main > #supplierView{grid-column:1 / -1
 #tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table>thead>tr>th{padding:5px 10px 4px;font-size:14px;line-height:1.12;vertical-align:bottom;border-bottom:1px solid var(--bd);background:var(--bg2);color:var(--tx);font-family:var(--csm-font-en);font-weight:700;text-transform:none;letter-spacing:.02em}
 #tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table>tbody>tr>td{padding:3px 10px;font-size:15px;line-height:1.18;border-bottom:1px solid rgba(48,54,61,.18);vertical-align:middle}
 #tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table>thead>tr>th span{font-size:11px;color:#666;font-weight:700;text-transform:none}
-/* Supplier portal purchase table: English Arial + bold + title case (override global th uppercase) */
-#supplierView .tw table>thead>tr>th{font-family:var(--csm-font-en);font-weight:700;text-transform:none;letter-spacing:.02em}
+/* Supplier portal purchase table: English Arial + bold + title case; 略大字号、紧凑行距 */
+#supplierView .tw table{width:100%;min-width:max-content;border-collapse:collapse;font-size:16px;line-height:1.14;font-family:var(--csm-font-en);font-weight:700}
+#supplierView .tw table>thead>tr>th{font-family:var(--csm-font-en);font-weight:700;text-transform:none;letter-spacing:.02em;padding:6px 10px 5px;font-size:14px;line-height:1.1;vertical-align:bottom;border-bottom:1px solid var(--bd);background:var(--bg2)}
+#supplierView .tw table>tbody>tr>td{padding:4px 10px;font-size:16px;line-height:1.14;border-bottom:1px solid rgba(48,54,61,.22);vertical-align:middle}
+#supplierView .tw table>thead>tr>th span{font-size:11px;color:#888;font-weight:700}
 /* Logistics, records, checkout, stats tables + modal .tw tables + purchase/supplier modals + user tables: English Arial bold title case */
 #logisticsView .tw > table > thead > tr > th,
 #tc-records .tw > table > thead > tr > th,
@@ -209,6 +212,11 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 .supplier-modal-grid .fg label{font-weight:bold;color:#333}
 .supplier-modal-grid .fg input,.supplier-modal-grid .fg select{font-weight:bold;color:#111;background:#fff}
 .supplier-modal-grid .fg input::placeholder{color:#888;opacity:1}
+/* 供应商添加采购 & W1 新增采购：品名下拉略小，数量框加大 */
+#supplierModal #supplierItemsTable .csm-pi-product,
+#purchaseModal #purchaseItemsTable .csm-pi-product{font-size:12px;line-height:1.22;padding:4px 6px;width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:3px;background:#fff;color:#111;font-weight:700}
+#supplierModal #supplierItemsTable .csm-pi-qty,
+#purchaseModal #purchaseItemsTable .csm-pi-qty{font-size:15px;line-height:1.2;font-family:var(--csm-font-en);font-weight:700;padding:10px 12px;min-height:42px;width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:4px;text-align:center;background:#fff;color:#111}
 /* EDITABLE TABLE */
 .edt{width:70px;background:var(--bg4);border:1px solid var(--bd);border-radius:3px;padding:4px 6px;color:var(--tx);font-family:var(--csm-font-en);font-size:13px;font-weight:700;text-align:right;outline:none}
 .edt:focus{border-color:var(--ac);background:#fff}
@@ -370,7 +378,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260420suppliermonth" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260420purchaseitems" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -853,23 +861,28 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           <button type="button" class="abtn" style="background:#4CAF50;color:#fff;border:none;font-family:var(--csm-font-en);font-weight:700" onclick="addSupplierItem()">+ Add product 添加品名</button>
         </div>
         <div style="overflow-x:auto">
-          <table style="width:100%;border-collapse:collapse">
+          <table id="supplierItemsTable" style="width:100%;border-collapse:collapse;table-layout:fixed">
+            <colgroup><col style="width:40%"><col style="min-width:168px"><col style="width:52px"></colgroup>
             <thead style="background:#f5f5f5">
               <tr>
-                <th style="padding:6px;text-align:left;font-size:12px;border:1px solid #ddd">品名 Product *</th>
-                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:110px">数量 Qty *</th>
-                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:70px">操作</th>
+                <th style="padding:6px;text-align:left;font-size:12px;border:1px solid #ddd;vertical-align:top">品名 Product *</th>
+                <th style="padding:6px 8px;text-align:center;font-size:12px;border:1px solid #ddd;vertical-align:top;font-family:var(--csm-font-en);font-weight:700;line-height:1.25">
+                  <div>数量 Qty *</div>
+                  <div style="font-size:10px;color:#555;font-weight:700;margin-top:4px">输入实际装货数量</div>
+                  <div style="font-size:10px;color:#888;font-weight:700;margin-top:2px">Enter actual loaded quantity</div>
+                </th>
+                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:52px;vertical-align:top">操作</th>
               </tr>
             </thead>
             <tbody id="supplierItemsBody">
               <tr class="supplier-item-row">
-                <td style="padding:4px;border:1px solid #ddd">
-                  <select class="supplier-item-product csm-product-select" data-rowid="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;font-size:13px">
+                <td style="padding:4px;border:1px solid #ddd;vertical-align:middle">
+                  <select class="supplier-item-product csm-product-select csm-pi-product" data-rowid="0">
                     <option value="">请选择品名</option>
                   </select>
                 </td>
-                <td style="padding:4px;border:1px solid #ddd">
-                  <input type="number" class="supplier-item-qty" placeholder="数量" min="0" value="" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center">
+                <td style="padding:4px;border:1px solid #ddd;vertical-align:middle">
+                  <input type="number" class="supplier-item-qty csm-pi-qty" placeholder="实际装货数量" title="输入实际装货数量 / Enter actual loaded quantity" min="0" value="">
                 </td>
                 <td style="padding:4px;border:1px solid #ddd;text-align:center">
                   <button type="button" class="abtn x" onclick="removeSupplierItem(this)" style="color:#ff4444;font-size:16px">×</button>
@@ -1413,22 +1426,27 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           <button type="button" class="abtn" style="background:#4CAF50;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-family:var(--csm-font-en);font-weight:700" onclick="addPurchaseItem()">+ Add product 添加品名</button>
         </div>
         <div id="purchaseItemsContainer" style="overflow-x:auto">
-          <table style="width:100%;border-collapse:collapse" id="purchaseItemsTable">
+          <table style="width:100%;border-collapse:collapse;table-layout:fixed" id="purchaseItemsTable">
+            <colgroup><col style="width:40%"><col style="min-width:168px"><col style="width:52px"></colgroup>
             <thead style="background:#f5f5f5">
               <tr>
-                <th style="padding:6px;text-align:left;font-size:12px;border:1px solid #ddd;font-family:var(--csm-font-en);font-weight:700">品名 Product *</th>
-                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:110px;font-family:var(--csm-font-en);font-weight:700">数量 Qty</th>
-                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:60px;font-family:var(--csm-font-en);font-weight:700">操作</th>
+                <th style="padding:6px;text-align:left;font-size:12px;border:1px solid #ddd;font-family:var(--csm-font-en);font-weight:700;vertical-align:top">品名 Product *</th>
+                <th style="padding:6px 8px;text-align:center;font-size:12px;border:1px solid #ddd;font-family:var(--csm-font-en);font-weight:700;line-height:1.25;vertical-align:top">
+                  <div>数量 Qty *</div>
+                  <div style="font-size:10px;color:#555;font-weight:700;margin-top:4px">输入实际装货数量</div>
+                  <div style="font-size:10px;color:#888;font-weight:700;margin-top:2px">Enter actual loaded quantity</div>
+                </th>
+                <th style="padding:6px;text-align:center;font-size:12px;border:1px solid #ddd;width:52px;font-family:var(--csm-font-en);font-weight:700;vertical-align:top">操作</th>
               </tr>
             </thead>
             <tbody id="purchaseItemsBody">
               <tr class="purchase-item-row">
-                <td style="padding:4px;border:1px solid #ddd">
-                  <select class="item-product csm-product-select" data-rowid="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;font-size:13px;font-family:var(--csm-font-en);font-weight:700">
+                <td style="padding:4px;border:1px solid #ddd;vertical-align:middle">
+                  <select class="item-product csm-product-select csm-pi-product" data-rowid="0">
                     <option value="">请选择品名</option>
                   </select>
                 </td>
-                <td style="padding:4px;border:1px solid #ddd"><input type="number" class="item-qty" value="0" min="0" style="width:100%;padding:5px;border:1px solid #ddd;border-radius:3px;text-align:center;font-family:var(--csm-font-en);font-weight:700"></td>
+                <td style="padding:4px;border:1px solid #ddd;vertical-align:middle"><input type="number" class="item-qty csm-pi-qty" value="0" min="0" placeholder="实际装货数量" title="输入实际装货数量 / Enter actual loaded quantity"></td>
                 <td style="padding:4px;border:1px solid #ddd;text-align:center"><button type="button" class="abtn x" onclick="removePurchaseItem(this)" style="color:#ff4444;font-size:16px">×</button></td>
               </tr>
             </tbody>

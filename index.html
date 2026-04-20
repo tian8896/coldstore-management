@@ -19,6 +19,11 @@ header p{color:var(--tx);font-size:17px;font-weight:bold;margin-top:4px;letter-s
 .hstat .v{font-size:22px;font-weight:bold;color:var(--am)}
 .hstat .l{font-size:11px;color:var(--tx2);letter-spacing:1px;text-transform:uppercase;font-family:var(--csm-font-en);font-weight:700}
 .main{display:grid;grid-template-columns:360px 1fr;min-height:calc(100vh - 130px)}
+/* 供应商账号：不显示 W1 顶部入库汇总、左侧冷库/入库/出库 */
+body.csm-supplier-ui #suiteWarehouse1 > .hstats{display:none!important}
+body.csm-supplier-ui #suiteWarehouse1 > .main{grid-template-columns:1fr!important}
+body.csm-supplier-ui #suiteWarehouse1 > .main > .left{display:none!important}
+body.csm-supplier-ui #suiteWarehouse1 > .main > #supplierView{grid-column:1 / -1;width:100%;min-height:calc(100vh - 160px)}
 .left{border-right:1px solid var(--bd);padding:20px 15px 20px 20px;display:flex;flex-direction:column;gap:18px;overflow-y:auto;background:#fafafa}
 .section{background:var(--bg3);border:1px solid var(--bd);border-radius:7px;padding:18px 15px}
 .stitle{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--tx2);margin-bottom:14px;padding-bottom:9px;border-bottom:1px solid var(--bd);font-family:var(--csm-font-en);font-weight:700}
@@ -197,6 +202,8 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 .login-slide-thumb.ok{cursor:default;background:linear-gradient(135deg,var(--gr),#2ea043)}
 .login-slide-hint{font-size:11px;color:var(--tx2);margin-top:8px;text-align:center}
 .login-forgot-row{margin-top:10px;text-align:right}
+#loginModal .login-session-notice{display:none;font-size:12px;line-height:1.45;color:#0a5;text-align:left;margin:10px 0;padding:10px 12px;background:rgba(0,160,80,0.08);border:1px solid rgba(0,160,80,0.25);border-radius:6px}
+#loginModal .login-session-notice .login-session-en{font-family:var(--csm-font-en);font-weight:700;font-size:11px;color:#064;margin-top:6px;display:block}
 .login-forgot-btn{background:none;border:none;color:var(--ac);cursor:pointer;font-size:12px;text-decoration:underline;padding:0}
 .login-forgot-btn:hover{color:var(--ice)}
 .supplier-modal-grid .fg label{font-weight:bold;color:#333}
@@ -225,6 +232,14 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 .sett-tag{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:#e8f4ff;border:1px solid #b8d8f8;border-radius:4px;margin:3px;font-size:12px;color:#0066cc}
 .sett-tag .del{cursor:pointer;color:#cc0000;font-weight:bold;margin-left:4px}
 .sett-tag .del:hover{color:#990000}
+/* W1 设置弹窗：加宽；供应商名称输入加大 */
+#settingsModal .csm-settings-mdl{width:min(94vw,800px);min-width:320px;max-height:85vh;overflow-y:auto}
+#settingsModal .sett-row.sett-supplier-add-row{align-items:stretch;gap:10px}
+#settingsModal .sett-row.sett-supplier-add-row #sett-supplier-input{flex:1 1 auto;min-width:0;padding:12px 14px;font-size:15px;min-height:46px;border-radius:6px;font-family:var(--csm-font-en);font-weight:700}
+#settingsModal .sett-row.sett-supplier-add-row .sett-add-btn{align-self:center;padding:10px 16px;font-size:13px}
+#settingsModal #supplier-name-row{flex-direction:column;align-items:stretch;gap:8px}
+#settingsModal #supplier-name-row label{flex:unset!important;font-size:13px;color:#555}
+#settingsModal #new-user-supplier-name{width:100%;padding:12px 14px!important;font-size:15px!important;min-height:46px;border-radius:6px!important;border:1px solid #ccc!important;font-family:var(--csm-font-en);font-weight:700}
 /* 销售订单弹窗：单价在品名下；VAT 为大号按钮式选项 */
 .portal-shell{display:none;padding:12px 36px;background:var(--bg3);border-bottom:1px solid var(--bd)}
 .portal-shell .portal-btn-row{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch}
@@ -247,6 +262,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 <div class="mov sh" id="loginModal" style="display:flex;z-index:10050">
   <div class="mdl" style="width:400px;max-width:94vw;text-align:center">
     <h3 style="margin-bottom:20px">🏭 冷库管理系统登录</h3>
+    <div id="login-session-notice" class="login-session-notice" role="status" aria-live="polite"></div>
     <div class="fg"><label>邮箱 Email</label>
       <input type="email" id="login-username" placeholder="输入邮箱" autocomplete="username" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px">
     </div>
@@ -268,7 +284,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <button type="button" class="login-forgot-btn" id="btn-login-forgot" onclick="if(typeof sendLoginPasswordReset==='function')sendLoginPasswordReset();">忘记密码？发送重置邮件</button>
     </div>
     <div id="login-error" style="color:#cc0000;font-size:13px;margin:8px 0;display:none;min-height:1.2em;word-break:break-word"></div>
-    <p id="login-hint" style="font-size:11px;color:#666;margin-top:6px;line-height:1.5">① 用户资料在 <strong>Realtime Database</strong>，路径 <code style="font-size:10px">csm_users/&lt;UID&gt;</code>，<code style="font-size:10px">role</code>：admin / staff（大丰收员工）/ logistics / supplier。② Firebase 控制台 → 身份验证 → 设置 → <strong>已授权网域</strong> 须添加 <code style="font-size:10px">tian8896.github.io</code>（仅域名，勿带 <code style="font-size:10px">/coldstore-management</code> 路径）。③ 数据库规则须允许已登录用户读取 <code style="font-size:10px">csm_users</code>、<code style="font-size:10px">csm_meta</code>。④ 仍失败时 F12 控制台执行 <code style="font-size:10px">csmDiagnoseLogin()</code> 查看读写结果。</p>
+    <p id="login-hint" style="font-size:11px;color:#666;margin-top:6px;line-height:1.5">① 用户资料在 <strong>Realtime Database</strong>，路径 <code style="font-size:10px">csm_users/&lt;UID&gt;</code>，<code style="font-size:10px">role</code>：admin / staff（大丰收员工）/ logistics / supplier。② Firebase 控制台 → 身份验证 → 设置 → <strong>已授权网域</strong> 须添加 <code style="font-size:10px">tian8896.github.io</code>（仅域名，勿带 <code style="font-size:10px">/coldstore-management</code> 路径）。③ 数据库规则须允许已登录用户读取 <code style="font-size:10px">csm_users</code>、<code style="font-size:10px">csm_meta</code>。④ <strong>同一浏览器</strong>（含所有标签页）仅保留<strong>一个</strong> Firebase 登录；再登其他账号会<strong>替换</strong>当前会话，无法同时保持两个账号。需两账号并行请使用<strong>无痕窗口</strong>、<strong>另一浏览器</strong>或<strong>新的浏览器用户配置</strong>。⑤ 仍失败时 F12 控制台执行 <code style="font-size:10px">csmDiagnoseLogin()</code> 查看读写结果。</p>
     <button type="button" class="btn btn-s" id="btn-login-submit" style="width:100%;padding:12px;font-size:16px;margin-top:10px">登录 Login</button>
   </div>
 </div>
@@ -1539,11 +1555,11 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 </div>
 
 <div class="mov" id="settingsModal">
-  <div class="mdl" style="width:560px;max-height:85vh;overflow-y:auto">
+  <div class="mdl csm-settings-mdl">
     <h3>⚙️ 系统设置 / Settings</h3>
     <div class="sett-section">
       <h4>🏭 供应商管理 / Supplier Management</h4>
-      <div class="sett-row">
+      <div class="sett-row sett-supplier-add-row">
         <input type="text" id="sett-supplier-input" placeholder="输入供应商名称" onkeydown="if(event.key==='Enter')addSettItem('supplier')">
         <button class="sett-add-btn" onclick="addSettItem('supplier')">+ 添加</button>
       </div>
@@ -1620,8 +1636,8 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           </select>
         </div>
         <div class="sett-row" id="supplier-name-row" style="display:none">
-          <label style="flex:1;font-size:13px;color:#888">供应商名称 Supplier Name</label>
-          <input type="text" id="new-user-supplier-name" placeholder="输入供应商名称" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+          <label style="font-size:13px;color:#555">供应商名称 Supplier Name</label>
+          <input type="text" id="new-user-supplier-name" placeholder="输入供应商名称">
         </div>
         <div class="sett-row">
           <button class="sett-add-btn" onclick="createUser()" style="background:#0066cc">✅ 创建用户</button>

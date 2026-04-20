@@ -390,7 +390,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260421cnrecon" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260421nodashcards" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -1127,21 +1127,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <button type="button" class="btn btn-g" id="sales-worker-truck-btn" onclick="openSalesWorkerTruckModal()">工人管理 <span class="csm-sales-subnav-en">Worker / Truck</span></button>
     </div>
     <div id="sales-panel-dash">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px">
-        <div style="background:#e8f5e9;border:1px solid #43a047;border-radius:8px;padding:16px;text-align:center">
-          <div style="font-size:12px;color:#666">今日订单数 Today orders</div>
-          <div style="font-size:28px;font-weight:bold;color:#2e7d32" id="sales-dash-today">0</div>
-        </div>
-        <div style="background:#e3f2fd;border:1px solid #1976d2;border-radius:8px;padding:16px;text-align:center">
-          <div style="font-size:12px;color:#666">总销售额（已确认）Confirmed sales AED</div>
-          <div style="font-size:24px;font-weight:bold;color:#1565c0" id="sales-dash-confirmed">0.00</div>
-        </div>
-        <div style="background:#fff3e0;border:1px solid #f57c00;border-radius:8px;padding:16px;text-align:center">
-          <div style="font-size:12px;color:#666">Unpaid AED (Credit + Cash pending)</div>
-          <div style="font-size:24px;font-weight:bold;color:#e65100" id="sales-dash-unpaid">0.00</div>
-        </div>
-      </div>
-      <div style="margin-top:18px;padding:16px;border:1px solid #c5e1a5;border-radius:10px;background:#f9fff4">
+      <div style="margin-top:0;padding:16px;border:1px solid #c5e1a5;border-radius:10px;background:#f9fff4">
         <div style="font-size:14px;font-weight:bold;margin-bottom:10px;font-family:var(--csm-font-en)">Customer AR · 客户货款</div>
         <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:10px">
           <div class="fg" style="margin:0;flex:1;min-width:200px">

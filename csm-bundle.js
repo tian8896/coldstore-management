@@ -4109,7 +4109,7 @@ function csmSalesCustomerOrderSnapshotName(c) {
 }
 function refreshSalesUi() {
   if (!isAdmin && !isStaff) return;
-  renderSalesDashCards();
+  renderSalesDashCustomerAr();
   renderSalesCustomersTable();
   renderSalesOrdersTable();
   renderSalesFinanceTable();
@@ -4385,22 +4385,6 @@ function salesBatchConfirm() {
   });
   if (!tasks.length) { toast('\u65E0\u53EF\u786E\u8BA4\u7684\u5DF2\u63D0\u4EA4\u8BA2\u5355', 'err'); return; }
   Promise.all(tasks).then(function() { toast('Confirmed', 'ok'); }).catch(function(e) { toast(e.message || String(e), 'err'); });
-}
-function renderSalesDashCards() {
-  var el1 = gid('sales-dash-today');
-  var el2 = gid('sales-dash-confirmed');
-  var el3 = gid('sales-dash-unpaid');
-  if (!el1) return;
-  var today = csmSalesLocalYmd(new Date());
-  var nToday = salesOrders.filter(function(o) { return !o.voided && (o.createdAt || '').slice(0, 10) === today; }).length;
-  el1.textContent = String(nToday);
-  var conf = salesOrders.filter(function(o) { return o.orderStatus === 'confirmed' && !o.voided; });
-  var sumConf = conf.reduce(function(s, o) { return s + csmSalesLineTotalForDisplay(o); }, 0);
-  if (el2) el2.textContent = sumConf.toFixed(2);
-  var unpaid = conf.filter(function(o) { return !csmSalesIsPaymentFinanciallyPaid(o); });
-  var sumUnpaid = unpaid.reduce(function(s, o) { return s + csmSalesOrderRemainingAed(o); }, 0);
-  if (el3) el3.textContent = sumUnpaid.toFixed(2);
-  renderSalesDashCustomerAr();
 }
 function csmSalesOrderBelongsToCustomer(o, customerId) {
   if (!o || !customerId) return false;

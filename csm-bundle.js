@@ -4535,6 +4535,7 @@ function csmSalesSubmitCustomerPayment() {
     var partialErr = '';
     cbs.forEach(function(cb) {
       if (partialErr) return;
+      var oid = cb.getAttribute('data-oid');
       var tr = cb.closest && cb.closest('tr');
       var inp = tr ? tr.querySelector('input.sales-pay-partial-inp') : null;
       var raw = inp ? String(inp.value || '').trim() : '';

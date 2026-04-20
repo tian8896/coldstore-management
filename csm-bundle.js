@@ -751,9 +751,51 @@ function showAdminView() {  setSupplierPortalLayout(false);  var lv = gid('logis
 // 显示清关公司视图
 function showLogisticsView() {  setSupplierPortalLayout(false);  var shell = gid('adminPortalShell');  if (shell) { shell.style.display = 'none'; shell.setAttribute('aria-hidden', 'true'); }  resetMainSuiteForNonAdmin();  var sv = gid('supplierView');  if (sv) sv.style.display = 'none';  var rights = document.querySelectorAll('.right');  if (rights[2]) rights[2].style.display = 'none';  var lv2 = gid('logisticsView');  if (lv2) lv2.style.display = 'block';  var ui2 = gid('userInfo');  if (ui2) ui2.style.display = 'none';  var h1a = gid('headerTitle') || document.querySelector('header h1');  if (h1a) h1a.textContent = '物流公司系统 / Logistics System';  var hs = gid('headerSubtitle');  if (hs) hs.textContent = 'Logistics fee tracking';  var lname = gid('logisticsUserName');  if (lname) lname.textContent = currentUserEmail || currentUser;  updateSettingsButton();  renderLogisticsTable();}
 // 显示供应商视图
-function showSupplierView() {  setSupplierPortalLayout(true);  var shell2 = gid('adminPortalShell');  if (shell2) { shell2.style.display = 'none'; shell2.setAttribute('aria-hidden', 'true'); }  resetMainSuiteForNonAdmin();  var lv3 = gid('logisticsView');  if (lv3) lv3.style.display = 'none';  var rights2 = document.querySelectorAll('.right');  if (rights2[2]) rights2[2].style.display = 'none';  var sv2 = gid('supplierView');  if (sv2) sv2.style.display = 'block';  var ui3 = gid('userInfo');  if (ui3) ui3.style.display = 'none';  var h1b = gid('headerTitle') || document.querySelector('header h1');  if (h1b) h1b.textContent = '🏭 供应商采购系统 / Supplier Portal';  var hs2 = gid('headerSubtitle');  if (hs2) hs2.textContent = 'Supplier purchase portal';  var sname = gid('supplierUserName');  if (sname) sname.textContent = currentUserEmail || currentUser;  updateSettingsButton();  try { renderSupplierTable(); } catch (eSv0) {}  pullUnifiedSettingsOnce().then(function() { try { renderSupplierTable(); } catch (eSv1) {} }, function(err) { console.error('csm pull settings (supplier view)', err); try { renderSupplierTable(); } catch (eSv2) {} });}
+function showSupplierView() {  setSupplierPortalLayout(true);  var shell2 = gid('adminPortalShell');  if (shell2) { shell2.style.display = 'none'; shell2.setAttribute('aria-hidden', 'true'); }  resetMainSuiteForNonAdmin();  var lv3 = gid('logisticsView');  if (lv3) lv3.style.display = 'none';  var rights2 = document.querySelectorAll('.right');  if (rights2[2]) rights2[2].style.display = 'none';  var sv2 = gid('supplierView');  if (sv2) sv2.style.display = 'block';  var ui3 = gid('userInfo');  if (ui3) ui3.style.display = 'none';  var h1b = gid('headerTitle') || document.querySelector('header h1');  if (h1b) h1b.textContent = '🏭 供应商采购系统 / Supplier Portal';  var hs2 = gid('headerSubtitle');  if (hs2) hs2.textContent = 'Supplier purchase portal';  var sname = gid('supplierUserName');  if (sname) sname.textContent = currentUserEmail || currentUser;  updateSettingsButton();  try { csmInitSupplierMonthFilter(); } catch (eIm) {}  try { renderSupplierTable(); } catch (eSv0) {}  pullUnifiedSettingsOnce().then(function() { try { csmInitSupplierMonthFilter(); } catch (eIm2) {} try { renderSupplierTable(); } catch (eSv1) {} }, function(err) { console.error('csm pull settings (supplier view)', err); try { csmInitSupplierMonthFilter(); } catch (eIm3) {} try { renderSupplierTable(); } catch (eSv2) {} });}
+function csmMonthStringToBounds(ym) {
+  var p = (ym || '').split('-');
+  var y = parseInt(p[0], 10), mo = parseInt(p[1], 10);
+  if (!y || !mo || mo < 1 || mo > 12) return { start: '', end: '' };
+  var last = new Date(y, mo, 0).getDate();
+  return { start: ym + '-01', end: ym + '-' + ('0' + last).slice(-2) };
+}
+function csmSyncSupplierDatesFromMonth() {
+  var mEl = gid('supplier-search-month');
+  if (!mEl || !mEl.value) return;
+  var b = csmMonthStringToBounds(mEl.value);
+  var s = gid('supplier-search-date-start');
+  var e = gid('supplier-search-date-end');
+  if (s) s.value = b.start;
+  if (e) e.value = b.end;
+  var hint = gid('supplier-month-range-hint');
+  if (hint && b.start && b.end) {
+    hint.textContent = b.start + ' ~ ' + b.end;
+  }
+}
+function csmInitSupplierMonthFilter() {
+  var mEl = gid('supplier-search-month');
+  if (!mEl) return;
+  if (!mEl.value) {
+    var d = new Date();
+    mEl.value = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
+  }
+  csmSyncSupplierDatesFromMonth();
+}
+function csmSupplierMonthChanged() {
+  csmSyncSupplierDatesFromMonth();
+  renderSupplierTable();
+}
+try { window.csmSupplierMonthChanged = csmSupplierMonthChanged; } catch (eSm) {}
 // 清空供应商搜索
-function clearSupplierSearch() {  if (gid('supplier-search-date-start')) gid('supplier-search-date-start').value = '';  if (gid('supplier-search-date-end')) gid('supplier-search-date-end').value = '';  if (gid('supplier-search-cn')) gid('supplier-search-cn').value = '';  renderSupplierTable();}
+function clearSupplierSearch() {
+  var d = new Date();
+  var ym = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
+  var mm = gid('supplier-search-month');
+  if (mm) mm.value = ym;
+  csmSyncSupplierDatesFromMonth();
+  if (gid('supplier-search-cn')) gid('supplier-search-cn').value = '';
+  renderSupplierTable();
+}
 // 切换用户角色时显示/隐藏供应商名称字段
 function onUserRoleChange() {  var role = gid('new-user-role') ? gid('new-user-role').value : 'admin';  var nameRow = gid('supplier-name-row');  if (nameRow) {    nameRow.style.display = (role === 'supplier') ? 'flex' : 'none';  }}
 // ============================================================
@@ -1243,12 +1285,21 @@ function filterSupplierTable() {
 function renderSupplierTable() {
   var container = gid('supplierView');
   if (!container) return;
+  if (gid('supplier-search-month') && !gid('supplier-search-month').value) {
+    try { csmInitSupplierMonthFilter(); } catch (eR0) {}
+  }
   var searchDateStart = (gid('supplier-search-date-start') || { value: '' }).value;
   var searchDateEnd = (gid('supplier-search-date-end') || { value: '' }).value;
   var searchCn = (gid('supplier-search-cn') || { value: '' }).value.trim().toUpperCase();
   var filtered = supplierRecs.filter(function(r) {
-    if (searchDateStart && r.purchaseDate < searchDateStart) return false;
-    if (searchDateEnd && r.purchaseDate > searchDateEnd) return false;
+    var pdDay = String(r.purchaseDate || '').trim();
+    if (pdDay.length >= 10) pdDay = pdDay.slice(0, 10);
+    if (searchDateStart) {
+      if (!pdDay || pdDay < searchDateStart) return false;
+    }
+    if (searchDateEnd) {
+      if (!pdDay || pdDay > searchDateEnd) return false;
+    }
     if (searchCn && (r.cn || '').indexOf(searchCn) === -1) return false;
     return true;
   });

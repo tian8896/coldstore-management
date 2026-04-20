@@ -370,7 +370,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260420supplier" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260420suppliermonth" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -801,12 +801,14 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     </div>
     <button class="btn btn-g" onclick="handleLogout()" style="background:#fff;color:#e65100;border:none">退出登录 / Logout</button>
   </div>
-  <div class="brow" style="margin-bottom:14px">
-    <input type="date" id="supplier-search-date-start" style="padding:8px 12px;border:1px solid #ddd;border-radius:4px" title="开始日期 From">
-    <span style="font-size:13px;color:#666">~</span>
-    <input type="date" id="supplier-search-date-end" style="padding:8px 12px;border:1px solid #ddd;border-radius:4px" title="结束日期 To">
-    <button class="btn btn-s" onclick="filterSupplierTable()" style="margin-left:8px">🔍 Confirm</button>
-    <button class="btn btn-g" onclick="clearSupplierSearch()" style="margin-left:4px">✖ Clear</button>
+  <div class="brow" style="margin-bottom:14px;flex-wrap:wrap;align-items:center;gap:8px">
+    <label style="font-size:13px;color:#555;white-space:nowrap;margin:0">月份 <span style="font-family:var(--csm-font-en);font-weight:700">Month</span></label>
+    <input type="month" id="supplier-search-month" style="padding:8px 10px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;min-width:150px" title="按采购日期筛选月份 / Filter by purchase month" onchange="if (typeof csmSupplierMonthChanged === 'function') csmSupplierMonthChanged();">
+    <span style="font-size:12px;color:#888;white-space:nowrap" id="supplier-month-range-hint"></span>
+    <input type="hidden" id="supplier-search-date-start" value="">
+    <input type="hidden" id="supplier-search-date-end" value="">
+    <button class="btn btn-s" onclick="filterSupplierTable()" style="margin-left:4px">🔍 Confirm</button>
+    <button class="btn btn-g" onclick="clearSupplierSearch()" style="margin-left:2px">✖ Clear</button>
     <input type="text" id="supplier-search-cn" placeholder="按集装箱号搜索 / Search by CN..." style="padding:8px 12px;border:1px solid #ddd;border-radius:4px;width:180px">
     <button class="btn btn-s" onclick="openSupplierForm()" style="margin-left:10px;background:#e65100">+ 添加采购记录 / Add Record</button>
   </div>

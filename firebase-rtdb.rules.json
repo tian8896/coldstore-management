@@ -78,6 +78,18 @@
           ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff')",
           ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || (root.child('csm_users').child(auth.uid).child('role').val() == 'staff' && !(newData.child('orderStatus').val() == 'confirmed' && (!data.exists() || data.child('orderStatus').val() != 'confirmed'))))"
         }
+      },
+      "payments": {
+        "$pid": {
+          ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff')",
+          ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff')"
+        }
+      },
+      "wt_settlements": {
+        "$bid": {
+          ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff')",
+          ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || (root.child('csm_users').child(auth.uid).child('role').val() == 'staff' && ((!data.exists() && newData.child('status').val() == 'pending') || (data.exists() && data.child('status').val() == 'pending' && newData.child('status').val() == 'pending'))))"
+        }
       }
     }
   }

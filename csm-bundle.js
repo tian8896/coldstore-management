@@ -2446,7 +2446,7 @@ function selectColdStore(n) {  currentColdStore = n;  document.querySelectorAll(
 // ============================================================
 // TAB SWITCH
 // ============================================================
-function swTab(tab) {  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('ac'); });  document.querySelectorAll('.tc').forEach(function(t) { t.classList.remove('ac'); });  var tabNames = ['purchase', 'records', 'checkout', 'stats', 'sales', 'sales_finance'];  var idx = tabNames.indexOf(tab);  if (idx < 0) idx = 0;  var tabs = document.querySelectorAll('.tab');  if (tabs[idx]) tabs[idx].classList.add('ac');  var panel = document.getElementById('tc-' + tab);  if (panel) panel.classList.add('ac');  if (tab === 'sales') { try { refreshSalesUi(); swSalesSub(salesSubView || 'dash'); } catch (eS) {} }  if (tab === 'sales_finance') { try { try { var fs = sessionStorage.getItem('csm_fin_sub'); if (fs === 'wt' || fs === 'orders') finSubView = fs; } catch (eFs) {} refreshSalesUi(); swFinSub(finSubView || 'orders'); } catch (eF) {} }}
+function swTab(tab) {  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('ac'); });  document.querySelectorAll('.tc').forEach(function(t) { t.classList.remove('ac'); });  var tabNames = ['purchase', 'records', 'checkout', 'stats', 'sales'];  var idx = tabNames.indexOf(tab);  if (idx < 0) idx = 0;  var tabs = document.querySelectorAll('.tab');  if (tabs[idx]) tabs[idx].classList.add('ac');  var panel = document.getElementById('tc-' + tab);  if (panel) panel.classList.add('ac');  if (tab === 'sales') { try { refreshSalesUi(); swSalesSub(salesSubView || 'dash'); } catch (eS) {} }}
 // ============================================================
 // PURCHASE RECORDS
 // ============================================================
@@ -3839,7 +3839,8 @@ function csmSalesServiceCellHtml(name, qty) {
     '<div style="font-size:11px;color:#666">Qty: ' + csmEscapeHtml(String(qty || 0)) + ' \u00b7</div>' +
     '</div>';
 }
-function csmSalesLineWorkerTruckValidForSubmit(L) {
+/** Required for admin Confirm only — not for save draft / Submit. */
+function csmSalesLineWorkerTruckValidForConfirm(L) {
   if (!L) return false;
   var q = parseFloat(L.quantity) || 0;
   if (!(q > 0)) return false;
@@ -4150,6 +4151,13 @@ function swSalesSub(view) {
   if (b1) { b1.classList.toggle('btn-s', salesSubView === 'dash'); b1.classList.toggle('btn-g', salesSubView !== 'dash'); }
   if (b2) { b2.classList.toggle('btn-s', salesSubView === 'customers'); b2.classList.toggle('btn-g', salesSubView !== 'customers'); }
   if (b3) { b3.classList.toggle('btn-s', salesSubView === 'orders'); b3.classList.toggle('btn-g', salesSubView !== 'orders'); }
+  if (salesSubView === 'dash') {
+    try {
+      var fs = sessionStorage.getItem('csm_fin_sub');
+      if (fs === 'wt' || fs === 'orders') finSubView = fs;
+    } catch (eFs) {}
+    try { swFinSub(finSubView || 'orders'); } catch (eFin) {}
+  }
 }
 function csmSalesGetSelectedOrderIds() {
   var out = [];
@@ -4237,7 +4245,7 @@ function salesBatchConfirm() {
       toast('Cannot confirm: order has no lines.', 'err');
       return;
     }
-    var badLine = linesCheck.find(function(L) { return !csmSalesLineWorkerTruckValidForSubmit(L); });
+    var badLine = linesCheck.find(function(L) { return !csmSalesLineWorkerTruckValidForConfirm(L); });
     if (badLine) {
       toast('Cannot confirm: every line needs Worker and Truck, each with Qty > 0 and not more than line Qty. Fill them in the draft first.', 'err');
       return;
@@ -5984,14 +5992,28 @@ function salesOrderReadLinesFromDom() {
     var hasEx = sEx !== '' && !isNaN(nEx) && nEx >= 0;
     var hasWorkerQty = workerQtyRaw !== '' && !isNaN(workerQty) && workerQty >= 0;
     var hasTruckQty = truckQtyRaw !== '' && !isNaN(truckQty) && truckQty >= 0;
+    if (workerId && !(hasWorkerQty && workerQty > 0)) {
+      workerId = '';
+      workerQtyRaw = '';
+      hasWorkerQty = false;
+    }
+    if (truckId && !(hasTruckQty && truckQty > 0)) {
+      truckId = '';
+      truckQtyRaw = '';
+      hasTruckQty = false;
+    }
+    workerQty = parseFloat(workerQtyRaw);
+    truckQty = parseFloat(truckQtyRaw);
+    hasWorkerQty = workerQtyRaw !== '' && !isNaN(workerQty) && workerQty >= 0;
+    hasTruckQty = truckQtyRaw !== '' && !isNaN(truckQty) && truckQty >= 0;
     var any = cn || pr || (qty > 0) || hasIn || hasEx || workerId || hasWorkerQty || truckId || hasTruckQty;
     if (!any) return;
     if (!cn || !pr || !(qty > 0)) {
       incomplete = true;
       return;
     }
-    var wPartial = (workerId && !(hasWorkerQty && workerQty > 0)) || (!workerId && hasWorkerQty && workerQty > 0);
-    var tPartial = (truckId && !(hasTruckQty && truckQty > 0)) || (!truckId && hasTruckQty && truckQty > 0);
+    var wPartial = (!workerId && hasWorkerQty && workerQty > 0);
+    var tPartial = (!truckId && hasTruckQty && truckQty > 0);
     if (wPartial || tPartial) {
       incomplete = true;
       return;

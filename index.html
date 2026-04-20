@@ -387,7 +387,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260420invoicenumber" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260420finpending" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
@@ -1196,6 +1196,11 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   </div>
 
   <div class="tc" id="tc-sales_finance">
+    <div class="brow csm-fin-subnav" style="flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px">
+      <button type="button" class="btn btn-s" id="fin-sub-btn-orders" onclick="swFinSub('orders')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Order lines <span style="font-size:11px;color:#e3f2fd;font-weight:700">已确认订单</span></button>
+      <button type="button" class="btn btn-g" id="fin-sub-btn-wt" onclick="swFinSub('wt')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Worker / Truck <span style="font-size:11px;opacity:.9;font-weight:700">装卸结算</span></button>
+    </div>
+    <div id="fin-panel-orders">
     <p style="font-size:13px;color:#555;margin:0 0 12px">以下为<strong>已确认</strong>销售订单的财务视图（自动生成）。</p>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:16px">
       <div style="background:#f5f5f5;border-radius:8px;padding:12px"><div style="font-size:12px;color:#666">Confirmed lines</div><div style="font-size:22px;font-weight:bold" id="sales-fin-lines">0</div></div>
@@ -1230,6 +1235,58 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       </label>
       <span id="sales-finance-pager-nav" class="csm-sales-pager-nav"></span>
     </div>
+    </div>
+    <div id="fin-panel-wt" style="display:none">
+      <p style="font-size:13px;color:#555;margin:0 0 12px;font-family:var(--csm-font-en);font-weight:700">Search <strong>confirmed</strong> orders by worker, truck, and time range (order confirmed time). Select lines, submit a payment request (<span style="color:#f57f17">Pending</span>), then an admin confirms <span style="color:#2e7d32">Paid</span> and saves payment time, amount, and discount.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:14px">
+        <div class="fg" style="margin:0;min-width:160px"><label style="font-family:var(--csm-font-en);font-weight:700">Worker</label>
+          <select id="fin-wt-worker" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></select></div>
+        <div class="fg" style="margin:0;min-width:160px"><label style="font-family:var(--csm-font-en);font-weight:700">Truck</label>
+          <select id="fin-wt-truck" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></select></div>
+        <div class="fg" style="margin:0"><label style="font-family:var(--csm-font-en);font-weight:700">Start</label>
+          <input type="datetime-local" id="fin-wt-start" style="padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></div>
+        <div class="fg" style="margin:0"><label style="font-family:var(--csm-font-en);font-weight:700">End</label>
+          <input type="datetime-local" id="fin-wt-end" style="padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></div>
+        <button type="button" class="btn btn-s" onclick="csmFinWtRunSearch()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Search</button>
+      </div>
+      <div class="tw tw-sales-dense" style="margin-bottom:14px">
+        <table><thead><tr>
+          <th>Sel</th>
+          <th>Pay status</th>
+          <th>Order No.</th>
+          <th>Order time</th>
+          <th>Customer</th>
+          <th>Container</th>
+          <th>Product</th>
+          <th style="text-align:right">Worker Qty</th>
+          <th style="text-align:right">Worker (AED)</th>
+          <th style="text-align:right">Truck Qty</th>
+          <th style="text-align:right">Truck (AED)</th>
+          <th style="text-align:right">Line total (AED)</th>
+        </tr></thead><tbody id="fin-wt-results-tbody"></tbody></table>
+      </div>
+      <div class="brow" style="flex-wrap:wrap;align-items:center;margin-bottom:18px">
+        <button type="button" class="btn btn-s" onclick="csmFinWtSubmitPending()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Submit payment request</button>
+        <span style="font-size:13px;color:#666;font-family:var(--csm-font-en);font-weight:700" id="fin-wt-selection-hint"></span>
+      </div>
+      <h4 style="font-family:var(--csm-font-en);font-weight:700;margin:0 0 8px;font-size:15px">Payment records (Worker / Truck)</h4>
+      <div class="tw tw-sales-dense">
+        <table><thead><tr>
+          <th>Created</th>
+          <th>Period</th>
+          <th>Worker</th>
+          <th>Truck</th>
+          <th>Lines</th>
+          <th style="text-align:right">Gross (AED)</th>
+          <th style="text-align:right">Discount</th>
+          <th style="text-align:right">Paid (AED)</th>
+          <th>Status</th>
+          <th>Paid at</th>
+          <th>Actions</th>
+        </tr></thead><tbody id="fin-wt-settlements-tbody"></tbody></table>
+      </div>
+      <p style="font-size:11px;color:#888;margin-top:10px">Firebase: <code style="font-size:11px">csm_sales_w1/wt_settlements</code> — allow read/write for admin (and staff submit if desired).</p>
+    </div>
   </div>
 </div>
 </div>
@@ -1245,11 +1302,53 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 </div>
 
 <div id="suiteCompanyFinancial" class="portal-suite" style="display:none" data-portal-suite="fin">
-  <div class="portal-placeholder">
-    <h2>公司财务 · Company Financial</h2>
-    <p>此处预留 <strong>公司级财务</strong> 的<strong>独立</strong>模块（总账、应收应付、报表、对账等），与两座冷库的<strong>仓储业务数据域分离</strong>。</p>
-    <p>将来若财务需要引用冷库侧数据，建议只保存<strong>外部引用</strong>（例如业务单号、金额快照、对账批次号），需要实时明细时再按需查询或同步，以保持各域边界清晰、审计可追溯。</p>
-    <p style="font-size:13px;color:#888">Independent from W1/W2 ops data; future ties via document IDs, amounts snapshots, or controlled sync—not tight table coupling.</p>
+  <div style="padding:18px 36px 28px;max-width:1280px;margin:0 auto">
+    <h2 style="font-family:var(--csm-font-en);font-weight:700;font-size:22px;margin:0 0 8px">Company Financial · 公司财务</h2>
+    <p style="color:#555;font-size:14px;margin:0 0 18px;line-height:1.5;font-family:var(--csm-font-en);font-weight:700">Pending approvals for <strong>Worker / Truck</strong> payment requests submitted from Warehouse 1 (Finance tab). Source: <code style="font-size:12px">csm_sales_w1/wt_settlements</code>.</p>
+
+    <section style="background:linear-gradient(135deg,#fff8e1,#fffde7);border:1px solid #ffb74d;border-radius:10px;padding:16px 18px;margin-bottom:22px;box-shadow:0 1px 6px rgba(0,0,0,.06)">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">
+        <h3 style="font-family:var(--csm-font-en);font-weight:700;margin:0;font-size:17px;color:#e65100">Pending approval · 待审批</h3>
+        <span style="font-family:var(--csm-font-en);font-weight:700;font-size:14px;color:#666">Queue: <strong id="fin-pending-count">0</strong></span>
+      </div>
+      <div class="tw" style="overflow-x:auto;border:1px solid #ffe0b2;border-radius:8px;background:#fff">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:var(--csm-font-en);font-weight:700">
+          <thead><tr style="background:#fff3e0">
+            <th style="padding:10px 12px;text-align:left;text-transform:none;letter-spacing:.02em">Created</th>
+            <th style="padding:10px 12px;text-align:left;text-transform:none">Submitted by</th>
+            <th style="padding:10px 12px;text-align:left;text-transform:none">Period</th>
+            <th style="padding:10px 12px;text-align:left;text-transform:none">Worker</th>
+            <th style="padding:10px 12px;text-align:left;text-transform:none">Truck</th>
+            <th style="padding:10px 12px;text-align:center;text-transform:none">Lines</th>
+            <th style="padding:10px 12px;text-align:right;text-transform:none">Gross (AED)</th>
+            <th style="padding:10px 12px;text-align:left;text-transform:none">Actions</th>
+          </tr></thead>
+          <tbody id="tb-fin-pending"></tbody>
+        </table>
+      </div>
+      <p id="fin-pending-empty" style="display:none;text-align:center;padding:22px;color:#888;font-family:var(--csm-font-en);font-weight:700">No pending payment requests.</p>
+    </section>
+
+    <div class="portal-placeholder" style="margin:0;padding:16px 18px;border-radius:8px;border:1px solid #e0e0e0;background:#fafafa">
+      <p style="margin:0 0 8px;font-family:var(--csm-font-en);font-weight:700">About this domain</p>
+      <p style="font-size:13px;color:#555;line-height:1.6;margin:0">Company-level modules (ledger, AR/AP, reports) can be added here. Operational cold-store data stays in W1/W2; this queue reads payment batches by reference only.</p>
+      <p style="font-size:12px;color:#888;margin:8px 0 0">Independent from W1/W2 ops tables; ties via batch IDs and snapshots.</p>
+    </div>
+  </div>
+</div>
+
+<div class="mov" id="fin-wt-confirm-modal">
+  <div class="mdl" style="width:420px">
+    <h3 style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Confirm worker / truck payment</h3>
+    <input type="hidden" id="fin-wt-confirm-batch-id" value="">
+    <div class="fg"><label style="font-family:var(--csm-font-en);font-weight:700">Payment amount (AED)</label>
+      <input type="number" id="fin-wt-confirm-pay" step="0.01" min="0" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></div>
+    <div class="fg"><label style="font-family:var(--csm-font-en);font-weight:700">Discount (AED)</label>
+      <input type="number" id="fin-wt-confirm-disc" step="0.01" min="0" value="0" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></div>
+    <div class="brow">
+      <button type="button" class="btn btn-s" onclick="csmFinWtConfirmApply()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Confirm paid</button>
+      <button type="button" class="btn btn-g" onclick="clFinWtConfirmModal()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Cancel</button>
+    </div>
   </div>
 </div>
 

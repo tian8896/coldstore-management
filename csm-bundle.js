@@ -5,6 +5,7 @@ const SK = 'csm_warehouse1';const LOCAL_STORAGE_KEY = 'csm_records_v3';
 // Firebase 配置
 var firebaseConfig = {  apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',  authDomain: 'superharves-cold-store.firebaseapp.com',  databaseURL: 'https://superharves-cold-store-default-rtdb.firebaseio.com',  projectId: 'superharves-cold-store',  storageBucket: 'superharves-cold-store.firebasestorage.app',  messagingSenderId: '379038228954',  appId: '1:379038228954:web:e64fa3be3f2f49b3aae0e3'};var dbRef = null;var legacyDbRef = null;var purchaseRef = null;var salesCustomersRef = null;var salesPaymentReceiversRef = null;var salesWorkersRef = null;var salesTrucksRef = null;var salesOrdersRef = null;var settingsMetaRef = null;var auth = null;var primaryRecsVal = {};var legacyRecsVal = {};
 var salesCustomers = [];var salesPaymentReceivers = [];var salesWorkers = [];var salesTrucks = [];var salesOrders = [];var salesSubView = 'dash';var salesOrdersPage = 1;var salesOrdersPageSize = 20;var salesFinancePage = 1;var salesFinancePageSize = 20;
+var salesWtSettlementsRef = null;var salesWtSettlements = [];var finSubView = 'orders';
 // 冷库费率（可配置，默认值）
 // HK Store (store 1): 38 AED/托盘/周 + 5% VAT
 // Primer / Super / Cold Store 4 (store 2–4): 60 AED/托盘/周 + 5% VAT
@@ -201,6 +202,19 @@ function attachDataListenersForRole() {
         salesOrders = csmSalesObjToArr(snap.val(), true);
         refreshSalesUi();
       });
+      if (salesWtSettlementsRef) {
+        bindValueListener(salesWtSettlementsRef, function(snap) {
+          var raw = snap.val() || {};
+          salesWtSettlements = Object.keys(raw).map(function(k) {
+            var o = Object.assign({}, raw[k] || {});
+            o.id = k;
+            return o;
+          }).sort(function(a, b) {
+            return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+          });
+          refreshSalesUi();
+        });
+      }
     }
   }
   if (isSupplier) {
@@ -330,7 +344,7 @@ function backfillPurchaseSeq() {  if (!purchaseRef || !seqCounterRef) return;  v
 // ============================================================
 (function () {  function csmBoot() {    initFirebase();    setDefTimes();    loadSettings();    try { syncAllProductSelects(); } catch (eBootSync) {}  }  if (document.readyState === 'loading') {    window.addEventListener('DOMContentLoaded', csmBoot);  } else {    csmBoot();  }})();function initFirebase() {  if (typeof firebase !== 'undefined' && firebase.initializeApp) {    initApp();    return;  }  var ver = '10.14.1';  var bases = ['https://cdn.jsdelivr.net/npm/firebase@' + ver + '/', 'https://www.gstatic.com/firebasejs/' + ver + '/'];  function loadScriptsSequential(urls, i, onOk, onFail) {    if (i >= urls.length) { onOk(); return; }    var s = document.createElement('script');    s.src = urls[i];    s.onload = function() { loadScriptsSequential(urls, i + 1, onOk, onFail); };    s.onerror = function() { onFail(); };    document.head.appendChild(s);  }  function tryBase(bi) {    if (bi >= bases.length) {      toast('❌ Firebase 无法加载，请换网络或稍后再试', 'err');      showLoginModal();      return;    }    var b = bases[bi];    var urls = [b + 'firebase-app-compat.js', b + 'firebase-database-compat.js', b + 'firebase-auth-compat.js'];    loadScriptsSequential(urls, 0, function() { initApp(); }, function() { tryBase(bi + 1); });  }  tryBase(0);}function initApp() {  if (window.__csmInitDone) return;  window.__csmInitDone = true;  
 // 加载保存的费率  
-loadRates();  try {    if (!firebase.apps || !firebase.apps.length) { firebase.initializeApp(firebaseConfig); }    auth = firebase.auth();    try { window.csmAuth = auth; } catch (e1) {}    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function () {});    dbRef = firebase.database().ref(SK);    purchaseRef = firebase.database().ref('csm_purchase');    supplierRef = firebase.database().ref('csm_supplier_recs');    salesCustomersRef = firebase.database().ref('csm_sales_w1/customers');    salesPaymentReceiversRef = firebase.database().ref('csm_sales_w1/payment_receivers');    salesWorkersRef = firebase.database().ref('csm_sales_w1/workers');    salesTrucksRef = firebase.database().ref('csm_sales_w1/trucks');    salesOrdersRef = firebase.database().ref('csm_sales_w1/orders');    legacyDbRef = (SK !== LOCAL_STORAGE_KEY) ? firebase.database().ref(LOCAL_STORAGE_KEY) : null;    settingsMetaRef = firebase.database().ref('csm_meta/settings');    
+loadRates();  try {    if (!firebase.apps || !firebase.apps.length) { firebase.initializeApp(firebaseConfig); }    auth = firebase.auth();    try { window.csmAuth = auth; } catch (e1) {}    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function () {});    dbRef = firebase.database().ref(SK);    purchaseRef = firebase.database().ref('csm_purchase');    supplierRef = firebase.database().ref('csm_supplier_recs');    salesCustomersRef = firebase.database().ref('csm_sales_w1/customers');    salesPaymentReceiversRef = firebase.database().ref('csm_sales_w1/payment_receivers');    salesWorkersRef = firebase.database().ref('csm_sales_w1/workers');    salesTrucksRef = firebase.database().ref('csm_sales_w1/trucks');    salesOrdersRef = firebase.database().ref('csm_sales_w1/orders');    salesWtSettlementsRef = firebase.database().ref('csm_sales_w1/wt_settlements');    legacyDbRef = (SK !== LOCAL_STORAGE_KEY) ? firebase.database().ref(LOCAL_STORAGE_KEY) : null;    settingsMetaRef = firebase.database().ref('csm_meta/settings');    
 // 初始化序号计数器引用（必须在这里做，避免 onAuthStateChanged 同步触发时 seqCounterRef 为 null）
 seqCounterRef = dbRef.parent.child('csm_seq_counter');    
 // Firebase Auth 状态监听    
@@ -738,6 +752,7 @@ function switchMainSuite(mode) {
   if (sf) sf.style.display = mode === 'fin' ? 'block' : 'none';
   syncAdminPortalButtons();
   applyPortalHeaderTitles(mode);
+  if (mode === 'fin' && typeof renderCompanyFinancialPending === 'function') renderCompanyFinancialPending();
 }
 try { window.switchMainSuite = switchMainSuite; } catch (eSw) {}
 function setSupplierPortalLayout(active) {
@@ -2371,7 +2386,7 @@ function selectColdStore(n) {  currentColdStore = n;  document.querySelectorAll(
 // ============================================================
 // TAB SWITCH
 // ============================================================
-function swTab(tab) {  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('ac'); });  document.querySelectorAll('.tc').forEach(function(t) { t.classList.remove('ac'); });  var tabNames = ['purchase', 'records', 'checkout', 'stats', 'sales', 'sales_finance'];  var idx = tabNames.indexOf(tab);  if (idx < 0) idx = 0;  var tabs = document.querySelectorAll('.tab');  if (tabs[idx]) tabs[idx].classList.add('ac');  var panel = document.getElementById('tc-' + tab);  if (panel) panel.classList.add('ac');  if (tab === 'sales') { try { refreshSalesUi(); swSalesSub(salesSubView || 'dash'); } catch (eS) {} }  if (tab === 'sales_finance') { try { refreshSalesUi(); } catch (eF) {} }}
+function swTab(tab) {  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('ac'); });  document.querySelectorAll('.tc').forEach(function(t) { t.classList.remove('ac'); });  var tabNames = ['purchase', 'records', 'checkout', 'stats', 'sales', 'sales_finance'];  var idx = tabNames.indexOf(tab);  if (idx < 0) idx = 0;  var tabs = document.querySelectorAll('.tab');  if (tabs[idx]) tabs[idx].classList.add('ac');  var panel = document.getElementById('tc-' + tab);  if (panel) panel.classList.add('ac');  if (tab === 'sales') { try { refreshSalesUi(); swSalesSub(salesSubView || 'dash'); } catch (eS) {} }  if (tab === 'sales_finance') { try { try { var fs = sessionStorage.getItem('csm_fin_sub'); if (fs === 'wt' || fs === 'orders') finSubView = fs; } catch (eFs) {} refreshSalesUi(); swFinSub(finSubView || 'orders'); } catch (eF) {} }}
 // ============================================================
 // PURCHASE RECORDS
 // ============================================================
@@ -4008,6 +4023,7 @@ function refreshSalesUi() {
   renderSalesCustomersTable();
   renderSalesOrdersTable();
   renderSalesFinanceTable();
+  renderFinWtPanel();
   var soModal = gid('sales-order-modal');
   var prSel = gid('sales-order-payment-receiver');
   if (soModal && prSel && soModal.classList.contains('sh')) {
@@ -4029,6 +4045,7 @@ function refreshSalesUi() {
   if (wtM && wtM.classList.contains('sh')) {
     renderSalesWorkerTruckManageUi();
   }
+  try { renderCompanyFinancialPending(); } catch (eFinP) {}
 }
 function swSalesSub(view) {
   salesSubView = view || 'dash';
@@ -4499,6 +4516,457 @@ function renderSalesFinanceTable() {
       csmSalesLineTotalForDisplay(o).toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + csmEscapeHtml(csmSalesPaymentMethodLabel(csmSalesGetPaymentMethod(o))) + '</td><td>' + csmSalesPaymentStatusCellHtml(o) + '</td><td>' + csmSalesPaymentConfirmCellHtml(o) + '</td><td>' + csmSalesPrintInvoiceCellHtml(o) + '</td></tr>' + subHtml;
   }).join('');
   csmSalesBindFinancePager(totalRows);
+}
+function swFinSub(view) {
+  finSubView = view || 'orders';
+  try { sessionStorage.setItem('csm_fin_sub', finSubView); } catch (e0) {}
+  var pOrd = gid('fin-panel-orders');
+  var pWt = gid('fin-panel-wt');
+  if (pOrd) pOrd.style.display = finSubView === 'orders' ? 'block' : 'none';
+  if (pWt) pWt.style.display = finSubView === 'wt' ? 'block' : 'none';
+  var b1 = gid('fin-sub-btn-orders');
+  var b2 = gid('fin-sub-btn-wt');
+  if (b1) { b1.classList.toggle('btn-s', finSubView === 'orders'); b1.classList.toggle('btn-g', finSubView !== 'orders'); }
+  if (b2) { b2.classList.toggle('btn-s', finSubView === 'wt'); b2.classList.toggle('btn-g', finSubView !== 'wt'); }
+  if (finSubView === 'wt') renderFinWtPanel();
+}
+/** Worker/truck settlement: only admin may Confirm paid — staff (员工) never. */
+function csmFinWtCanConfirmPaid() {
+  if (isStaff) return false;
+  return isAdmin === true;
+}
+function csmSalesOrderFinTimeMs(o) {
+  var s = String(o && (o.confirmedAt || o.createdAt) || '').trim();
+  if (!s) return 0;
+  var d = new Date(s);
+  return isNaN(d.getTime()) ? 0 : d.getTime();
+}
+function csmFinWtLineKey(orderId, lineIndex) {
+  return String(orderId || '') + ':' + String(lineIndex);
+}
+function csmFinWtLineSettlementStatus(lineKey) {
+  var st = '';
+  (salesWtSettlements || []).forEach(function(b) {
+    var keys = b.lineKeys || [];
+    if (keys.indexOf(lineKey) === -1) return;
+    if (b.status === 'paid') st = 'paid';
+    else if (b.status === 'pending' && st !== 'paid') st = 'pending';
+  });
+  return st;
+}
+function csmFinWtReservedLineKeySet() {
+  var set = {};
+  (salesWtSettlements || []).forEach(function(b) {
+    if (b.status !== 'pending' && b.status !== 'paid') return;
+    (b.lineKeys || []).forEach(function(k) { set[k] = true; });
+  });
+  return set;
+}
+function csmFinWtEnumerateLines(workerId, truckId, tStart, tEnd) {
+  var rows = [];
+  (salesOrders || []).forEach(function(o) {
+    if (o.voided || String(o.orderStatus || '').toLowerCase() !== 'confirmed') return;
+    var ts = csmSalesOrderFinTimeMs(o);
+    if (tStart > 0 && ts < tStart) return;
+    if (tEnd > 0 && ts > tEnd) return;
+    var lines = csmSalesNormalizeLinesFromOrder(o);
+    lines.forEach(function(L, idx) {
+      if (workerId && String(L.workerId || '').trim() !== workerId) return;
+      if (truckId && String(L.truckId || '').trim() !== truckId) return;
+      var wq = parseFloat(L.workerQty) || 0;
+      var tq = parseFloat(L.truckQty) || 0;
+      if (!workerId && !truckId && wq <= 0 && tq <= 0) return;
+      var wa = csmSalesRound2(parseFloat(L.workerAmount) || 0);
+      var ta = csmSalesRound2(parseFloat(L.truckAmount) || 0);
+      rows.push({
+        lineKey: csmFinWtLineKey(o.id, idx),
+        orderId: o.id,
+        lineIndex: idx,
+        orderNo: o.orderNo || '',
+        orderTime: o.confirmedAt || o.createdAt || '',
+        customerName: o.customerName || '',
+        containerNo: L.containerNo || '',
+        productName: L.productName || '',
+        workerName: String(L.workerName || '').trim(),
+        workerQty: wq,
+        workerAmount: wa,
+        truckName: String(L.truckName || '').trim(),
+        truckQty: tq,
+        truckAmount: ta,
+        lineTotal: csmSalesRound2(wa + ta)
+      });
+    });
+  });
+  rows.sort(function(a, b) {
+    var tb = new Date(b.orderTime || 0).getTime();
+    var ta = new Date(a.orderTime || 0).getTime();
+    if (tb !== ta) return tb - ta;
+    return String(b.orderNo || '').localeCompare(String(a.orderNo || ''), undefined, { numeric: true });
+  });
+  return rows;
+}
+function csmFinWtFillFilterSelects() {
+  var wSel = gid('fin-wt-worker');
+  var tSel = gid('fin-wt-truck');
+  if (!wSel || !tSel) return;
+  var cw = wSel.value;
+  var ct = tSel.value;
+  var hw = '<option value="">All workers</option>';
+  (salesWorkers || []).forEach(function(x) {
+    var id = String(x.id || '').trim();
+    if (!id) return;
+    var nm = String(x.name || '').trim() || id;
+    hw += '<option value="' + csmEscapeHtml(id) + '">' + csmEscapeHtml(nm) + '</option>';
+  });
+  wSel.innerHTML = hw;
+  if (cw) {
+    for (var iw = 0; iw < wSel.options.length; iw++) {
+      if (wSel.options[iw].value === cw) { wSel.value = cw; break; }
+    }
+  }
+  var ht = '<option value="">All trucks</option>';
+  (salesTrucks || []).forEach(function(x) {
+    var id = String(x.id || '').trim();
+    if (!id) return;
+    var nm = String(x.name || '').trim() || id;
+    ht += '<option value="' + csmEscapeHtml(id) + '">' + csmEscapeHtml(nm) + '</option>';
+  });
+  tSel.innerHTML = ht;
+  if (ct) {
+    for (var it = 0; it < tSel.options.length; it++) {
+      if (tSel.options[it].value === ct) { tSel.value = ct; break; }
+    }
+  }
+}
+function renderFinWtPanel() {
+  if (!gid('fin-panel-wt')) return;
+  var pWt = gid('fin-panel-wt');
+  if (pWt && !pWt.getAttribute('data-fin-wt-dates-init')) {
+    pWt.setAttribute('data-fin-wt-dates-init', '1');
+    var dsEl = gid('fin-wt-start');
+    var deEl = gid('fin-wt-end');
+    if (dsEl && deEl && !dsEl.value && !deEl.value) {
+      var now = new Date();
+      var y = now.getFullYear();
+      var m = ('0' + (now.getMonth() + 1)).slice(-2);
+      var d = ('0' + now.getDate()).slice(-2);
+      dsEl.value = y + '-' + m + '-' + d + 'T00:00';
+      deEl.value = y + '-' + m + '-' + d + 'T23:59';
+    }
+  }
+  csmFinWtFillFilterSelects();
+  var tb = gid('fin-wt-results-tbody');
+  var ts = gid('fin-wt-settlements-tbody');
+  if (tb) tb.innerHTML = '';
+  if (ts) {
+    if (!(salesWtSettlements || []).length) {
+      ts.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#888;font-family:var(--csm-font-en);font-weight:700">No payment records yet</td></tr>';
+    } else {
+      ts.innerHTML = (salesWtSettlements || []).map(function(b) {
+        var wN = (salesWorkers || []).find(function(x) { return x.id === b.filterWorkerId; });
+        var tN = (salesTrucks || []).find(function(x) { return x.id === b.filterTruckId; });
+        var wLab = wN ? String(wN.name || '').trim() : (b.filterWorkerId ? '—' : 'All');
+        var tLab = tN ? String(tN.name || '').trim() : (b.filterTruckId ? '—' : 'All');
+        var period = (b.dateStart || '—') + ' → ' + (b.dateEnd || '—');
+        var gross = b.grossAed != null ? Number(b.grossAed) : 0;
+        var disc = b.discountAmount != null ? Number(b.discountAmount) : '';
+        var pay = b.paymentAmount != null ? Number(b.paymentAmount) : '';
+        var st = String(b.status || '');
+        var stHtml = st === 'paid'
+          ? '<span style="color:#2e7d32;font-family:var(--csm-font-en);font-weight:700">Paid</span>'
+          : '<span style="color:#f57f17;font-family:var(--csm-font-en);font-weight:700">Pending</span>';
+        var paidAt = b.paidAt ? csmSalesFormatOrderCreated(b.paidAt) : '—';
+        var actions = '';
+        if (st === 'pending' && csmFinWtCanConfirmPaid()) {
+          actions = '<button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="csmFinWtOpenConfirm(' + JSON.stringify(b.id) + ')">Confirm paid</button>';
+        } else if (st === 'pending' && !csmFinWtCanConfirmPaid()) {
+          actions = '<span style="color:#888;font-size:12px;font-family:var(--csm-font-en);font-weight:700">' + (isStaff ? 'Admin only (staff cannot confirm)' : 'Awaiting admin') + '</span>';
+        } else {
+          actions = '—';
+        }
+        return '<tr><td style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(csmSalesFormatOrderCreated(b.createdAt)) + '</td>' +
+          '<td style="font-size:12px;max-width:200px;white-space:normal">' + csmEscapeHtml(period) + '</td>' +
+          '<td>' + csmEscapeHtml(wLab) + '</td><td>' + csmEscapeHtml(tLab) + '</td>' +
+          '<td style="text-align:center">' + csmEscapeHtml(String((b.lineKeys || []).length)) + '</td>' +
+          '<td style="text-align:right">' + gross.toFixed(2) + '</td>' +
+          '<td style="text-align:right">' + (disc === '' ? '—' : Number(disc).toFixed(2)) + '</td>' +
+          '<td style="text-align:right">' + (pay === '' ? '—' : Number(pay).toFixed(2)) + '</td>' +
+          '<td>' + stHtml + '</td><td style="font-size:12px">' + csmEscapeHtml(paidAt) + '</td><td>' + actions + '</td></tr>';
+      }).join('');
+    }
+  }
+}
+function csmFinWtRunSearch() {
+  if (!salesOrdersRef) { toast('Database not connected', 'err'); return; }
+  var wId = gid('fin-wt-worker') ? String(gid('fin-wt-worker').value || '').trim() : '';
+  var tId = gid('fin-wt-truck') ? String(gid('fin-wt-truck').value || '').trim() : '';
+  var ds = gid('fin-wt-start') ? String(gid('fin-wt-start').value || '').trim() : '';
+  var de = gid('fin-wt-end') ? String(gid('fin-wt-end').value || '').trim() : '';
+  if (!ds || !de) { toast('Set start time and end time', 'err'); return; }
+  var tStart = ds ? new Date(ds).getTime() : 0;
+  var tEnd = de ? new Date(de).getTime() : 0;
+  if (ds && isNaN(tStart)) { toast('Invalid start time', 'err'); return; }
+  if (de && isNaN(tEnd)) { toast('Invalid end time', 'err'); return; }
+  if (tStart > 0 && tEnd > 0 && tEnd < tStart) { toast('End must be after start', 'err'); return; }
+  var rows = csmFinWtEnumerateLines(wId, tId, tStart, tEnd);
+  var reserved = csmFinWtReservedLineKeySet();
+  var tb = gid('fin-wt-results-tbody');
+  var hint = gid('fin-wt-selection-hint');
+  if (!tb) return;
+  if (!rows.length) {
+    tb.innerHTML = '<tr><td colspan="12" style="text-align:center;color:#888;font-family:var(--csm-font-en);font-weight:700">No matching lines</td></tr>';
+    if (hint) hint.textContent = '';
+    return;
+  }
+  tb.innerHTML = rows.map(function(r) {
+    var st = csmFinWtLineSettlementStatus(r.lineKey);
+    var stCell = '';
+    var cb = '';
+    if (st === 'paid') {
+      stCell = '<span style="color:#2e7d32;font-family:var(--csm-font-en);font-weight:700">Paid</span>';
+    } else if (st === 'pending') {
+      stCell = '<span style="color:#f57f17;font-family:var(--csm-font-en);font-weight:700">Pending</span>';
+    } else {
+      stCell = '<span style="color:#1565c0;font-family:var(--csm-font-en);font-weight:700">Listed</span>';
+      var dis = reserved[r.lineKey] ? ' disabled' : '';
+      cb = '<input type="checkbox" class="fin-wt-row-cb" data-line-key="' + csmEscapeHtml(r.lineKey) + '"' + dis + '>';
+    }
+    return '<tr><td>' + cb + '</td><td>' + stCell + '</td><td style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(r.orderNo || '—') + '</td>' +
+      '<td style="font-size:12px">' + csmEscapeHtml(csmSalesFormatOrderCreated(r.orderTime)) + '</td>' +
+      '<td>' + csmEscapeHtml(r.customerName) + '</td><td>' + csmEscapeHtml(r.containerNo) + '</td><td>' + w1ProductHtml(r.productName) + '</td>' +
+      '<td style="text-align:right">' + r.workerQty + '</td><td style="text-align:right">' + r.workerAmount.toFixed(2) + '</td>' +
+      '<td style="text-align:right">' + r.truckQty + '</td><td style="text-align:right">' + r.truckAmount.toFixed(2) + '</td>' +
+      '<td style="text-align:right">' + r.lineTotal.toFixed(2) + '</td></tr>';
+  }).join('');
+  if (hint) hint.textContent = rows.length + ' line(s). Select rows, then Submit payment request.';
+}
+function csmFinWtSubmitPending() {
+  if (!salesWtSettlementsRef) { toast('Database not connected', 'err'); return; }
+  var ds = gid('fin-wt-start') ? String(gid('fin-wt-start').value || '').trim() : '';
+  var de = gid('fin-wt-end') ? String(gid('fin-wt-end').value || '').trim() : '';
+  if (!ds || !de) { toast('Set start time and end time', 'err'); return; }
+  var keys = [];
+  document.querySelectorAll('.fin-wt-row-cb:checked').forEach(function(cb) {
+    var k = cb.getAttribute('data-line-key');
+    if (k) keys.push(k);
+  });
+  if (!keys.length) { toast('Select at least one line', 'err'); return; }
+  var wId = gid('fin-wt-worker') ? String(gid('fin-wt-worker').value || '').trim() : '';
+  var tId = gid('fin-wt-truck') ? String(gid('fin-wt-truck').value || '').trim() : '';
+  var tStart = ds ? new Date(ds).getTime() : 0;
+  var tEnd = de ? new Date(de).getTime() : 0;
+  var allRows = csmFinWtEnumerateLines(wId, tId, tStart, tEnd);
+  var byKey = {};
+  allRows.forEach(function(r) { byKey[r.lineKey] = r; });
+  var snapshot = [];
+  var gross = 0;
+  var reserved = csmFinWtReservedLineKeySet();
+  for (var i = 0; i < keys.length; i++) {
+    var lk = keys[i];
+    if (reserved[lk]) {
+      toast('One or more lines are already in a pending or paid batch', 'err');
+      return;
+    }
+    var row = byKey[lk];
+    if (!row) {
+      toast('Selection no longer matches search — run Search again', 'err');
+      return;
+    }
+    snapshot.push({
+      orderId: row.orderId,
+      orderNo: row.orderNo,
+      lineIndex: row.lineIndex,
+      containerNo: row.containerNo,
+      productName: row.productName,
+      customerName: row.customerName,
+      workerQty: row.workerQty,
+      workerAmount: row.workerAmount,
+      truckQty: row.truckQty,
+      truckAmount: row.truckAmount
+    });
+    gross += row.lineTotal;
+  }
+  gross = csmSalesRound2(gross);
+  var id = 'wt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  var nowIso = new Date().toISOString();
+  var rec = {
+    filterWorkerId: wId,
+    filterTruckId: tId,
+    dateStart: ds || '',
+    dateEnd: de || '',
+    lineKeys: keys,
+    linesSnapshot: snapshot,
+    grossAed: gross,
+    status: 'pending',
+    discountAmount: '',
+    paymentAmount: '',
+    createdAt: nowIso,
+    createdBy: currentUserEmail || currentUser || '',
+    submittedAt: nowIso
+  };
+  salesWtSettlementsRef.child(id).set(rec).then(function() {
+    toast('Submitted — status Pending until admin confirms', 'ok');
+    csmFinWtRunSearch();
+    renderFinWtPanel();
+  }).catch(function(e) {
+    toast(e.message || String(e), 'err');
+  });
+}
+function csmFinWtOpenConfirm(batchId) {
+  if (!csmFinWtCanConfirmPaid()) { toast(isStaff ? 'Staff cannot confirm paid — admin only' : 'Admin only', 'err'); return; }
+  var b = (salesWtSettlements || []).find(function(x) { return x.id === batchId; });
+  if (!b || b.status !== 'pending') { toast('Batch not found', 'err'); return; }
+  var m = gid('fin-wt-confirm-modal');
+  var idEl = gid('fin-wt-confirm-batch-id');
+  var payEl = gid('fin-wt-confirm-pay');
+  var disEl = gid('fin-wt-confirm-disc');
+  if (!m || !idEl || !payEl || !disEl) return;
+  idEl.value = batchId;
+  var g = b.grossAed != null ? Number(b.grossAed) : 0;
+  disEl.value = '0';
+  payEl.value = String(csmSalesRound2(g));
+  m.classList.add('sh');
+}
+function clFinWtConfirmModal() {
+  var m = gid('fin-wt-confirm-modal');
+  if (m) m.classList.remove('sh');
+}
+function csmFinWtConfirmApply() {
+  if (!csmFinWtCanConfirmPaid() || !salesWtSettlementsRef) { toast(isStaff ? 'Staff cannot confirm paid — admin only' : 'Admin only', 'err'); return; }
+  var batchId = (gid('fin-wt-confirm-batch-id') && gid('fin-wt-confirm-batch-id').value || '').trim();
+  if (!batchId) return;
+  var pay = parseFloat(gid('fin-wt-confirm-pay') && gid('fin-wt-confirm-pay').value);
+  var dis = parseFloat(gid('fin-wt-confirm-disc') && gid('fin-wt-confirm-disc').value);
+  if (isNaN(pay) || !isFinite(pay) || pay < 0) { toast('Enter a valid payment amount', 'err'); return; }
+  if (isNaN(dis) || !isFinite(dis) || dis < 0) { toast('Enter a valid discount', 'err'); return; }
+  var nowIso = new Date().toISOString();
+  salesWtSettlementsRef.child(batchId).update({
+    status: 'paid',
+    paidAt: nowIso,
+    paymentAmount: csmSalesRound2(pay),
+    discountAmount: csmSalesRound2(dis),
+    confirmedBy: currentUserEmail || currentUser || ''
+  }).then(function() {
+    toast('Marked paid — payment record saved', 'ok');
+    clFinWtConfirmModal();
+    csmFinWtRunSearch();
+    renderFinWtPanel();
+    try { renderCompanyFinancialPending(); } catch (eRcf) {}
+  }).catch(function(e) {
+    toast(e.message || String(e), 'err');
+  });
+}
+function csmFinPendingDetailDomId(batchId) {
+  return 'fin-pd-' + String(batchId || 'x').replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+function csmFinWtSnapshotTableHtml(lines) {
+  if (!lines || !lines.length) {
+    return '<p style="margin:0;color:#888;font-family:var(--csm-font-en);font-weight:700">No line snapshot</p>';
+  }
+  var h = '<table style="width:100%;border-collapse:collapse;font-size:12px;font-family:var(--csm-font-en);font-weight:700"><thead><tr style="background:#eee">';
+  h += '<th style="padding:6px 8px;text-align:left;text-transform:none">Order</th>';
+  h += '<th style="padding:6px 8px;text-align:left;text-transform:none">Container</th>';
+  h += '<th style="padding:6px 8px;text-align:left;text-transform:none">Product</th>';
+  h += '<th style="padding:6px 8px;text-align:right;text-transform:none">W Qty</th>';
+  h += '<th style="padding:6px 8px;text-align:right;text-transform:none">W AED</th>';
+  h += '<th style="padding:6px 8px;text-align:right;text-transform:none">T Qty</th>';
+  h += '<th style="padding:6px 8px;text-align:right;text-transform:none">T AED</th>';
+  h += '</tr></thead><tbody>';
+  lines.forEach(function(L) {
+    h += '<tr>';
+    h += '<td style="padding:6px 8px;border-bottom:1px solid #eee">' + csmEscapeHtml(String(L.orderNo || '—')) + '</td>';
+    h += '<td style="padding:6px 8px;border-bottom:1px solid #eee">' + csmEscapeHtml(String(L.containerNo || '')) + '</td>';
+    h += '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-transform:capitalize">' + w1ProductHtml(L.productName || '') + '</td>';
+    h += '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">' + csmEscapeHtml(String(L.workerQty != null ? L.workerQty : '')) + '</td>';
+    h += '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">' + (L.workerAmount != null ? Number(L.workerAmount).toFixed(2) : '—') + '</td>';
+    h += '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">' + csmEscapeHtml(String(L.truckQty != null ? L.truckQty : '')) + '</td>';
+    h += '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">' + (L.truckAmount != null ? Number(L.truckAmount).toFixed(2) : '—') + '</td>';
+    h += '</tr>';
+  });
+  h += '</tbody></table>';
+  return h;
+}
+function csmFinWtPendingDetailInnerHtml(b) {
+  var gross = b.grossAed != null ? Number(b.grossAed) : 0;
+  var meta = '<div style="margin-bottom:10px;font-size:13px;line-height:1.5;color:#333;font-family:var(--csm-font-en);font-weight:700">';
+  meta += '<div><span style="color:#666">Batch ID:</span> ' + csmEscapeHtml(String(b.id || '—')) + '</div>';
+  meta += '<div><span style="color:#666">Gross (AED):</span> ' + gross.toFixed(2) + '</div>';
+  meta += '<div><span style="color:#666">Submitted at:</span> ' + csmEscapeHtml(csmSalesFormatOrderCreated(b.submittedAt || b.createdAt)) + '</div>';
+  meta += '</div>';
+  return meta + csmFinWtSnapshotTableHtml(b.linesSnapshot);
+}
+function csmFinPendingToggle(batchId) {
+  var el = gid(csmFinPendingDetailDomId(batchId));
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+function renderCompanyFinancialPending() {
+  var tb = gid('tb-fin-pending');
+  var empty = gid('fin-pending-empty');
+  var countEl = gid('fin-pending-count');
+  if (!tb) return;
+  var pending = (salesWtSettlements || []).filter(function(b) { return String(b.status || '') === 'pending'; });
+  if (countEl) countEl.textContent = String(pending.length);
+  if (!pending.length) {
+    tb.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  tb.innerHTML = pending.map(function(b) {
+    var wN = (salesWorkers || []).find(function(x) { return x.id === b.filterWorkerId; });
+    var tN = (salesTrucks || []).find(function(x) { return x.id === b.filterTruckId; });
+    var wLab = wN ? String(wN.name || '').trim() : (b.filterWorkerId ? '—' : 'All');
+    var tLab = tN ? String(tN.name || '').trim() : (b.filterTruckId ? '—' : 'All');
+    var period = (b.dateStart || '—') + ' → ' + (b.dateEnd || '—');
+    var gross = b.grossAed != null ? Number(b.grossAed) : 0;
+    var nLines = (b.lineKeys || []).length;
+    var by = csmEscapeHtml(String(b.createdBy || '—'));
+    var detailId = csmFinPendingDetailDomId(b.id);
+    var canApr = csmFinWtCanConfirmPaid();
+    var btnApr = canApr
+      ? '<button type="button" class="abtn" style="background:#2e7d32;color:#fff;border:none;font-family:var(--csm-font-en);font-weight:700" onclick="csmFinWtQuickApprove(' + JSON.stringify(b.id) + ')">Approve</button>'
+      : '<span style="color:#888;font-size:12px;font-family:var(--csm-font-en);font-weight:700">Admin only</span>';
+    var btnCustom = canApr
+      ? ' <button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="csmFinWtOpenConfirm(' + JSON.stringify(b.id) + ')">Set amount…</button>'
+      : '';
+    var btnDetail = '<button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="csmFinPendingToggle(' + JSON.stringify(b.id) + ')">Detail</button>';
+    return '<tr><td style="padding:10px 12px;font-size:12px">' + csmEscapeHtml(csmSalesFormatOrderCreated(b.createdAt)) + '</td>' +
+      '<td style="padding:10px 12px;font-size:12px;max-width:160px;white-space:normal;word-break:break-all">' + by + '</td>' +
+      '<td style="padding:10px 12px;font-size:11px;max-width:200px;white-space:normal">' + csmEscapeHtml(period) + '</td>' +
+      '<td style="padding:10px 12px">' + csmEscapeHtml(wLab) + '</td><td style="padding:10px 12px">' + csmEscapeHtml(tLab) + '</td>' +
+      '<td style="padding:10px 12px;text-align:center">' + csmEscapeHtml(String(nLines)) + '</td>' +
+      '<td style="padding:10px 12px;text-align:right">' + gross.toFixed(2) + '</td>' +
+      '<td style="padding:10px 12px;white-space:normal">' + btnDetail + ' ' + btnApr + btnCustom + '</td></tr>' +
+      '<tr id="' + detailId + '" class="fin-pending-detail" style="display:none"><td colspan="8" style="padding:12px 14px;border-bottom:1px solid #ffe0b2">' + csmFinWtPendingDetailInnerHtml(b) + '</td></tr>';
+  }).join('');
+}
+function csmFinWtQuickApprove(batchId) {
+  if (!csmFinWtCanConfirmPaid() || !salesWtSettlementsRef) {
+    toast(isStaff ? 'Staff cannot approve — admin only' : 'Admin only', 'err');
+    return;
+  }
+  var b = (salesWtSettlements || []).find(function(x) { return x.id === batchId; });
+  if (!b || String(b.status || '') !== 'pending') {
+    toast('Request not found or already processed', 'err');
+    return;
+  }
+  var gross = b.grossAed != null ? Number(b.grossAed) : 0;
+  var nowIso = new Date().toISOString();
+  salesWtSettlementsRef.child(batchId).update({
+    status: 'paid',
+    paidAt: nowIso,
+    paymentAmount: csmSalesRound2(gross),
+    discountAmount: 0,
+    confirmedBy: currentUserEmail || currentUser || '',
+    approvedMode: 'one_click_fin_suite'
+  }).then(function() {
+    toast('Approved — payment recorded', 'ok');
+    try { renderCompanyFinancialPending(); } catch (e1) {}
+    try { renderFinWtPanel(); } catch (e2) {}
+  }).catch(function(e) {
+    toast(e.message || String(e), 'err');
+  });
 }
 function openSalesCustomerModal(id) {
   var m = gid('sales-customer-modal');
@@ -5489,3 +5957,12 @@ try { window.editSalesWorker = editSalesWorker; } catch (e) {}
 try { window.editSalesTruck = editSalesTruck; } catch (e) {}
 try { window.deleteSalesWorker = deleteSalesWorker; } catch (e) {}
 try { window.deleteSalesTruck = deleteSalesTruck; } catch (e) {}
+try { window.swFinSub = swFinSub; } catch (e) {}
+try { window.csmFinWtRunSearch = csmFinWtRunSearch; } catch (e) {}
+try { window.csmFinWtSubmitPending = csmFinWtSubmitPending; } catch (e) {}
+try { window.csmFinWtOpenConfirm = csmFinWtOpenConfirm; } catch (e) {}
+try { window.clFinWtConfirmModal = clFinWtConfirmModal; } catch (e) {}
+try { window.csmFinWtConfirmApply = csmFinWtConfirmApply; } catch (e) {}
+try { window.renderCompanyFinancialPending = renderCompanyFinancialPending; } catch (e) {}
+try { window.csmFinPendingToggle = csmFinPendingToggle; } catch (e) {}
+try { window.csmFinWtQuickApprove = csmFinWtQuickApprove; } catch (e) {}

@@ -402,6 +402,11 @@ function backfillPurchaseSeq() {  if (!purchaseRef || !seqCounterRef) return;  v
 // ============================================================
 // Auth 反代：apiHost 仅主机名（不要写 https://）；协议用 apiScheme（HTTPS + 域名，443 不写端口）。
 // 等价于 auth.config.apiHost = "api.superharvest.com.cn" + apiScheme "https"。
+// CORS（须配在 Nginx/反代上，前端无法绕过）：页面来源为 https://tian8896.github.io 时，对 /v1/* 与 OPTIONS 预检须返回
+// Access-Control-Allow-Origin: https://tian8896.github.io
+// Access-Control-Allow-Methods: GET, POST, OPTIONS
+// Access-Control-Allow-Headers: Content-Type, Authorization, X-Client-Version, X-Firebase-GMPID 等（可与 Google 官方响应对齐或加更多）
+// 若预检 OPTIONS 未带上述头，浏览器会报 “No Access-Control-Allow-Origin”。
 var CSM_AUTH_PROXY_API_SCHEME = 'https';
 var CSM_AUTH_PROXY_API_HOST = 'api.superharvest.com.cn';
 var CSM_AUTH_PROXY_SDK_VERSION = 'v1';

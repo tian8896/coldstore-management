@@ -373,7 +373,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           firebase.initializeApp(window.firebaseConfig || {
             apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',
             authDomain: 'superharves-cold-store.firebaseapp.com',
-            databaseURL: 'https://superharves-cold-store-default-rtdb.firebaseio.com',
+            databaseURL: 'https://api.superharvest.com.cn',
             projectId: 'superharves-cold-store',
             storageBucket: 'superharves-cold-store.firebasestorage.app',
             messagingSenderId: '379038228954',
@@ -401,14 +401,14 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260421auth-cors-note" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260421rtdb-proxy" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复 -->
 <script>
 (function csmPostCheck() {
   var fallbackConfig = {
     apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',
     authDomain: 'superharves-cold-store.firebaseapp.com',
-    databaseURL: 'https://superharves-cold-store-default-rtdb.firebaseio.com',
+    databaseURL: 'https://api.superharvest.com.cn',
     projectId: 'superharves-cold-store',
     storageBucket: 'superharves-cold-store.firebasestorage.app',
     messagingSenderId: '379038228954',

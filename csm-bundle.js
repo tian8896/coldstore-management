@@ -6,6 +6,7 @@ const SK = 'csm_warehouse1';const LOCAL_STORAGE_KEY = 'csm_records_v3';
 var firebaseConfig = {  apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',  authDomain: 'superharves-cold-store.firebaseapp.com',  databaseURL: 'https://api.superharvest.com.cn?ns=superharves-cold-store-default-rtdb',  projectId: 'superharves-cold-store',  storageBucket: 'superharves-cold-store.firebasestorage.app',  messagingSenderId: '379038228954',  appId: '1:379038228954:web:e64fa3be3f2f49b3aae0e3'};try { window.firebaseConfig = firebaseConfig; } catch (eCfg) {}var dbRef = null;var legacyDbRef = null;var purchaseRef = null;var salesCustomersRef = null;var salesPaymentReceiversRef = null;var salesWorkersRef = null;var salesTrucksRef = null;var salesOrdersRef = null;var salesPaymentsRef = null;var settingsMetaRef = null;var finRootRef = null;var finInboxRef = null;var finJournalsRef = null;var finJournalLinesRef = null;var finArRef = null;var finApRef = null;var finCashRef = null;var finBankRef = null;var finVatRef = null;var finCorporateTaxRef = null;var auth = null;var primaryRecsVal = {};var legacyRecsVal = {};
 var salesCustomers = [];var salesPaymentReceivers = [];var salesWorkers = [];var salesTrucks = [];var salesOrders = [];var salesPayments = [];var salesSubView = 'dash';var salesOrdersPage = 1;var salesOrdersPageSize = 20;var salesFinancePage = 1;var salesFinancePageSize = 20;
 var salesWtSettlementsRef = null;var salesWtSettlements = [];var finSubView = 'orders';var companyFinView = 'dashboard';
+var customsFeePendingRef = null;var customsFeeRequests = [];
 // 冷库费率（可配置，默认值）
 // HK Store (store 1): 38 AED/托盘/周 + 5% VAT
 // Primer / Super / Cold Store 4 (store 2–4): 60 AED/托盘/周 + 5% VAT
@@ -451,7 +452,7 @@ function csmFinishFirebaseInitAfterAuthProxy() {
     csmAuthTryUseDeviceLanguage(auth);
     try { window.csmAuth = auth; } catch (e1) {}
     auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function () {});
-    dbRef = firebase.database().ref(SK);    purchaseRef = firebase.database().ref('csm_purchase');    supplierRef = firebase.database().ref('csm_supplier_recs');    salesCustomersRef = firebase.database().ref('csm_sales_w1/customers');    salesPaymentReceiversRef = firebase.database().ref('csm_sales_w1/payment_receivers');    salesWorkersRef = firebase.database().ref('csm_sales_w1/workers');    salesTrucksRef = firebase.database().ref('csm_sales_w1/trucks');    salesOrdersRef = firebase.database().ref('csm_sales_w1/orders');    salesPaymentsRef = firebase.database().ref('csm_sales_w1/payments');    salesWtSettlementsRef = firebase.database().ref('csm_sales_w1/wt_settlements');    legacyDbRef = (SK !== LOCAL_STORAGE_KEY) ? firebase.database().ref(LOCAL_STORAGE_KEY) : null;    settingsMetaRef = firebase.database().ref('csm_meta/settings');    finRootRef = firebase.database().ref('csm_fin');    finInboxRef = firebase.database().ref('csm_fin/inbox');    finJournalsRef = firebase.database().ref('csm_fin/journals');    finJournalLinesRef = firebase.database().ref('csm_fin/journal_lines');    finArRef = firebase.database().ref('csm_fin/subledgers/ar');    finApRef = firebase.database().ref('csm_fin/subledgers/ap');    finCashRef = firebase.database().ref('csm_fin/accounts/cash');    finBankRef = firebase.database().ref('csm_fin/accounts/bank');    finVatRef = firebase.database().ref('csm_fin/tax/vat');    finCorporateTaxRef = firebase.database().ref('csm_fin/tax/corporate_tax');    
+    dbRef = firebase.database().ref(SK);    purchaseRef = firebase.database().ref('csm_purchase');    supplierRef = firebase.database().ref('csm_supplier_recs');    salesCustomersRef = firebase.database().ref('csm_sales_w1/customers');    salesPaymentReceiversRef = firebase.database().ref('csm_sales_w1/payment_receivers');    salesWorkersRef = firebase.database().ref('csm_sales_w1/workers');    salesTrucksRef = firebase.database().ref('csm_sales_w1/trucks');    salesOrdersRef = firebase.database().ref('csm_sales_w1/orders');    salesPaymentsRef = firebase.database().ref('csm_sales_w1/payments');    salesWtSettlementsRef = firebase.database().ref('csm_sales_w1/wt_settlements');    legacyDbRef = (SK !== LOCAL_STORAGE_KEY) ? firebase.database().ref(LOCAL_STORAGE_KEY) : null;    settingsMetaRef = firebase.database().ref('csm_meta/settings');    finRootRef = firebase.database().ref('csm_fin');    finInboxRef = firebase.database().ref('csm_fin/inbox');    finJournalsRef = firebase.database().ref('csm_fin/journals');    finJournalLinesRef = firebase.database().ref('csm_fin/journal_lines');    finArRef = firebase.database().ref('csm_fin/subledgers/ar');    finApRef = firebase.database().ref('csm_fin/subledgers/ap');    finCashRef = firebase.database().ref('csm_fin/accounts/cash');    finBankRef = firebase.database().ref('csm_fin/accounts/bank');    finVatRef = firebase.database().ref('csm_fin/tax/vat');    finCorporateTaxRef = firebase.database().ref('csm_fin/tax/corporate_tax');    customsFeePendingRef = firebase.database().ref('csm_fin/pending_customs_fees');    try { customsFeePendingRef.on('value', function(snap) { var o = snap.val() || {}; customsFeeRequests = Object.keys(o).map(function(k) { var r = o[k] || {}; r.id = k; return r; }).sort(function(a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); }); try { renderCompanyFinancialPendingCustoms(); } catch (eCusR) {} try { csmFinRefreshPendingOverviewRow(); } catch (eCusR2) {} }); } catch (eCusB) {}    
 // 初始化序号计数器引用（必须在这里做，避免 onAuthStateChanged 同步触发时 seqCounterRef 为 null）
 seqCounterRef = dbRef.parent.child('csm_seq_counter');    
 // Firebase Auth 状态监听    
@@ -879,6 +880,7 @@ function switchMainSuite(mode) {
   applyPortalHeaderTitles(mode);
   if (mode === 'fin') {
     if (typeof renderCompanyFinancialPending === 'function') renderCompanyFinancialPending();
+    if (typeof renderCompanyFinancialPendingCustoms === 'function') renderCompanyFinancialPendingCustoms();
     if (typeof renderCompanyFinancialWorkspace === 'function') renderCompanyFinancialWorkspace();
   }
 }
@@ -4205,6 +4207,7 @@ function refreshSalesUi() {
     renderSalesWorkerTruckManageUi();
   }
   try { renderCompanyFinancialPending(); } catch (eFinP) {}
+  try { renderCompanyFinancialPendingCustoms(); } catch (eFinPc) {}
   try { renderCompanyFinancialWorkspace(); } catch (eFinW) {}
   try {
     var tcFin = document.getElementById('tc-sales_finance');
@@ -4301,6 +4304,13 @@ function csmFinIntegrationDefinitions() {
       inboxPath: 'csm_fin/inbox/transport',
       ledgerArea: 'Truck Expense + Cash/Bank/AP',
       requiredFields: 'sourceId, bizDate, truckId, amountGross, approvalState, links.batchId'
+    },
+    {
+      source: 'Customs clearance company bill (demurrage / fees)',
+      eventType: 'customs_clearance_fee_request',
+      inboxPath: 'csm_fin/pending_customs_fees',
+      ledgerArea: 'AP + clearance / cold / logistics expense (post-approval payment)',
+      requiredFields: 'sourceId, bizDate, containerNo, bl, lines.logistics|coldFee|attestation|repack|waste|other, status, submittedBy'
     },
     {
       source: 'Manual finance adjustment',
@@ -4504,7 +4514,18 @@ function csmFinBuildSummary() {
     sum.pendingApprovalCount += 1;
     sum.pendingApprovalAed += csmFinNum(b.grossAed);
   });
+  (customsFeeRequests || []).forEach(function(r) {
+    if (!r || String(r.status || 'pending') !== 'pending') return;
+    sum.pendingApprovalCount += 1;
+    sum.pendingApprovalAed += csmFinCustomsLinesTotal(r.lines);
+  });
   return sum;
+}
+function csmFinRefreshPendingOverviewRow() {
+  try {
+    var sum = csmFinBuildSummary();
+    csmFinSetOverview('fin-overview-pending', csmFinMoney(sum.pendingApprovalAed), 'fin-overview-pending-note', sum.pendingApprovalCount + ' pending (WT + customs / 车工+清关)');
+  } catch (ePendOv) {}
 }
 function csmFinBuildWorkspaceState() {
   var summary = csmFinBuildSummary();
@@ -4707,7 +4728,7 @@ function renderCompanyFinancialWorkspace() {
   csmFinSetOverview('fin-overview-cash', csmFinMoney(sum.cashAed), 'fin-overview-cash-note', 'Cash collected and posted');
   csmFinSetOverview('fin-overview-bank', csmFinMoney(sum.bankAed), 'fin-overview-bank-note', 'Cheque / bank receipts recorded');
   csmFinSetOverview('fin-overview-vat', csmFinMoney(sum.outputVatAed), 'fin-overview-vat-note', 'Output VAT from confirmed sales');
-  csmFinSetOverview('fin-overview-pending', csmFinMoney(sum.pendingApprovalAed), 'fin-overview-pending-note', sum.pendingApprovalCount + ' pending settlement batch(es)');
+  csmFinSetOverview('fin-overview-pending', csmFinMoney(sum.pendingApprovalAed), 'fin-overview-pending-note', sum.pendingApprovalCount + ' pending (WT + customs / 车工+清关)');
   renderCompanyFinSnapshotCards(state);
   renderCompanyFinInterfacesTable();
   renderCompanyFinGlTable(state);
@@ -5896,6 +5917,94 @@ function csmFinPendingToggle(batchId) {
   if (!el) return;
   el.style.display = el.style.display === 'none' ? '' : 'none';
 }
+function csmFinCustomsFeeTypeDefs() {
+  return [
+    { key: 'logistics', cn: '停柜费', en: 'Logistics' },
+    { key: 'coldFee', cn: '清关费', en: 'Cold Fee' },
+    { key: 'attestation', cn: '冷藏费', en: 'Attestation' },
+    { key: 'repack', cn: '单据认证', en: 'Repack' },
+    { key: 'waste', cn: '翻包费', en: 'Waste' },
+    { key: 'other', cn: '其他', en: 'Other' }
+  ];
+}
+function csmFinCustomsLinesTotal(lines) {
+  lines = lines || {};
+  var t = 0;
+  csmFinCustomsFeeTypeDefs().forEach(function(d) {
+    t += csmFinNum(lines[d.key]);
+  });
+  return csmSalesRound2(t);
+}
+function csmFinCustomsSummaryText(r) {
+  var lines = (r && r.lines) || {};
+  var parts = [];
+  csmFinCustomsFeeTypeDefs().forEach(function(d) {
+    var v = csmFinNum(lines[d.key]);
+    if (v > 0) parts.push(d.en + ' ' + v.toFixed(2));
+  });
+  return parts.length ? parts.join(' · ') : '—';
+}
+function renderCompanyFinancialPendingCustoms() {
+  var tb = gid('tb-fin-pending-customs');
+  var empty = gid('fin-pending-customs-empty');
+  var countEl = gid('fin-pending-customs-count');
+  if (!tb) return;
+  var pending = (customsFeeRequests || []).filter(function(r) {
+    return String(r.status || 'pending') === 'pending';
+  });
+  if (countEl) countEl.textContent = String(pending.length);
+  if (!pending.length) {
+    tb.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  var canApr = !!(isAdmin && customsFeePendingRef);
+  tb.innerHTML = pending.map(function(r) {
+    var total = csmFinCustomsLinesTotal(r.lines);
+    var sumTxt = csmEscapeHtml(csmFinCustomsSummaryText(r));
+    var refNo = csmEscapeHtml(String(r.refNo || r.reference || '—'));
+    var bl = csmEscapeHtml(String(r.bl || r.billOfLading || '—'));
+    var cn = csmEscapeHtml(String(r.containerNo || r.cn || '—'));
+    var by = csmEscapeHtml(String(r.submittedBy || r.createdBy || '—'));
+    var rid = r.id;
+    var btnApr = canApr
+      ? '<button type="button" class="abtn" style="background:#5b21b6;color:#fff;border:none;font-family:var(--csm-font-en);font-weight:700" onclick="csmFinCustomsApprove(' + JSON.stringify(rid) + ')">Approve · 批准</button>'
+      : '<span style="color:#888;font-size:12px;font-family:var(--csm-font-en);font-weight:700">Admin only · 仅管理员</span>';
+    return '<tr><td style="padding:10px 12px;font-size:12px">' + csmEscapeHtml(csmSalesFormatOrderCreated(r.createdAt)) + '</td>' +
+      '<td style="padding:10px 12px;font-size:12px;max-width:140px;word-break:break-all">' + by + '</td>' +
+      '<td style="padding:10px 12px;font-family:var(--csm-font-en);font-weight:700">' + refNo + '</td>' +
+      '<td style="padding:10px 12px;font-size:12px"><div>BL: ' + bl + '</div><div>CN: ' + cn + '</div></td>' +
+      '<td style="padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums">' + total.toFixed(2) + '</td>' +
+      '<td style="padding:10px 12px;font-size:11px;color:#334155;max-width:260px;line-height:1.35">' + sumTxt + '</td>' +
+      '<td style="padding:10px 12px;white-space:normal">' + btnApr + '</td></tr>';
+  }).join('');
+}
+function csmFinCustomsApprove(requestId) {
+  if (!isAdmin || !customsFeePendingRef || !requestId) {
+    toast(isStaff ? '仅管理员可批准 / Admin only' : 'Admin only', 'err');
+    return;
+  }
+  var r = (customsFeeRequests || []).find(function(x) { return x.id === requestId; });
+  if (!r || String(r.status || 'pending') !== 'pending') {
+    toast('记录不存在或已处理 / Not found or already processed', 'err');
+    return;
+  }
+  var nowIso = new Date().toISOString();
+  customsFeePendingRef.child(requestId).update({
+    status: 'approved',
+    approvedAt: nowIso,
+    approvedBy: currentUserEmail || currentUser || ''
+  }).then(function() {
+    toast('已批准 · Approved — 后续可登记支付 / Post payment in next step', 'ok');
+    try { renderCompanyFinancialPendingCustoms(); } catch (e1) {}
+    try { renderCompanyFinancialWorkspace(); } catch (e2) {}
+  }).catch(function(e) {
+    toast(e.message || String(e), 'err');
+  });
+}
+try { window.csmFinCustomsApprove = csmFinCustomsApprove; } catch (eCfa) {}
+try { window.renderCompanyFinancialPendingCustoms = renderCompanyFinancialPendingCustoms; } catch (eCfr) {}
 function renderCompanyFinancialPending() {
   var tb = gid('tb-fin-pending');
   var empty = gid('fin-pending-empty');
@@ -5921,12 +6030,12 @@ function renderCompanyFinancialPending() {
     var detailId = csmFinPendingDetailDomId(b.id);
     var canApr = csmFinWtCanConfirmPaid();
     var btnApr = canApr
-      ? '<button type="button" class="abtn" style="background:#2e7d32;color:#fff;border:none;font-family:var(--csm-font-en);font-weight:700" onclick="csmFinWtQuickApprove(' + JSON.stringify(b.id) + ')">Approve</button>'
-      : '<span style="color:#888;font-size:12px;font-family:var(--csm-font-en);font-weight:700">Admin only</span>';
+      ? '<button type="button" class="abtn" style="background:#2e7d32;color:#fff;border:none;font-family:var(--csm-font-en);font-weight:700" onclick="csmFinWtQuickApprove(' + JSON.stringify(b.id) + ')">Approve · 批准</button>'
+      : '<span style="color:#888;font-size:12px;font-family:var(--csm-font-en);font-weight:700">Admin only · 仅管理员</span>';
     var btnCustom = canApr
-      ? ' <button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="csmFinWtOpenConfirm(' + JSON.stringify(b.id) + ')">Set amount…</button>'
+      ? ' <button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="csmFinWtOpenConfirm(' + JSON.stringify(b.id) + ')">Set amount · 金额…</button>'
       : '';
-    var btnDetail = '<button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="csmFinPendingToggle(' + JSON.stringify(b.id) + ')">Detail</button>';
+    var btnDetail = '<button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="csmFinPendingToggle(' + JSON.stringify(b.id) + ')">Detail · 明细</button>';
     return '<tr><td style="padding:10px 12px;font-size:12px">' + csmEscapeHtml(csmSalesFormatOrderCreated(b.createdAt)) + '</td>' +
       '<td style="padding:10px 12px;font-size:12px;max-width:160px;white-space:normal;word-break:break-all">' + by + '</td>' +
       '<td style="padding:10px 12px;font-size:11px;max-width:200px;white-space:normal">' + csmEscapeHtml(period) + '</td>' +

@@ -411,7 +411,7 @@ function csmPatchAuthConfigFromAuthImpl(authImpl) {
   cfg.apiHost = CSM_AUTH_PROXY_API_HOST;
   cfg.sdkClientVersion = CSM_AUTH_PROXY_SDK_VERSION;
   try {
-    if (cfg.tokenApiHost !== undefined) cfg.tokenApiHost = CSM_AUTH_PROXY_API_HOST;
+    cfg.tokenApiHost = CSM_AUTH_PROXY_API_HOST;
   } catch (eT) {}
 }
 function csmAuthTryUseDeviceLanguage(authLike) {

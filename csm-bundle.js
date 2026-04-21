@@ -400,13 +400,19 @@ function backfillPurchaseSeq() {  if (!purchaseRef || !seqCounterRef) return;  v
 // ============================================================
 // INIT
 // ============================================================
-var CSM_AUTH_PROXY_API_HOST = 'http://47.239.173.54:9000';
+var CSM_AUTH_PROXY_API_SCHEME = 'http';
+var CSM_AUTH_PROXY_API_HOST = '47.239.173.54:9000';
 var CSM_AUTH_PROXY_SDK_VERSION = 'v1';
 var CSM_FIREBASE_AUTH_ESM = 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 function csmPatchAuthConfigFromAuthImpl(authImpl) {
   if (!authImpl || !authImpl.config) return;
-  authImpl.config.apiHost = CSM_AUTH_PROXY_API_HOST;
-  authImpl.config.sdkClientVersion = CSM_AUTH_PROXY_SDK_VERSION;
+  var cfg = authImpl.config;
+  cfg.apiScheme = CSM_AUTH_PROXY_API_SCHEME;
+  cfg.apiHost = CSM_AUTH_PROXY_API_HOST;
+  cfg.sdkClientVersion = CSM_AUTH_PROXY_SDK_VERSION;
+  try {
+    if (cfg.tokenApiHost !== undefined) cfg.tokenApiHost = CSM_AUTH_PROXY_API_HOST;
+  } catch (eT) {}
 }
 function csmAuthTryUseDeviceLanguage(authLike) {
   try {
@@ -426,8 +432,7 @@ function csmApplyAuthProxyToAppWithGetAuth(app) {
   return import(esmUrl).then(function(mod) {
     try { window.__csmFirebaseAuthModule = mod; } catch (eM) {}
     var authFromGetAuth = mod.getAuth(app);
-    authFromGetAuth.config.apiHost = CSM_AUTH_PROXY_API_HOST;
-    authFromGetAuth.config.sdkClientVersion = CSM_AUTH_PROXY_SDK_VERSION;
+    csmPatchAuthConfigFromAuthImpl(authFromGetAuth);
     csmAuthTryUseDeviceLanguage(authFromGetAuth);
     return authFromGetAuth;
   });
@@ -474,16 +479,14 @@ function getSecondaryAuthForUserCreation() {
   if (window.__csmFirebaseAuthModule) {
     try {
       var ma = window.__csmFirebaseAuthModule.getAuth(app);
-      ma.config.apiHost = CSM_AUTH_PROXY_API_HOST;
-      ma.config.sdkClientVersion = CSM_AUTH_PROXY_SDK_VERSION;
+      csmPatchAuthConfigFromAuthImpl(ma);
       csmAuthTryUseDeviceLanguage(ma);
     } catch (eSec) {}
   } else {
     import(CSM_FIREBASE_AUTH_ESM).then(function(mod) {
       try { window.__csmFirebaseAuthModule = mod; } catch (eM) {}
       var mb = mod.getAuth(app);
-      mb.config.apiHost = CSM_AUTH_PROXY_API_HOST;
-      mb.config.sdkClientVersion = CSM_AUTH_PROXY_SDK_VERSION;
+      csmPatchAuthConfigFromAuthImpl(mb);
       csmAuthTryUseDeviceLanguage(mb);
     }).catch(function() {});
   }

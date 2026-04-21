@@ -400,7 +400,10 @@ function backfillPurchaseSeq() {  if (!purchaseRef || !seqCounterRef) return;  v
 // ============================================================
 // INIT
 // ============================================================
-var CSM_AUTH_PROXY_API_SCHEME = 'http';
+// Auth 反代：apiHost 仅主机名[:端口]，协议用 apiScheme。
+// 站点在 GitHub Pages（https）时，浏览器禁止 https 页面请求 http（Mixed Content），
+// 反代必须提供 HTTPS（Nginx SSL / 证书）；若改用域名，可把 apiHost 改为域名，443 可省略端口。
+var CSM_AUTH_PROXY_API_SCHEME = 'https';
 var CSM_AUTH_PROXY_API_HOST = '47.239.173.54:9000';
 var CSM_AUTH_PROXY_SDK_VERSION = 'v1';
 var CSM_FIREBASE_AUTH_ESM = 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';

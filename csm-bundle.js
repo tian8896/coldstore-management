@@ -2,7 +2,7 @@
 // CONFIG
 // ============================================================
 const SK = 'csm_warehouse1';const LOCAL_STORAGE_KEY = 'csm_records_v3';
-// Firebase 配置
+// Firebase 配置。Realtime Database 仍用官方 databaseURL；若 RTDB 也需反代，请改 databaseURL 并在代理上转发。
 var firebaseConfig = {  apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',  authDomain: 'superharves-cold-store.firebaseapp.com',  databaseURL: 'https://superharves-cold-store-default-rtdb.firebaseio.com',  projectId: 'superharves-cold-store',  storageBucket: 'superharves-cold-store.firebasestorage.app',  messagingSenderId: '379038228954',  appId: '1:379038228954:web:e64fa3be3f2f49b3aae0e3'};try { window.firebaseConfig = firebaseConfig; } catch (eCfg) {}var dbRef = null;var legacyDbRef = null;var purchaseRef = null;var salesCustomersRef = null;var salesPaymentReceiversRef = null;var salesWorkersRef = null;var salesTrucksRef = null;var salesOrdersRef = null;var salesPaymentsRef = null;var settingsMetaRef = null;var finRootRef = null;var finInboxRef = null;var finJournalsRef = null;var finJournalLinesRef = null;var finArRef = null;var finApRef = null;var finCashRef = null;var finBankRef = null;var finVatRef = null;var finCorporateTaxRef = null;var auth = null;var primaryRecsVal = {};var legacyRecsVal = {};
 var salesCustomers = [];var salesPaymentReceivers = [];var salesWorkers = [];var salesTrucks = [];var salesOrders = [];var salesPayments = [];var salesSubView = 'dash';var salesOrdersPage = 1;var salesOrdersPageSize = 20;var salesFinancePage = 1;var salesFinancePageSize = 20;
 var salesWtSettlementsRef = null;var salesWtSettlements = [];var finSubView = 'orders';var companyFinView = 'dashboard';
@@ -400,7 +400,7 @@ function backfillPurchaseSeq() {  if (!purchaseRef || !seqCounterRef) return;  v
 // ============================================================
 // INIT
 // ============================================================
-var CSM_AUTH_PROXY_API_HOST = 'http://47.239.173.54';
+var CSM_AUTH_PROXY_API_HOST = 'http://47.239.173.54:9000';
 var CSM_AUTH_PROXY_SDK_VERSION = 'v1';
 var CSM_FIREBASE_AUTH_ESM = 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 function csmPatchAuthConfigFromAuthImpl(authImpl) {

@@ -402,10 +402,16 @@ function backfillPurchaseSeq() {  if (!purchaseRef || !seqCounterRef) return;  v
 // ============================================================
 var CSM_AUTH_PROXY_API_HOST = 'http://47.239.173.54';
 var CSM_AUTH_PROXY_SDK_VERSION = 'v1';
+var CSM_FIREBASE_AUTH_ESM = 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 function csmPatchAuthConfigFromAuthImpl(authImpl) {
   if (!authImpl || !authImpl.config) return;
   authImpl.config.apiHost = CSM_AUTH_PROXY_API_HOST;
   authImpl.config.sdkClientVersion = CSM_AUTH_PROXY_SDK_VERSION;
+}
+function csmAuthTryUseDeviceLanguage(authLike) {
+  try {
+    if (authLike && typeof authLike.useDeviceLanguage === 'function') authLike.useDeviceLanguage();
+  } catch (eLang) {}
 }
 function csmApplyAuthProxyCompatFallback(authCompat) {
   try {
@@ -416,18 +422,21 @@ function csmApplyAuthProxyToAppWithGetAuth(app) {
   if (!app) {
     return Promise.resolve(null);
   }
-  try {
-    var authCompat = app.auth();
-    csmApplyAuthProxyCompatFallback(authCompat);
-  } catch (eA) {
-    return Promise.reject(eA);
-  }
-  return Promise.resolve(authCompat);
+  var esmUrl = CSM_FIREBASE_AUTH_ESM;
+  return import(esmUrl).then(function(mod) {
+    try { window.__csmFirebaseAuthModule = mod; } catch (eM) {}
+    var authFromGetAuth = mod.getAuth(app);
+    authFromGetAuth.config.apiHost = CSM_AUTH_PROXY_API_HOST;
+    authFromGetAuth.config.sdkClientVersion = CSM_AUTH_PROXY_SDK_VERSION;
+    csmAuthTryUseDeviceLanguage(authFromGetAuth);
+    return authFromGetAuth;
+  });
 }
 function csmFinishFirebaseInitAfterAuthProxy() {
   try {
     auth = firebase.auth();
     csmApplyAuthProxyCompatFallback(auth);
+    csmAuthTryUseDeviceLanguage(auth);
     try { window.csmAuth = auth; } catch (e1) {}
     auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function () {});
     dbRef = firebase.database().ref(SK);    purchaseRef = firebase.database().ref('csm_purchase');    supplierRef = firebase.database().ref('csm_supplier_recs');    salesCustomersRef = firebase.database().ref('csm_sales_w1/customers');    salesPaymentReceiversRef = firebase.database().ref('csm_sales_w1/payment_receivers');    salesWorkersRef = firebase.database().ref('csm_sales_w1/workers');    salesTrucksRef = firebase.database().ref('csm_sales_w1/trucks');    salesOrdersRef = firebase.database().ref('csm_sales_w1/orders');    salesPaymentsRef = firebase.database().ref('csm_sales_w1/payments');    salesWtSettlementsRef = firebase.database().ref('csm_sales_w1/wt_settlements');    legacyDbRef = (SK !== LOCAL_STORAGE_KEY) ? firebase.database().ref(LOCAL_STORAGE_KEY) : null;    settingsMetaRef = firebase.database().ref('csm_meta/settings');    finRootRef = firebase.database().ref('csm_fin');    finInboxRef = firebase.database().ref('csm_fin/inbox');    finJournalsRef = firebase.database().ref('csm_fin/journals');    finJournalLinesRef = firebase.database().ref('csm_fin/journal_lines');    finArRef = firebase.database().ref('csm_fin/subledgers/ar');    finApRef = firebase.database().ref('csm_fin/subledgers/ap');    finCashRef = firebase.database().ref('csm_fin/accounts/cash');    finBankRef = firebase.database().ref('csm_fin/accounts/bank');    finVatRef = firebase.database().ref('csm_fin/tax/vat');    finCorporateTaxRef = firebase.database().ref('csm_fin/tax/corporate_tax');    
@@ -461,6 +470,23 @@ function getSecondaryAuthForUserCreation() {
   }
   var authCompat = app.auth();
   csmApplyAuthProxyCompatFallback(authCompat);
+  csmAuthTryUseDeviceLanguage(authCompat);
+  if (window.__csmFirebaseAuthModule) {
+    try {
+      var ma = window.__csmFirebaseAuthModule.getAuth(app);
+      ma.config.apiHost = CSM_AUTH_PROXY_API_HOST;
+      ma.config.sdkClientVersion = CSM_AUTH_PROXY_SDK_VERSION;
+      csmAuthTryUseDeviceLanguage(ma);
+    } catch (eSec) {}
+  } else {
+    import(CSM_FIREBASE_AUTH_ESM).then(function(mod) {
+      try { window.__csmFirebaseAuthModule = mod; } catch (eM) {}
+      var mb = mod.getAuth(app);
+      mb.config.apiHost = CSM_AUTH_PROXY_API_HOST;
+      mb.config.sdkClientVersion = CSM_AUTH_PROXY_SDK_VERSION;
+      csmAuthTryUseDeviceLanguage(mb);
+    }).catch(function() {});
+  }
   return authCompat;
 }
 function runChunkedRootUpdate(updates) {

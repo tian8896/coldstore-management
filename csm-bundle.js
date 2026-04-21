@@ -3,9 +3,9 @@
 // ============================================================
 const SK = 'csm_warehouse1';const LOCAL_STORAGE_KEY = 'csm_records_v3';
 // Firebase 配置
-var firebaseConfig = {  apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',  authDomain: 'superharves-cold-store.firebaseapp.com',  databaseURL: 'https://superharves-cold-store-default-rtdb.firebaseio.com',  projectId: 'superharves-cold-store',  storageBucket: 'superharves-cold-store.firebasestorage.app',  messagingSenderId: '379038228954',  appId: '1:379038228954:web:e64fa3be3f2f49b3aae0e3'};var dbRef = null;var legacyDbRef = null;var purchaseRef = null;var salesCustomersRef = null;var salesPaymentReceiversRef = null;var salesWorkersRef = null;var salesTrucksRef = null;var salesOrdersRef = null;var salesPaymentsRef = null;var settingsMetaRef = null;var auth = null;var primaryRecsVal = {};var legacyRecsVal = {};
+var firebaseConfig = {  apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',  authDomain: 'superharves-cold-store.firebaseapp.com',  databaseURL: 'https://superharves-cold-store-default-rtdb.firebaseio.com',  projectId: 'superharves-cold-store',  storageBucket: 'superharves-cold-store.firebasestorage.app',  messagingSenderId: '379038228954',  appId: '1:379038228954:web:e64fa3be3f2f49b3aae0e3'};try { window.firebaseConfig = firebaseConfig; } catch (eCfg) {}var dbRef = null;var legacyDbRef = null;var purchaseRef = null;var salesCustomersRef = null;var salesPaymentReceiversRef = null;var salesWorkersRef = null;var salesTrucksRef = null;var salesOrdersRef = null;var salesPaymentsRef = null;var settingsMetaRef = null;var finRootRef = null;var finInboxRef = null;var finJournalsRef = null;var finJournalLinesRef = null;var finArRef = null;var finApRef = null;var finCashRef = null;var finBankRef = null;var finVatRef = null;var finCorporateTaxRef = null;var auth = null;var primaryRecsVal = {};var legacyRecsVal = {};
 var salesCustomers = [];var salesPaymentReceivers = [];var salesWorkers = [];var salesTrucks = [];var salesOrders = [];var salesPayments = [];var salesSubView = 'dash';var salesOrdersPage = 1;var salesOrdersPageSize = 20;var salesFinancePage = 1;var salesFinancePageSize = 20;
-var salesWtSettlementsRef = null;var salesWtSettlements = [];var finSubView = 'orders';
+var salesWtSettlementsRef = null;var salesWtSettlements = [];var finSubView = 'orders';var companyFinView = 'dashboard';
 // 冷库费率（可配置，默认值）
 // HK Store (store 1): 38 AED/托盘/周 + 5% VAT
 // Primer / Super / Cold Store 4 (store 2–4): 60 AED/托盘/周 + 5% VAT
@@ -400,9 +400,37 @@ function backfillPurchaseSeq() {  if (!purchaseRef || !seqCounterRef) return;  v
 // ============================================================
 // INIT
 // ============================================================
-(function () {  function csmBoot() {    initFirebase();    setDefTimes();    loadSettings();    try { syncAllProductSelects(); } catch (eBootSync) {}  }  if (document.readyState === 'loading') {    window.addEventListener('DOMContentLoaded', csmBoot);  } else {    csmBoot();  }})();function initFirebase() {  if (typeof firebase !== 'undefined' && firebase.initializeApp) {    initApp();    return;  }  var ver = '10.14.1';  var bases = ['https://cdn.jsdelivr.net/npm/firebase@' + ver + '/', 'https://www.gstatic.com/firebasejs/' + ver + '/'];  function loadScriptsSequential(urls, i, onOk, onFail) {    if (i >= urls.length) { onOk(); return; }    var s = document.createElement('script');    s.src = urls[i];    s.onload = function() { loadScriptsSequential(urls, i + 1, onOk, onFail); };    s.onerror = function() { onFail(); };    document.head.appendChild(s);  }  function tryBase(bi) {    if (bi >= bases.length) {      toast('❌ Firebase 无法加载，请换网络或稍后再试', 'err');      showLoginModal();      return;    }    var b = bases[bi];    var urls = [b + 'firebase-app-compat.js', b + 'firebase-database-compat.js', b + 'firebase-auth-compat.js'];    loadScriptsSequential(urls, 0, function() { initApp(); }, function() { tryBase(bi + 1); });  }  tryBase(0);}function initApp() {  if (window.__csmInitDone) return;  window.__csmInitDone = true;  
-// 加载保存的费率  
-loadRates();  try {    if (!firebase.apps || !firebase.apps.length) { firebase.initializeApp(firebaseConfig); }    auth = firebase.auth();    try { window.csmAuth = auth; } catch (e1) {}    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function () {});    dbRef = firebase.database().ref(SK);    purchaseRef = firebase.database().ref('csm_purchase');    supplierRef = firebase.database().ref('csm_supplier_recs');    salesCustomersRef = firebase.database().ref('csm_sales_w1/customers');    salesPaymentReceiversRef = firebase.database().ref('csm_sales_w1/payment_receivers');    salesWorkersRef = firebase.database().ref('csm_sales_w1/workers');    salesTrucksRef = firebase.database().ref('csm_sales_w1/trucks');    salesOrdersRef = firebase.database().ref('csm_sales_w1/orders');    salesPaymentsRef = firebase.database().ref('csm_sales_w1/payments');    salesWtSettlementsRef = firebase.database().ref('csm_sales_w1/wt_settlements');    legacyDbRef = (SK !== LOCAL_STORAGE_KEY) ? firebase.database().ref(LOCAL_STORAGE_KEY) : null;    settingsMetaRef = firebase.database().ref('csm_meta/settings');    
+var CSM_AUTH_PROXY_API_HOST = 'http://47.239.173.54';
+var CSM_AUTH_PROXY_SDK_VERSION = 'v1';
+var CSM_FIREBASE_AUTH_ESM = 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+function csmPatchAuthConfigFromAuthImpl(authImpl) {
+  if (!authImpl || !authImpl.config) return;
+  authImpl.config.apiHost = CSM_AUTH_PROXY_API_HOST;
+  authImpl.config.sdkClientVersion = CSM_AUTH_PROXY_SDK_VERSION;
+}
+function csmApplyAuthProxyCompatFallback(authCompat) {
+  try {
+    if (authCompat && authCompat._delegate) csmPatchAuthConfigFromAuthImpl(authCompat._delegate);
+  } catch (eC) {}
+}
+function csmApplyAuthProxyToAppWithGetAuth(app) {
+  if (!app || typeof import !== 'function') {
+    return Promise.resolve(null);
+  }
+  return import(CSM_FIREBASE_AUTH_ESM).then(function(mod) {
+    try { window.__csmFirebaseAuthModule = mod; } catch (eM) {}
+    var authMod = mod.getAuth(app);
+    csmPatchAuthConfigFromAuthImpl(authMod);
+    return authMod;
+  });
+}
+function csmFinishFirebaseInitAfterAuthProxy() {
+  try {
+    auth = firebase.auth();
+    csmApplyAuthProxyCompatFallback(auth);
+    try { window.csmAuth = auth; } catch (e1) {}
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function () {});
+    dbRef = firebase.database().ref(SK);    purchaseRef = firebase.database().ref('csm_purchase');    supplierRef = firebase.database().ref('csm_supplier_recs');    salesCustomersRef = firebase.database().ref('csm_sales_w1/customers');    salesPaymentReceiversRef = firebase.database().ref('csm_sales_w1/payment_receivers');    salesWorkersRef = firebase.database().ref('csm_sales_w1/workers');    salesTrucksRef = firebase.database().ref('csm_sales_w1/trucks');    salesOrdersRef = firebase.database().ref('csm_sales_w1/orders');    salesPaymentsRef = firebase.database().ref('csm_sales_w1/payments');    salesWtSettlementsRef = firebase.database().ref('csm_sales_w1/wt_settlements');    legacyDbRef = (SK !== LOCAL_STORAGE_KEY) ? firebase.database().ref(LOCAL_STORAGE_KEY) : null;    settingsMetaRef = firebase.database().ref('csm_meta/settings');    finRootRef = firebase.database().ref('csm_fin');    finInboxRef = firebase.database().ref('csm_fin/inbox');    finJournalsRef = firebase.database().ref('csm_fin/journals');    finJournalLinesRef = firebase.database().ref('csm_fin/journal_lines');    finArRef = firebase.database().ref('csm_fin/subledgers/ar');    finApRef = firebase.database().ref('csm_fin/subledgers/ap');    finCashRef = firebase.database().ref('csm_fin/accounts/cash');    finBankRef = firebase.database().ref('csm_fin/accounts/bank');    finVatRef = firebase.database().ref('csm_fin/tax/vat');    finCorporateTaxRef = firebase.database().ref('csm_fin/tax/corporate_tax');    
 // 初始化序号计数器引用（必须在这里做，避免 onAuthStateChanged 同步触发时 seqCounterRef 为 null）
 seqCounterRef = dbRef.parent.child('csm_seq_counter');    
 // Firebase Auth 状态监听    
@@ -414,7 +442,7 @@ console.log('Firebase Auth: User logged in', user.email);        currentUser = u
 var usersRef = firebase.database().ref('csm_users/' + user.uid);        usersRef.once('value').then(function(snap) {          var userData = snap.val();          var userDisplay = gid('currentUserDisplay');          var rootRef = firebase.database().ref();          function applyProfile(ud) {            ud = ud || {};            var r = String(ud.role != null ? ud.role : '').toLowerCase().replace(/\s/g, '');            isStaff = r === 'staff';            isAdmin = r === 'admin';            isLogistics = r === 'logistics';            isSupplier = r === 'supplier';            currentSupplierName = ud.supplierName || null;            attachDataListenersForRole();            var newRoleText = isLogistics ? '物流公司' : (isSupplier ? '供应商' : (isStaff ? '大丰收员工' : '管理员'));            if (userDisplay) { userDisplay.textContent = (user.email || 'User') + ' (' + newRoleText + ')'; }            if (isLogistics) { showLogisticsView(); }            else if (isSupplier) { showSupplierView(); }            else if (isAdmin || isStaff) { showAdminView(); }            else { toast('账号角色未识别，请联系管理员', 'err'); try { auth.signOut(); } catch (ePr) {} }            try { window.isAdmin = isAdmin; window.isStaff = isStaff; } catch (eW) {}          }          function bootstrapFirstAdmin() {            var profile = { email: user.email || '', role: 'admin', createdAt: firebase.database.ServerValue.TIMESTAMP };            var upd = {};            upd['csm_users/' + user.uid] = profile;            upd['csm_meta/site_initialized'] = true;            rootRef.update(upd).then(function() {              clearLoginVerifyTimer();              try {                applyProfile(profile);                toast('✅ 首次登录：已创建管理员', 'ok');                var lm0 = gid('loginModal');                if (lm0) { lm0.style.display = 'none'; lm0.classList.remove('sh'); }                var le0 = gid('login-error');                if (le0) { le0.style.display = 'none'; le0.style.color = ''; }              } catch (uiErr2) {                console.error('csm first-admin UI error', uiErr2);                pendingLoginError = '已写入管理员资料，但界面加载失败：' + (uiErr2 && uiErr2.message ? uiErr2.message : String(uiErr2));                toast('界面加载失败', 'err');                clearLoginVerifyTimer();                auth.signOut();              }            }).catch(function(e) {              console.error(e);              pendingLoginError = '首次初始化写入失败：' + (e.message || e) + '。规则需允许：已登录用户 update 写入 csm_users 下自己的节点，以及 csm_meta/site_initialized。';              toast('❌ 数据库写入失败', 'err');              clearLoginVerifyTimer();              auth.signOut();            });          }          if (userData) {            clearLoginVerifyTimer();            try {              applyProfile(userData);              toast('✅ 欢迎 ' + (user.email || 'User'), 'ok');              var lmOk = gid('loginModal');              if (lmOk) { lmOk.style.display = 'none'; lmOk.classList.remove('sh'); }              var leOk = gid('login-error');              if (leOk) { leOk.style.display = 'none'; leOk.style.color = ''; }            } catch (uiErr) {              console.error('csm login UI error', uiErr);              pendingLoginError = '登录成功但界面加载失败：' + (uiErr && uiErr.message ? uiErr.message : String(uiErr)) + '。请打开控制台查看 csm login UI error。';              toast('界面加载失败', 'err');              clearLoginVerifyTimer();              auth.signOut();            }          } else {            rootRef.child('csm_meta/site_initialized').once('value').then(function(metaSnap) {              if (metaSnap.val() === true) {                pendingLoginError = '您的账号未在 csm_users 中登记。请让管理员在「设置 → 用户管理」中添加，或在 Firebase 控制台手动添加 csm_users/' + user.uid;                toast('⚠️ 账号未注册', 'err');                clearLoginVerifyTimer();                auth.signOut();                return;              }              rootRef.child('csm_users').once('value').then(function(allSnap) {                var all = allSnap.val() || {};                var n = Object.keys(all).length;                if (n > 0) {                  rootRef.child('csm_meta/site_initialized').set(true).catch(function() {});                  pendingLoginError = '数据库里已有 ' + n + ' 个用户资料，但当前账号未登记。请管理员在「用户管理」中添加您，或手动写入 csm_users/' + user.uid;                  toast('⚠️ 账号未注册', 'err');                  clearLoginVerifyTimer();                  auth.signOut();                } else {                  bootstrapFirstAdmin();                }              }).catch(function(e) {                console.error(e);                pendingLoginError = '无法读取 csm_users（常被数据库规则拦截）。请在规则中为 csm_users 增加 ".read": "auth != null"，或手动在控制台添加 csm_users 节点与 csm_meta/site_initialized=true。详情：' + (e.message || e);                toast('❌ 无法校验用户表', 'err');                clearLoginVerifyTimer();                auth.signOut();              });            }).catch(function(e) {              console.error(e);              pendingLoginError = '无法读取 csm_meta/site_initialized：' + (e.message || e) + '。请在规则中为 csm_meta 增加已登录可读。';              toast('❌ 数据库读取失败', 'err');              clearLoginVerifyTimer();              auth.signOut();            });          }        }).catch(function(e) {          console.error('csm_users profile read error', e);          var permHint = (e && e.code === 'PERMISSION_DENIED') ? '（PERMISSION_DENIED：请在 Realtime Database 规则中允许已登录用户读取 csm_users 与 csm_meta。）' : '';          pendingLoginError = '读取个人资料失败：' + (e.message || e) + permHint + ' 路径：csm_users/' + (firebase.auth().currentUser && firebase.auth().currentUser.uid);          toast('❌ 读取用户失败', 'err');          clearLoginVerifyTimer();          auth.signOut();        });      } else {        clearLoginVerifyTimer();        setSupplierPortalLayout(false);        
 // 用户未登录，显示登录弹窗        
 console.log('Firebase Auth: User not logged in');        currentUser = null;        currentUserEmail = null;        isAdmin = false;        isStaff = false;        isLogistics = false;        isSupplier = false;        currentSupplierName = null;        hasCloudSettingsSnapshot = false;        currentMainSuite = 'w1';        try { window.isAdmin = false; window.isStaff = false; } catch (eW2) {}        try { sessionStorage.removeItem('csm_main_suite'); } catch (eAu) {}        var shellAu = gid('adminPortalShell');        if (shellAu) { shellAu.style.display = 'none'; shellAu.setAttribute('aria-hidden', 'true'); }        if (typeof resetMainSuiteForNonAdmin === 'function') resetMainSuiteForNonAdmin();        var h1Au = gid('headerTitle');        var hpAu = gid('headerSubtitle');        if (h1Au) h1Au.textContent = '🧊 迪拜大丰收冷库管理系统';        if (hpAu) hpAu.textContent = 'Super Harvest Cold Store Management System - Warehouse 1';        var ls = document.querySelector('.login-screen');        if (ls) ls.classList.remove('hidden');        showLoginModal();      }    });    
-toast('✅ Firebase 连接成功', 'ok');  } catch(e) {    console.error('Firebase init error:', e);    window.__csmInitDone = false;    toast('❌ Firebase 连接失败: ' + e.message, 'err');    showLoginModal();  }}
+toast('✅ Firebase 连接成功', 'ok');    window.__csmInitDone = true;    window.__csmInitInFlight = false;  } catch(e) {    console.error('Firebase init error:', e);    window.__csmInitDone = false;    window.__csmInitInFlight = false;    toast('❌ Firebase 连接失败: ' + e.message, 'err');    showLoginModal();  }}function initApp() {  if (window.__csmInitDone || window.__csmInitInFlight) return;  window.__csmInitInFlight = true;  loadRates();  try {    if (!firebase.apps || !firebase.apps.length) { firebase.initializeApp(firebaseConfig); }    var app = firebase.app();    csmApplyAuthProxyToAppWithGetAuth(app).then(function() { csmFinishFirebaseInitAfterAuthProxy(); }, function(err) { console.warn('[CSM] getAuth proxy import failed', err); csmFinishFirebaseInitAfterAuthProxy(); });  } catch(e) {    console.error('Firebase init error:', e);    window.__csmInitInFlight = false;    window.__csmInitDone = false;    toast('❌ Firebase 连接失败: ' + e.message, 'err');    showLoginModal();  }}function initFirebase() {  if (typeof firebase !== 'undefined' && firebase.initializeApp) {    initApp();    return;  }  var ver = '10.14.1';  var bases = ['https://cdn.jsdelivr.net/npm/firebase@' + ver + '/', 'https://www.gstatic.com/firebasejs/' + ver + '/'];  function loadScriptsSequential(urls, i, onOk, onFail) {    if (i >= urls.length) { onOk(); return; }    var s = document.createElement('script');    s.src = urls[i];    s.onload = function() { loadScriptsSequential(urls, i + 1, onOk, onFail); };    s.onerror = function() { onFail(); };    document.head.appendChild(s);  }  function tryBase(bi) {    if (bi >= bases.length) {      toast('❌ Firebase 无法加载，请换网络或稍后再试', 'err');      showLoginModal();      return;    }    var b = bases[bi];    var urls = [b + 'firebase-app-compat.js', b + 'firebase-database-compat.js', b + 'firebase-auth-compat.js'];    loadScriptsSequential(urls, 0, function() { initApp(); }, function() { tryBase(bi + 1); });  }  tryBase(0);}(function () {  function csmBoot() {    initFirebase();    setDefTimes();    loadSettings();    try { syncAllProductSelects(); } catch (eBootSync) {}  }  if (document.readyState === 'loading') {    window.addEventListener('DOMContentLoaded', csmBoot);  } else {    csmBoot();  }})();
 // 初始化默认账号
 function initDefaultUsers() {  var users = getUsers();  if (Object.keys(users).length === 0) {    users = {      'admin': { password: 'admin123', role: 'admin', name: '管理员' }    };    saveUsers(users);  }}function clearLoginVerifyTimer() {  if (window.__csmLoginVerifyTimer) {    clearTimeout(window.__csmLoginVerifyTimer);    window.__csmLoginVerifyTimer = null;  }}function setLoginVerifyTimer() {  clearLoginVerifyTimer();  window.__csmLoginVerifyTimer = setTimeout(function() {    window.__csmLoginVerifyTimer = null;    if (!auth || typeof firebase === 'undefined' || !firebase.auth().currentUser) return;    var le = gid('login-error');    if (le && /正在验证|验证账号/.test(le.textContent || '')) {      pendingLoginError = '登录验证超时（45秒）。请检查：① Realtime Database 规则是否允许已登录用户读取 csm_users、csm_meta；② Firebase「身份验证 → 设置 → 已授权网域」是否包含当前主机名「' + location.hostname + '」（只填域名，不要带页面路径）；③ Network 里 database 请求是否失败。';      toast('登录验证超时', 'err');      clearLoginVerifyTimer();      auth.signOut();    }  }, 45000);}
 var CSM_SECONDARY_APP_NAME = 'csm_AccountCreateOnly';
@@ -431,7 +459,17 @@ function getSecondaryAuthForUserCreation() {
       return null;
     }
   }
-  return app.auth();
+  var authCompat = app.auth();
+  if (window.__csmFirebaseAuthModule) {
+    try {
+      var ma = window.__csmFirebaseAuthModule.getAuth(app);
+      csmPatchAuthConfigFromAuthImpl(ma);
+    } catch (eSec) {}
+  } else {
+    csmApplyAuthProxyCompatFallback(authCompat);
+    csmApplyAuthProxyToAppWithGetAuth(app).catch(function() {});
+  }
+  return authCompat;
 }
 function runChunkedRootUpdate(updates) {
   var keys = Object.keys(updates);
@@ -811,7 +849,10 @@ function switchMainSuite(mode) {
   if (sf) sf.style.display = mode === 'fin' ? 'block' : 'none';
   syncAdminPortalButtons();
   applyPortalHeaderTitles(mode);
-  if (mode === 'fin' && typeof renderCompanyFinancialPending === 'function') renderCompanyFinancialPending();
+  if (mode === 'fin') {
+    if (typeof renderCompanyFinancialPending === 'function') renderCompanyFinancialPending();
+    if (typeof renderCompanyFinancialWorkspace === 'function') renderCompanyFinancialWorkspace();
+  }
 }
 try { window.switchMainSuite = switchMainSuite; } catch (eSw) {}
 function setSupplierPortalLayout(active) {
@@ -4136,10 +4177,517 @@ function refreshSalesUi() {
     renderSalesWorkerTruckManageUi();
   }
   try { renderCompanyFinancialPending(); } catch (eFinP) {}
+  try { renderCompanyFinancialWorkspace(); } catch (eFinW) {}
   try {
     var tcFin = document.getElementById('tc-sales_finance');
     if (tcFin && tcFin.classList.contains('ac')) renderFinCnReconTable();
   } catch (eRr) {}
+}
+function csmFinNum(v) {
+  var n = Number(v);
+  return isFinite(n) ? n : 0;
+}
+function csmFinMoney(n) {
+  return 'AED ' + csmFinNum(csmSalesRound2(n)).toFixed(2);
+}
+function csmFinFmt(n) {
+  return csmFinNum(csmSalesRound2(n)).toFixed(2);
+}
+function csmFinSetOverview(id, value, noteId, note) {
+  var el = gid(id);
+  if (el) el.textContent = value;
+  var noteEl = gid(noteId);
+  if (noteEl && note != null) noteEl.textContent = note;
+}
+function csmFinIsoDateOnly(iso) {
+  var s = String(iso || '').trim();
+  if (!s) return '';
+  return s.slice(0, 10);
+}
+function csmFinQuarterLabelFromIso(iso) {
+  var d = new Date(iso || '');
+  if (isNaN(d.getTime())) return 'Current quarter';
+  var q = Math.floor(d.getMonth() / 3) + 1;
+  return d.getFullYear() + ' Q' + q;
+}
+function csmFinMonthLabelFromIso(iso) {
+  var d = new Date(iso || '');
+  if (isNaN(d.getTime())) return 'Current month';
+  return d.getFullYear() + '-' + pad2(d.getMonth() + 1);
+}
+function csmFinSampleAccounts() {
+  return [
+    { code: '1000', name: 'Cash on Hand', type: 'asset' },
+    { code: '1010', name: 'Bank Current Account', type: 'asset' },
+    { code: '1100', name: 'Accounts Receivable', type: 'asset' },
+    { code: '1300', name: 'Input VAT Recoverable', type: 'asset' },
+    { code: '2000', name: 'Accounts Payable', type: 'liability' },
+    { code: '2200', name: 'Output VAT Payable', type: 'liability' },
+    { code: '2400', name: 'Corporate Tax Payable', type: 'liability' },
+    { code: '4000', name: 'Cold Store Revenue', type: 'income' },
+    { code: '5000', name: 'Worker Expense', type: 'expense' },
+    { code: '5010', name: 'Truck Expense', type: 'expense' },
+    { code: '9998', name: 'Suspense / Review', type: 'equity' }
+  ];
+}
+function csmFinIntegrationDefinitions() {
+  return [
+    {
+      source: 'Sales order / customer billing',
+      eventType: 'sales_invoice_confirmed',
+      inboxPath: 'csm_fin/inbox/sales',
+      ledgerArea: 'GL + AR + Output VAT',
+      requiredFields: 'sourceId, bizDate, customerId, amountNet, amountTax, amountGross, vatCode, links.orderId'
+    },
+    {
+      source: 'Customer payment',
+      eventType: 'customer_receipt_received',
+      inboxPath: 'csm_fin/inbox/customer_receipts',
+      ledgerArea: 'Cash/Bank + AR',
+      requiredFields: 'sourceId, bizDate, customerId, paymentMethod, amountGross, allocations, links.paymentId'
+    },
+    {
+      source: 'Supplier invoice / purchase cost',
+      eventType: 'supplier_invoice_posted',
+      inboxPath: 'csm_fin/inbox/suppliers',
+      ledgerArea: 'AP + Expense + Input VAT',
+      requiredFields: 'sourceId, bizDate, supplierId, amountNet, amountTax, amountGross, vatCode, links.purchaseId'
+    },
+    {
+      source: 'Logistics fee',
+      eventType: 'logistics_fee_confirmed',
+      inboxPath: 'csm_fin/inbox/logistics',
+      ledgerArea: 'AP/Cash + Logistics Expense',
+      requiredFields: 'sourceId, bizDate, vendorId, containerNo, amountGross, paymentMethod, links.logisticsId'
+    },
+    {
+      source: 'Worker settlement',
+      eventType: 'worker_expense_approved',
+      inboxPath: 'csm_fin/inbox/workers',
+      ledgerArea: 'Worker Expense + Cash/Bank/AP',
+      requiredFields: 'sourceId, bizDate, workerId, amountGross, approvalState, links.batchId'
+    },
+    {
+      source: 'Truck / transport settlement',
+      eventType: 'transport_expense_approved',
+      inboxPath: 'csm_fin/inbox/transport',
+      ledgerArea: 'Truck Expense + Cash/Bank/AP',
+      requiredFields: 'sourceId, bizDate, truckId, amountGross, approvalState, links.batchId'
+    },
+    {
+      source: 'Manual finance adjustment',
+      eventType: 'finance_manual_adjustment',
+      inboxPath: 'csm_fin/inbox/manual',
+      ledgerArea: 'GL + Tax + Close',
+      requiredFields: 'sourceId, bizDate, amountNet, amountTax, amountGross, approvalState, snapshot'
+    }
+  ];
+}
+function csmFinReservedRefsSnapshot() {
+  return [
+    ['Root', 'csm_fin'],
+    ['Inbox', 'csm_fin/inbox'],
+    ['Journals', 'csm_fin/journals'],
+    ['Journal lines', 'csm_fin/journal_lines'],
+    ['Accounts receivable', 'csm_fin/subledgers/ar'],
+    ['Accounts payable', 'csm_fin/subledgers/ap'],
+    ['Cash ledger', 'csm_fin/accounts/cash'],
+    ['Bank ledger', 'csm_fin/accounts/bank'],
+    ['VAT centre', 'csm_fin/tax/vat'],
+    ['Corporate Tax', 'csm_fin/tax/corporate_tax']
+  ];
+}
+function csmFinPushLine(lines, accountCode, accountName, debit, credit, meta) {
+  lines.push({
+    accountCode: accountCode,
+    accountName: accountName,
+    debit: csmSalesRound2(csmFinNum(debit)),
+    credit: csmSalesRound2(csmFinNum(credit)),
+    meta: meta || null
+  });
+}
+function csmFinCreateJournal(base) {
+  var lines = [];
+  return {
+    id: base.id,
+    voucherNo: base.voucherNo,
+    journalDate: base.journalDate,
+    source: base.source,
+    status: base.status || 'posted',
+    description: base.description || '',
+    refId: base.refId || '',
+    lines: lines
+  };
+}
+function csmFinBuildJournals() {
+  var journals = [];
+  (salesOrders || []).forEach(function(o) {
+    if (!o || o.voided || String(o.orderStatus || '').toLowerCase() !== 'confirmed') return;
+    var lines = csmSalesNormalizeLinesFromOrder(o);
+    if (!lines.length) return;
+    var total = 0;
+    var vat = 0;
+    var net = 0;
+    lines.forEach(function(L) {
+      var calc = csmSalesComputeTotals(L.unitPrice, L.quantity, csmSalesLineVatMode(L, o));
+      total += csmFinNum(calc.total);
+      vat += csmFinNum(calc.vat);
+      net += csmFinNum(calc.net);
+    });
+    total = csmSalesRound2(total);
+    vat = csmSalesRound2(vat);
+    net = csmSalesRound2(net);
+    var method = csmSalesGetPaymentMethod(o);
+    var debitCode = method === 'cash' ? '1000' : '1100';
+    var debitName = method === 'cash' ? 'Cash on Hand' : 'Accounts Receivable';
+    var j = csmFinCreateJournal({
+      id: 'sale_' + o.id,
+      voucherNo: 'SJ-' + String(o.orderNo || o.id || '').replace(/\s+/g, ''),
+      journalDate: o.confirmedAt || o.createdAt || '',
+      source: 'Sales Order',
+      description: 'Confirmed sales order ' + (o.orderNo || o.id || ''),
+      refId: o.id || ''
+    });
+    csmFinPushLine(j.lines, debitCode, debitName, total, 0, { customer: o.customerName || '' });
+    csmFinPushLine(j.lines, '4000', 'Cold Store Revenue', 0, net, { customer: o.customerName || '' });
+    if (vat > 0) csmFinPushLine(j.lines, '2200', 'Output VAT Payable', 0, vat, { customer: o.customerName || '' });
+    journals.push(j);
+  });
+  (salesPayments || []).forEach(function(p) {
+    if (!p) return;
+    var cash = csmSalesRound2(csmFinNum(p.cashAed));
+    var bank = csmSalesRound2(csmFinNum(p.checkAed));
+    var discount = csmSalesRound2(csmFinNum(p.discountAed));
+    var allocs = p.allocations || [];
+    if (!(cash > 0 || bank > 0 || discount > 0 || allocs.length)) return;
+    var credited = 0;
+    allocs.forEach(function(a) { credited += csmFinNum(a.amountAed); });
+    credited = csmSalesRound2(credited + discount);
+    if (!(credited > 0)) credited = csmSalesRound2(csmFinNum(p.actualReceivedAed) + discount);
+    var j = csmFinCreateJournal({
+      id: 'receipt_' + p.id,
+      voucherNo: 'RV-' + String(p.id || '').replace(/^cpay_/, '').toUpperCase(),
+      journalDate: p.createdAt || '',
+      source: 'Customer Receipt',
+      description: 'Receipt from ' + (p.customerNameSnapshot || 'customer'),
+      refId: p.id || ''
+    });
+    if (cash > 0) csmFinPushLine(j.lines, '1000', 'Cash on Hand', cash, 0, null);
+    if (bank > 0) csmFinPushLine(j.lines, '1010', 'Bank Current Account', bank, 0, null);
+    if (discount > 0) csmFinPushLine(j.lines, '9998', 'Suspense / Review', discount, 0, { note: 'Discount to map to dedicated account later' });
+    csmFinPushLine(j.lines, '1100', 'Accounts Receivable', 0, credited, { customer: p.customerNameSnapshot || '' });
+    var payDebit = csmSalesRound2(cash + bank + discount);
+    if (Math.abs(payDebit - credited) > 0.02) {
+      if (payDebit > credited) csmFinPushLine(j.lines, '9998', 'Suspense / Review', 0, csmSalesRound2(payDebit - credited), { note: 'Auto-balance adjustment' });
+      else csmFinPushLine(j.lines, '9998', 'Suspense / Review', csmSalesRound2(credited - payDebit), 0, { note: 'Auto-balance adjustment' });
+    }
+    journals.push(j);
+  });
+  (salesWtSettlements || []).forEach(function(b) {
+    if (!b || String(b.status || '') !== 'paid') return;
+    var workerAmt = 0;
+    var truckAmt = 0;
+    (b.linesSnapshot || []).forEach(function(L) {
+      workerAmt += csmFinNum(L.workerAmount);
+      truckAmt += csmFinNum(L.truckAmount);
+    });
+    workerAmt = csmSalesRound2(workerAmt);
+    truckAmt = csmSalesRound2(truckAmt);
+    var payAmt = csmSalesRound2(csmFinNum(b.paymentAmount));
+    if (!(workerAmt > 0 || truckAmt > 0 || payAmt > 0)) return;
+    var j = csmFinCreateJournal({
+      id: 'settle_' + b.id,
+      voucherNo: 'PV-' + String(b.id || '').replace(/\s+/g, '').toUpperCase(),
+      journalDate: b.paidAt || b.createdAt || '',
+      source: 'Worker/Truck Settlement',
+      description: 'Settlement batch ' + (b.id || ''),
+      refId: b.id || ''
+    });
+    if (workerAmt > 0) csmFinPushLine(j.lines, '5000', 'Worker Expense', workerAmt, 0, null);
+    if (truckAmt > 0) csmFinPushLine(j.lines, '5010', 'Truck Expense', truckAmt, 0, null);
+    if (payAmt > 0) csmFinPushLine(j.lines, '1010', 'Bank Current Account', 0, payAmt, null);
+    var settleDebit = csmSalesRound2(workerAmt + truckAmt);
+    if (Math.abs(settleDebit - payAmt) > 0.02) {
+      if (settleDebit > payAmt) csmFinPushLine(j.lines, '9998', 'Suspense / Review', 0, csmSalesRound2(settleDebit - payAmt), { note: 'Settlement difference review' });
+      else csmFinPushLine(j.lines, '9998', 'Suspense / Review', csmSalesRound2(payAmt - settleDebit), 0, { note: 'Settlement difference review' });
+    }
+    journals.push(j);
+  });
+  journals.sort(function(a, b) {
+    return String(b.journalDate || '').localeCompare(String(a.journalDate || '')) || String(b.voucherNo || '').localeCompare(String(a.voucherNo || ''));
+  });
+  return journals;
+}
+function csmFinBuildDetailRows(journals) {
+  var rows = [];
+  journals.forEach(function(j) {
+    (j.lines || []).forEach(function(line, idx) {
+      rows.push({
+        id: j.id + ':' + idx,
+        journalDate: j.journalDate || '',
+        voucherNo: j.voucherNo || '',
+        description: j.description || '',
+        source: j.source || '',
+        accountCode: line.accountCode,
+        accountName: line.accountName,
+        debit: csmFinNum(line.debit),
+        credit: csmFinNum(line.credit)
+      });
+    });
+  });
+  rows.sort(function(a, b) {
+    var d = String(a.journalDate || '').localeCompare(String(b.journalDate || ''));
+    if (d !== 0) return d;
+    return String(a.voucherNo || '').localeCompare(String(b.voucherNo || ''));
+  });
+  return rows;
+}
+function csmFinBuildSummary() {
+  var sum = {
+    confirmedRevenueAed: 0,
+    outputVatAed: 0,
+    confirmedOrders: 0,
+    receiptsAed: 0,
+    cashAed: 0,
+    bankAed: 0,
+    pendingApprovalAed: 0,
+    pendingApprovalCount: 0
+  };
+  (salesOrders || []).forEach(function(o) {
+    if (!o || o.voided || String(o.orderStatus || '').toLowerCase() !== 'confirmed') return;
+    sum.confirmedOrders += 1;
+    csmSalesNormalizeLinesFromOrder(o).forEach(function(L) {
+      var calc = csmSalesComputeTotals(L.unitPrice, L.quantity, csmSalesLineVatMode(L, o));
+      sum.confirmedRevenueAed += csmFinNum(calc.total);
+      sum.outputVatAed += csmFinNum(calc.vat);
+    });
+  });
+  (salesPayments || []).forEach(function(p) {
+    if (!p) return;
+    var cash = csmFinNum(p.cashAed);
+    var bank = csmFinNum(p.checkAed);
+    var actual = p.actualReceivedAed != null ? csmFinNum(p.actualReceivedAed) : (cash + bank);
+    sum.cashAed += cash;
+    sum.bankAed += bank;
+    sum.receiptsAed += actual;
+  });
+  (salesWtSettlements || []).forEach(function(b) {
+    if (!b || String(b.status || '') !== 'pending') return;
+    sum.pendingApprovalCount += 1;
+    sum.pendingApprovalAed += csmFinNum(b.grossAed);
+  });
+  return sum;
+}
+function csmFinBuildWorkspaceState() {
+  var summary = csmFinBuildSummary();
+  var journals = csmFinBuildJournals();
+  var detailRows = csmFinBuildDetailRows(journals);
+  var accounts = csmFinSampleAccounts();
+  var latestIso = '';
+  journals.forEach(function(j) {
+    if (!latestIso || String(j.journalDate || '') > latestIso) latestIso = String(j.journalDate || '');
+  });
+  var workerExpense = 0;
+  var truckExpense = 0;
+  detailRows.forEach(function(r) {
+    if (r.accountCode === '5000') workerExpense += r.debit - r.credit;
+    if (r.accountCode === '5010') truckExpense += r.debit - r.credit;
+  });
+  workerExpense = csmSalesRound2(workerExpense);
+  truckExpense = csmSalesRound2(truckExpense);
+  return {
+    summary: summary,
+    journals: journals,
+    detailRows: detailRows,
+    accounts: accounts,
+    tax: {
+      monthLabel: csmFinMonthLabelFromIso(latestIso || new Date().toISOString()),
+      quarterLabel: csmFinQuarterLabelFromIso(latestIso || new Date().toISOString()),
+      inputVatAed: 0,
+      outputVatAed: csmSalesRound2(summary.outputVatAed),
+      netVatAed: csmSalesRound2(summary.outputVatAed),
+      taxableProfitAed: csmSalesRound2(summary.confirmedRevenueAed - workerExpense - truckExpense),
+      corpTaxRatePct: 9,
+      workerExpenseAed: workerExpense,
+      truckExpenseAed: truckExpense
+    }
+  };
+}
+function swCompanyFinView(view) {
+  companyFinView = view || 'dashboard';
+  try { sessionStorage.setItem('csm_company_fin_view', companyFinView); } catch (e0) {}
+  ['dashboard', 'gl', 'detail', 'cashbank', 'tax'].forEach(function(key) {
+    var panel = gid('company-fin-panel-' + key);
+    if (panel) panel.style.display = key === companyFinView ? 'block' : 'none';
+    var btn = gid('company-fin-btn-' + key);
+    if (btn) {
+      btn.classList.toggle('btn-s', key === companyFinView);
+      btn.classList.toggle('btn-g', key !== companyFinView);
+    }
+  });
+  if (companyFinView === 'detail') renderCompanyFinDetailTable();
+}
+try { window.swCompanyFinView = swCompanyFinView; } catch (eCFW) {}
+function renderCompanyFinSnapshotCards(state) {
+  var el = gid('company-fin-snapshot-cards');
+  if (!el) return;
+  var cards = [
+    ['Journal vouchers', String(state.journals.length)],
+    ['Ledger lines', String(state.detailRows.length)],
+    ['Chart of accounts', String(state.accounts.length)],
+    ['VAT period', state.tax.monthLabel],
+    ['Reserved refs', String(csmFinReservedRefsSnapshot().length)]
+  ];
+  el.innerHTML = cards.map(function(card) {
+    return '<div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px;background:#f8fafc">' +
+      '<div style="font-size:12px;color:#64748b;font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(card[0]) + '</div>' +
+      '<div style="margin-top:6px;font-size:20px;color:#0f172a;font-family:var(--csm-font-en);font-weight:800">' + csmEscapeHtml(card[1]) + '</div>' +
+      '</div>';
+  }).join('');
+}
+function renderCompanyFinInterfacesTable() {
+  var tb = gid('tb-company-fin-interfaces');
+  if (!tb) return;
+  var defs = csmFinIntegrationDefinitions();
+  tb.innerHTML = defs.map(function(d) {
+    return '<tr>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7">' + csmEscapeHtml(d.source) + '</td>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7;font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(d.eventType) + '</td>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7"><code>' + csmEscapeHtml(d.inboxPath) + '</code></td>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7">' + csmEscapeHtml(d.ledgerArea) + '</td>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7;color:#475569">' + csmEscapeHtml(d.requiredFields) + '</td>' +
+      '</tr>';
+  }).join('');
+}
+function renderCompanyFinGlTable(state) {
+  var tb = gid('tb-company-fin-gl');
+  var sumEl = gid('company-fin-gl-summary');
+  if (!tb) return;
+  if (sumEl) {
+    sumEl.textContent = state.journals.length + ' voucher(s) generated';
+  }
+  if (!state.journals.length) {
+    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:16px;color:#94a3b8">No journal data available.</td></tr>';
+    return;
+  }
+  tb.innerHTML = state.journals.map(function(j) {
+    var debit = 0, credit = 0;
+    (j.lines || []).forEach(function(line) {
+      debit += csmFinNum(line.debit);
+      credit += csmFinNum(line.credit);
+    });
+    return '<tr>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7;font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(j.voucherNo) + '</td>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7">' + csmEscapeHtml(csmSalesFormatOrderCreated(j.journalDate)) + '</td>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7">' + csmEscapeHtml(j.source) + '</td>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7">' + csmEscapeHtml(j.description) + '</td>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7;text-align:right">' + csmFinFmt(debit) + '</td>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7;text-align:right">' + csmFinFmt(credit) + '</td>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7">' + csmEscapeHtml(j.status) + '</td>' +
+      '</tr>';
+  }).join('');
+}
+function renderCompanyFinDetailFilter(state) {
+  var sel = gid('company-fin-account-filter');
+  if (!sel) return;
+  var current = String(sel.value || 'all');
+  var options = ['<option value="all">All accounts</option>'];
+  state.accounts.forEach(function(a) {
+    options.push('<option value="' + csmEscapeHtml(a.code) + '"' + (current === a.code ? ' selected' : '') + '>' + csmEscapeHtml(a.code + ' - ' + a.name) + '</option>');
+  });
+  sel.innerHTML = options.join('');
+  if (current && current !== 'all' && !state.accounts.some(function(a) { return a.code === current; })) {
+    sel.value = 'all';
+  }
+}
+function renderCompanyFinDetailTable() {
+  var tb = gid('tb-company-fin-detail');
+  if (!tb) return;
+  var state = csmFinBuildWorkspaceState();
+  renderCompanyFinDetailFilter(state);
+  var code = gid('company-fin-account-filter') ? String(gid('company-fin-account-filter').value || 'all') : 'all';
+  var rows = state.detailRows.filter(function(r) { return code === 'all' || r.accountCode === code; });
+  if (!rows.length) {
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:16px;color:#94a3b8">No ledger lines for this account.</td></tr>';
+    return;
+  }
+  var running = 0;
+  tb.innerHTML = rows.map(function(r) {
+    running = csmSalesRound2(running + r.debit - r.credit);
+    return '<tr>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7">' + csmEscapeHtml(csmSalesFormatOrderCreated(r.journalDate)) + '</td>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7;font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(r.voucherNo) + '</td>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7">' + csmEscapeHtml(r.accountName + ' · ' + r.description) + '</td>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7;text-align:right">' + csmFinFmt(r.debit) + '</td>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7;text-align:right">' + csmFinFmt(r.credit) + '</td>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7;text-align:right">' + csmFinFmt(running) + '</td>' +
+      '</tr>';
+  }).join('');
+}
+try { window.renderCompanyFinDetailTable = renderCompanyFinDetailTable; } catch (eCFD) {}
+function renderCompanyFinCashBankPanels(state) {
+  var cashRows = state.detailRows.filter(function(r) { return r.accountCode === '1000'; });
+  var bankRows = state.detailRows.filter(function(r) { return r.accountCode === '1010'; });
+  var cashTb = gid('tb-company-fin-cash');
+  var bankTb = gid('tb-company-fin-bank');
+  var cashSum = gid('company-fin-cash-summary');
+  var bankSum = gid('company-fin-bank-summary');
+  if (cashSum) cashSum.textContent = 'Current cash movement balance: ' + csmFinMoney(state.summary.cashAed);
+  if (bankSum) bankSum.textContent = 'Current bank movement balance: ' + csmFinMoney(state.summary.bankAed);
+  if (cashTb) {
+    cashTb.innerHTML = cashRows.length ? cashRows.map(function(r) {
+      return '<tr><td style="padding:8px 10px;border-top:1px solid #eef2f7">' + csmEscapeHtml(csmSalesFormatOrderCreated(r.journalDate)) + '</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">' + csmEscapeHtml(r.voucherNo) + '</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">' + csmEscapeHtml(r.description) + '</td><td style="padding:8px 10px;border-top:1px solid #eef2f7;text-align:right">' + csmFinFmt(r.debit - r.credit) + '</td></tr>';
+    }).join('') : '<tr><td colspan="4" style="text-align:center;padding:16px;color:#94a3b8">No cash movements yet.</td></tr>';
+  }
+  if (bankTb) {
+    bankTb.innerHTML = bankRows.length ? bankRows.map(function(r) {
+      return '<tr><td style="padding:8px 10px;border-top:1px solid #eef2f7">' + csmEscapeHtml(csmSalesFormatOrderCreated(r.journalDate)) + '</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">' + csmEscapeHtml(r.voucherNo) + '</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">' + csmEscapeHtml(r.description) + '</td><td style="padding:8px 10px;border-top:1px solid #eef2f7;text-align:right">' + csmFinFmt(r.debit - r.credit) + '</td></tr>';
+    }).join('') : '<tr><td colspan="4" style="text-align:center;padding:16px;color:#94a3b8">No bank movements yet.</td></tr>';
+  }
+}
+function renderCompanyFinTaxPanels(state) {
+  var vatEl = gid('company-fin-vat-summary');
+  var taxEl = gid('company-fin-tax-summary');
+  if (vatEl) {
+    vatEl.innerHTML =
+      '<div><strong>VAT period:</strong> ' + csmEscapeHtml(state.tax.monthLabel) + '</div>' +
+      '<div><strong>Output VAT:</strong> ' + csmEscapeHtml(csmFinMoney(state.tax.outputVatAed)) + '</div>' +
+      '<div><strong>Input VAT:</strong> ' + csmEscapeHtml(csmFinMoney(state.tax.inputVatAed)) + '</div>' +
+      '<div><strong>Net VAT payable:</strong> ' + csmEscapeHtml(csmFinMoney(state.tax.netVatAed)) + '</div>' +
+      '<div style="margin-top:10px;color:#64748b">Next step: connect purchase and supplier invoices to post Input VAT and period adjustments into <code>csm_fin/tax/vat</code>.</div>';
+  }
+  if (taxEl) {
+    var taxable = csmFinNum(state.tax.taxableProfitAed);
+    var provision = csmSalesRound2(Math.max(0, taxable) * (csmFinNum(state.tax.corpTaxRatePct) / 100));
+    taxEl.innerHTML =
+      '<div><strong>Tax period:</strong> ' + csmEscapeHtml(state.tax.quarterLabel) + '</div>' +
+      '<div><strong>Approx. taxable profit:</strong> ' + csmEscapeHtml(csmFinMoney(taxable)) + '</div>' +
+      '<div><strong>Worker expense included:</strong> ' + csmEscapeHtml(csmFinMoney(state.tax.workerExpenseAed)) + '</div>' +
+      '<div><strong>Truck expense included:</strong> ' + csmEscapeHtml(csmFinMoney(state.tax.truckExpenseAed)) + '</div>' +
+      '<div><strong>Example provision rate:</strong> ' + csmEscapeHtml(String(state.tax.corpTaxRatePct)) + '%</div>' +
+      '<div><strong>Example tax provision:</strong> ' + csmEscapeHtml(csmFinMoney(provision)) + '</div>' +
+      '<div style="margin-top:10px;color:#64748b">Use this as a framework placeholder; final Corporate Tax rules, adjustments and exemptions should be configured in finance settings before filing.</div>';
+  }
+}
+function renderCompanyFinancialWorkspace() {
+  var root = gid('suiteCompanyFinancial');
+  if (!root) return;
+  var state = csmFinBuildWorkspaceState();
+  var sum = state.summary;
+  csmFinSetOverview('fin-overview-sales', csmFinMoney(sum.confirmedRevenueAed), 'fin-overview-sales-note', sum.confirmedOrders + ' confirmed order(s)');
+  csmFinSetOverview('fin-overview-receipts', csmFinMoney(sum.receiptsAed), 'fin-overview-receipts-note', 'Recorded customer receipts');
+  csmFinSetOverview('fin-overview-cash', csmFinMoney(sum.cashAed), 'fin-overview-cash-note', 'Cash collected and posted');
+  csmFinSetOverview('fin-overview-bank', csmFinMoney(sum.bankAed), 'fin-overview-bank-note', 'Cheque / bank receipts recorded');
+  csmFinSetOverview('fin-overview-vat', csmFinMoney(sum.outputVatAed), 'fin-overview-vat-note', 'Output VAT from confirmed sales');
+  csmFinSetOverview('fin-overview-pending', csmFinMoney(sum.pendingApprovalAed), 'fin-overview-pending-note', sum.pendingApprovalCount + ' pending settlement batch(es)');
+  renderCompanyFinSnapshotCards(state);
+  renderCompanyFinInterfacesTable();
+  renderCompanyFinGlTable(state);
+  renderCompanyFinDetailFilter(state);
+  renderCompanyFinCashBankPanels(state);
+  renderCompanyFinTaxPanels(state);
+  try { companyFinView = sessionStorage.getItem('csm_company_fin_view') || companyFinView || 'dashboard'; } catch (eVw) {}
+  swCompanyFinView(companyFinView || 'dashboard');
 }
 function csmFinCnNormalize(cn) {
   return String(cn || '').trim().toUpperCase();
@@ -6328,6 +6876,7 @@ function salesDeleteOrder(id) {
 window.__csmMainScriptRan=1;
 try { window.initApp = initApp; } catch (e) {}
 try { window.initFirebase = initFirebase; } catch (e) {}
+try { window.csmApplyAuthProxyToAppWithGetAuth = csmApplyAuthProxyToAppWithGetAuth; } catch (e) {}
 try { window.renderAll = renderAll; } catch (e) {}
 try { window.renderPurchase = renderPurchase; } catch (e) {}
 try { window.renderSupplierTable = renderSupplierTable; } catch (e) {}

@@ -345,6 +345,25 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       return;
     }
     if (le) { le.style.display = 'none'; le.style.color = '#cc0000'; }
+    function runSignIn(a) {
+      a.signInWithEmailAndPassword(email, password)
+        .then(function(uc) {
+          console.log('[CSM-LOGIN] success:', uc.user.email);
+          if (le) { le.style.color = '#0066cc'; le.textContent = '正在验证账号与权限…'; le.style.display = 'block'; }
+        })
+        .catch(function(error) {
+          console.error('[CSM-LOGIN] failed:', error);
+          var m = '登录失败';
+          var c = error.code || '';
+          if (c === 'auth/user-not-found') m = '用户不存在';
+          else if (c === 'auth/wrong-password' || c === 'auth/invalid-credential') m = '邮箱或密码错误';
+          else if (c === 'auth/invalid-email') m = '邮箱格式错误';
+          else if (c === 'auth/too-many-requests') m = '尝试次数过多，请稍后再试';
+          else if (c === 'auth/network-request-failed') m = '网络错误，请检查连接';
+          else if (c === 'auth/unauthorized-domain') m = '当前域名未授权，请在 Firebase 控制台添加';
+          if (le) { le.textContent = m + ' (' + c + ')'; le.style.color = '#cc0000'; le.style.fontWeight = 'bold'; le.style.display = 'block'; }
+        });
+    }
     var a = window.csmAuth || window.auth || null;
     if (!a && typeof firebase !== 'undefined' && typeof firebase.auth === 'function') {
       try {
@@ -370,23 +389,13 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       if (le) { le.textContent = authMsg; le.style.display = 'block'; }
       return;
     }
-    a.signInWithEmailAndPassword(email, password)
-      .then(function(uc) {
-        console.log('[CSM-LOGIN] success:', uc.user.email);
-        if (le) { le.style.color = '#0066cc'; le.textContent = '正在验证账号与权限…'; le.style.display = 'block'; }
-      })
-      .catch(function(error) {
-        console.error('[CSM-LOGIN] failed:', error);
-        var m = '登录失败';
-        var c = error.code || '';
-        if (c === 'auth/user-not-found') m = '用户不存在';
-        else if (c === 'auth/wrong-password' || c === 'auth/invalid-credential') m = '邮箱或密码错误';
-        else if (c === 'auth/invalid-email') m = '邮箱格式错误';
-        else if (c === 'auth/too-many-requests') m = '尝试次数过多，请稍后再试';
-        else if (c === 'auth/network-request-failed') m = '网络错误，请检查连接';
-        else if (c === 'auth/unauthorized-domain') m = '当前域名未授权，请在 Firebase 控制台添加';
-        if (le) { le.textContent = m + ' (' + c + ')'; le.style.color = '#cc0000'; le.style.fontWeight = 'bold'; le.style.display = 'block'; }
-      });
+    if (typeof window.csmApplyAuthProxyToAppWithGetAuth === 'function' && typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+      window.csmApplyAuthProxyToAppWithGetAuth(firebase.app()).then(function() {
+        runSignIn(window.csmAuth || window.auth || firebase.auth());
+      }).catch(function() { runSignIn(a); });
+    } else {
+      runSignIn(a);
+    }
   };
 })();
 </script>
@@ -414,6 +423,9 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         console.log('[CSM-POST] firebase app initialized');
       }
       var a = firebase.auth();
+      if (typeof window.csmApplyAuthProxyToAppWithGetAuth === 'function') {
+        window.csmApplyAuthProxyToAppWithGetAuth(firebase.app()).catch(function(e) { console.warn('[CSM-POST] auth proxy', e); });
+      }
       console.log('[CSM-POST] firebase.auth() OK');
       return a;
     } catch(e) {
@@ -1353,11 +1365,328 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <p id="fin-pending-empty" style="display:none;text-align:center;padding:22px;color:#888;font-family:var(--csm-font-en);font-weight:700">No pending payment requests.</p>
     </section>
 
-    <div class="portal-placeholder" style="margin:0;padding:16px 18px;border-radius:8px;border:1px solid #e0e0e0;background:#fafafa">
-      <p style="margin:0 0 8px;font-family:var(--csm-font-en);font-weight:700">About this domain</p>
-      <p style="font-size:13px;color:#555;line-height:1.6;margin:0">Company-level modules (ledger, AR/AP, reports) can be added here. Operational cold-store data stays in W1/W2; this queue reads payment batches by reference only.</p>
-      <p style="font-size:12px;color:#888;margin:8px 0 0">Independent from W1/W2 ops tables; ties via batch IDs and snapshots.</p>
-    </div>
+    <section style="margin-bottom:22px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+        <div style="background:linear-gradient(135deg,#0f766e,#115e59);color:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 10px 24px rgba(15,118,110,.18)">
+          <div style="font-size:12px;letter-spacing:.04em;opacity:.88;text-transform:uppercase">Confirmed revenue</div>
+          <div id="fin-overview-sales" style="font-size:28px;font-weight:800;margin:8px 0 4px;font-family:var(--csm-font-en)">AED 0.00</div>
+          <div id="fin-overview-sales-note" style="font-size:12px;opacity:.86">Confirmed sales orders</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#1d4ed8,#1e40af);color:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 10px 24px rgba(29,78,216,.18)">
+          <div style="font-size:12px;letter-spacing:.04em;opacity:.88;text-transform:uppercase">Receipts</div>
+          <div id="fin-overview-receipts" style="font-size:28px;font-weight:800;margin:8px 0 4px;font-family:var(--csm-font-en)">AED 0.00</div>
+          <div id="fin-overview-receipts-note" style="font-size:12px;opacity:.86">Cash + cheque received</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 10px 24px rgba(124,58,237,.18)">
+          <div style="font-size:12px;letter-spacing:.04em;opacity:.88;text-transform:uppercase">Cash account</div>
+          <div id="fin-overview-cash" style="font-size:28px;font-weight:800;margin:8px 0 4px;font-family:var(--csm-font-en)">AED 0.00</div>
+          <div id="fin-overview-cash-note" style="font-size:12px;opacity:.86">Till / petty cash intake</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#b45309,#92400e);color:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 10px 24px rgba(180,83,9,.18)">
+          <div style="font-size:12px;letter-spacing:.04em;opacity:.88;text-transform:uppercase">Bank account</div>
+          <div id="fin-overview-bank" style="font-size:28px;font-weight:800;margin:8px 0 4px;font-family:var(--csm-font-en)">AED 0.00</div>
+          <div id="fin-overview-bank-note" style="font-size:12px;opacity:.86">Cheque / banked receipts</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 10px 24px rgba(220,38,38,.18)">
+          <div style="font-size:12px;letter-spacing:.04em;opacity:.88;text-transform:uppercase">Output VAT</div>
+          <div id="fin-overview-vat" style="font-size:28px;font-weight:800;margin:8px 0 4px;font-family:var(--csm-font-en)">AED 0.00</div>
+          <div id="fin-overview-vat-note" style="font-size:12px;opacity:.86">Sales-side VAT snapshot</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#374151,#111827);color:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 10px 24px rgba(17,24,39,.22)">
+          <div style="font-size:12px;letter-spacing:.04em;opacity:.88;text-transform:uppercase">Pending approvals</div>
+          <div id="fin-overview-pending" style="font-size:28px;font-weight:800;margin:8px 0 4px;font-family:var(--csm-font-en)">AED 0.00</div>
+          <div id="fin-overview-pending-note" style="font-size:12px;opacity:.86">Worker / truck batches awaiting finance</div>
+        </div>
+      </div>
+    </section>
+
+    <section style="margin-bottom:22px;background:#fff;border:1px solid #dbe6f3;border-radius:12px;padding:18px 20px;box-shadow:0 1px 8px rgba(0,0,0,.04)">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+        <button type="button" class="btn btn-s" id="company-fin-btn-dashboard" onclick="swCompanyFinView('dashboard')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Dashboard</button>
+        <button type="button" class="btn btn-g" id="company-fin-btn-gl" onclick="swCompanyFinView('gl')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">General Ledger</button>
+        <button type="button" class="btn btn-g" id="company-fin-btn-detail" onclick="swCompanyFinView('detail')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Detailed Ledger</button>
+        <button type="button" class="btn btn-g" id="company-fin-btn-cashbank" onclick="swCompanyFinView('cashbank')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Cash &amp; Bank</button>
+        <button type="button" class="btn btn-g" id="company-fin-btn-tax" onclick="swCompanyFinView('tax')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">VAT &amp; Corporate Tax</button>
+      </div>
+
+      <div id="company-fin-panel-dashboard">
+        <div style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px">
+          <div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px;background:#fbfdff">
+            <h3 style="margin:0 0 10px;font-family:var(--csm-font-en);font-weight:700">Posting flow</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+              <div style="padding:12px;border-radius:10px;background:#eef6ff;border:1px solid #c8dcff">
+                <div style="font-weight:800;color:#1d4ed8;font-family:var(--csm-font-en)">1. Confirmed sale</div>
+                <div style="font-size:13px;color:#4b5563;line-height:1.6;margin-top:6px">DR Cash / AR, CR Revenue, CR Output VAT</div>
+              </div>
+              <div style="padding:12px;border-radius:10px;background:#f3fff7;border:1px solid #cdebd7">
+                <div style="font-weight:800;color:#0f766e;font-family:var(--csm-font-en)">2. Receipt allocation</div>
+                <div style="font-size:13px;color:#4b5563;line-height:1.6;margin-top:6px">DR Cash / Bank, CR Accounts Receivable</div>
+              </div>
+              <div style="padding:12px;border-radius:10px;background:#fff8ef;border:1px solid #fed7aa">
+                <div style="font-weight:800;color:#c2410c;font-family:var(--csm-font-en)">3. Settlement paid</div>
+                <div style="font-size:13px;color:#4b5563;line-height:1.6;margin-top:6px">DR Worker / Truck Expense, CR Cash / Bank / AP</div>
+              </div>
+              <div style="padding:12px;border-radius:10px;background:#faf5ff;border:1px solid #e9d5ff">
+                <div style="font-weight:800;color:#7c3aed;font-family:var(--csm-font-en)">4. Tax closing</div>
+                <div style="font-size:13px;color:#4b5563;line-height:1.6;margin-top:6px">VAT return and Corporate Tax provision journal</div>
+              </div>
+            </div>
+          </div>
+          <div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px;background:#fff">
+            <h3 style="margin:0 0 10px;font-family:var(--csm-font-en);font-weight:700">Finance data snapshot</h3>
+            <div id="company-fin-snapshot-cards" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="company-fin-panel-gl" style="display:none">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px">
+          <div>
+            <h3 style="margin:0 0 4px;font-family:var(--csm-font-en);font-weight:700">General Ledger journal stream</h3>
+            <p style="margin:0;color:#64748b;font-size:13px">Read-only generated vouchers from current sales, receipts and paid settlements.</p>
+          </div>
+          <div id="company-fin-gl-summary" style="font-size:12px;color:#475569;font-family:var(--csm-font-en);font-weight:700"></div>
+        </div>
+        <div class="tw" style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="background:#f8fafc">
+              <th style="padding:8px 10px;text-align:left">Voucher<br><span style="font-size:11px;color:#64748b">凭证号</span></th>
+              <th style="padding:8px 10px;text-align:left">Date<br><span style="font-size:11px;color:#64748b">日期</span></th>
+              <th style="padding:8px 10px;text-align:left">Source<br><span style="font-size:11px;color:#64748b">来源</span></th>
+              <th style="padding:8px 10px;text-align:left">Description<br><span style="font-size:11px;color:#64748b">摘要</span></th>
+              <th style="padding:8px 10px;text-align:right">Debit<br><span style="font-size:11px;color:#64748b">借方</span></th>
+              <th style="padding:8px 10px;text-align:right">Credit<br><span style="font-size:11px;color:#64748b">贷方</span></th>
+              <th style="padding:8px 10px;text-align:left">Status<br><span style="font-size:11px;color:#64748b">状态</span></th>
+            </tr></thead>
+            <tbody id="tb-company-fin-gl"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="company-fin-panel-detail" style="display:none">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px">
+          <div>
+            <h3 style="margin:0 0 4px;font-family:var(--csm-font-en);font-weight:700">Detailed Ledger drill-down</h3>
+            <p style="margin:0;color:#64748b;font-size:13px">Choose an account to see line-level debit, credit and running balance.</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <label for="company-fin-account-filter" style="font-size:13px;color:#475569;font-family:var(--csm-font-en);font-weight:700">Account / 科目</label>
+            <select id="company-fin-account-filter" onchange="renderCompanyFinDetailTable()" style="padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;min-width:230px;font-family:var(--csm-font-en);font-weight:700"></select>
+          </div>
+        </div>
+        <div class="tw" style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="background:#f8fafc">
+              <th style="padding:8px 10px;text-align:left">Date<br><span style="font-size:11px;color:#64748b">日期</span></th>
+              <th style="padding:8px 10px;text-align:left">Voucher<br><span style="font-size:11px;color:#64748b">凭证号</span></th>
+              <th style="padding:8px 10px;text-align:left">Description<br><span style="font-size:11px;color:#64748b">摘要</span></th>
+              <th style="padding:8px 10px;text-align:right">Debit<br><span style="font-size:11px;color:#64748b">借方</span></th>
+              <th style="padding:8px 10px;text-align:right">Credit<br><span style="font-size:11px;color:#64748b">贷方</span></th>
+              <th style="padding:8px 10px;text-align:right">Balance<br><span style="font-size:11px;color:#64748b">余额</span></th>
+            </tr></thead>
+            <tbody id="tb-company-fin-detail"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="company-fin-panel-cashbank" style="display:none">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
+          <div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px;background:#fff">
+            <h3 style="margin:0 0 10px;font-family:var(--csm-font-en);font-weight:700">Cash accounts</h3>
+            <div id="company-fin-cash-summary" style="font-size:13px;color:#475569;margin-bottom:10px"></div>
+            <div class="tw" style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;font-size:13px">
+                <thead><tr style="background:#f8fafc"><th style="padding:8px 10px;text-align:left">Date<br><span style="font-size:11px;color:#64748b">日期</span></th><th style="padding:8px 10px;text-align:left">Ref<br><span style="font-size:11px;color:#64748b">单号</span></th><th style="padding:8px 10px;text-align:left">Movement<br><span style="font-size:11px;color:#64748b">流水说明</span></th><th style="padding:8px 10px;text-align:right">Amount<br><span style="font-size:11px;color:#64748b">金额</span></th></tr></thead>
+                <tbody id="tb-company-fin-cash"></tbody>
+              </table>
+            </div>
+          </div>
+          <div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px;background:#fff">
+            <h3 style="margin:0 0 10px;font-family:var(--csm-font-en);font-weight:700">Bank accounts</h3>
+            <div id="company-fin-bank-summary" style="font-size:13px;color:#475569;margin-bottom:10px"></div>
+            <div class="tw" style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;font-size:13px">
+                <thead><tr style="background:#f8fafc"><th style="padding:8px 10px;text-align:left">Date<br><span style="font-size:11px;color:#64748b">日期</span></th><th style="padding:8px 10px;text-align:left">Ref<br><span style="font-size:11px;color:#64748b">单号</span></th><th style="padding:8px 10px;text-align:left">Movement<br><span style="font-size:11px;color:#64748b">流水说明</span></th><th style="padding:8px 10px;text-align:right">Amount<br><span style="font-size:11px;color:#64748b">金额</span></th></tr></thead>
+                <tbody id="tb-company-fin-bank"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="company-fin-panel-tax" style="display:none">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
+          <div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px;background:#fff">
+            <h3 style="margin:0 0 10px;font-family:var(--csm-font-en);font-weight:700">VAT centre</h3>
+            <div id="company-fin-vat-summary" style="font-size:13px;color:#475569;line-height:1.8"></div>
+          </div>
+          <div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px;background:#fff">
+            <h3 style="margin:0 0 10px;font-family:var(--csm-font-en);font-weight:700">Corporate Tax</h3>
+            <div id="company-fin-tax-summary" style="font-size:13px;color:#475569;line-height:1.8"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section style="margin-bottom:22px;background:#fff;border:1px solid #cfe0ff;border-radius:12px;padding:18px 20px;box-shadow:0 1px 8px rgba(0,0,0,.04)">
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px">
+        <div>
+          <h3 style="margin:0 0 6px;font-family:var(--csm-font-en);font-weight:700">Reserved finance integration interfaces</h3>
+          <p style="margin:0;color:#52606d;font-size:13px;line-height:1.6">All future source systems should send normalized finance events into Company Financial first, then finance decides posting, approval and tax handling.</p>
+        </div>
+        <div style="font-size:12px;color:#345;background:#eff6ff;border:1px solid #bfdbfe;border-radius:999px;padding:8px 12px;font-family:var(--csm-font-en);font-weight:700">Target path: <code>csm_fin/inbox/*</code></div>
+      </div>
+      <div class="tw" style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="background:#f8fafc">
+            <th style="padding:8px 10px;text-align:left">Source<br><span style="font-size:11px;color:#64748b">来源系统</span></th>
+            <th style="padding:8px 10px;text-align:left">Event code<br><span style="font-size:11px;color:#64748b">事件编码</span></th>
+            <th style="padding:8px 10px;text-align:left">Reserved inbox path<br><span style="font-size:11px;color:#64748b">预留接入路径</span></th>
+            <th style="padding:8px 10px;text-align:left">Target ledger area<br><span style="font-size:11px;color:#64748b">目标账务区域</span></th>
+            <th style="padding:8px 10px;text-align:left">Required fields<br><span style="font-size:11px;color:#64748b">必填字段</span></th>
+          </tr></thead>
+          <tbody id="tb-company-fin-interfaces"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:12px;padding:12px 14px;border-radius:10px;background:#f8fbff;border:1px dashed #bfd3f6;font-size:13px;color:#475569;line-height:1.7">
+        Standard event payload should reserve these keys:
+        <code>sourceSystem</code>,
+        <code>eventType</code>,
+        <code>sourceId</code>,
+        <code>bizDate</code>,
+        <code>counterpartyType</code>,
+        <code>counterpartyId</code>,
+        <code>currency</code>,
+        <code>amountNet</code>,
+        <code>amountTax</code>,
+        <code>amountGross</code>,
+        <code>paymentMethod</code>,
+        <code>vatCode</code>,
+        <code>corpTaxFlag</code>,
+        <code>status</code>,
+        <code>approvalState</code>,
+        <code>links</code>,
+        <code>snapshot</code>.
+      </div>
+    </section>
+
+    <section style="margin-bottom:22px;background:#fff;border:1px solid #d7e3fc;border-radius:12px;padding:18px 20px;box-shadow:0 1px 8px rgba(0,0,0,.04)">
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px">
+        <div>
+          <h3 style="margin:0 0 6px;font-family:var(--csm-font-en);font-weight:700">Finance workspace blueprint</h3>
+          <p style="margin:0;color:#52606d;font-size:13px;line-height:1.6">Build the company finance domain around journals, ledgers, cash/bank accounts, receivables, payables, VAT and Corporate Tax, while keeping Warehouse 1 / Warehouse 2 operational data independent.</p>
+        </div>
+        <div style="font-size:12px;color:#5b6470;background:#f6f9ff;border:1px solid #d7e3fc;border-radius:999px;padding:8px 12px;font-family:var(--csm-font-en);font-weight:700">Reference mode: business IDs + snapshots only</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+        <div style="border:1px solid #dfe7ef;border-radius:10px;padding:14px;background:#fbfdff">
+          <div style="font-family:var(--csm-font-en);font-weight:800;color:#0f172a">General Ledger</div>
+          <div style="font-size:13px;color:#5b6470;line-height:1.6;margin-top:6px">Voucher header + double-entry lines. Every business event posts here first.</div>
+        </div>
+        <div style="border:1px solid #dfe7ef;border-radius:10px;padding:14px;background:#fbfdff">
+          <div style="font-family:var(--csm-font-en);font-weight:800;color:#0f172a">Detailed Ledger</div>
+          <div style="font-size:13px;color:#5b6470;line-height:1.6;margin-top:6px">Account drill-down by date, voucher, source module, supplier, customer, container, order ID.</div>
+        </div>
+        <div style="border:1px solid #dfe7ef;border-radius:10px;padding:14px;background:#fbfdff">
+          <div style="font-family:var(--csm-font-en);font-weight:800;color:#0f172a">Cash Accounts</div>
+          <div style="font-size:13px;color:#5b6470;line-height:1.6;margin-top:6px">Petty cash, cashier shift balance, cash in/out, reimbursement, expense claim settlement.</div>
+        </div>
+        <div style="border:1px solid #dfe7ef;border-radius:10px;padding:14px;background:#fbfdff">
+          <div style="font-family:var(--csm-font-en);font-weight:800;color:#0f172a">Bank Accounts</div>
+          <div style="font-size:13px;color:#5b6470;line-height:1.6;margin-top:6px">Cheque deposits, bank receipts, supplier payments, transfer journal, bank reconciliation.</div>
+        </div>
+        <div style="border:1px solid #dfe7ef;border-radius:10px;padding:14px;background:#fbfdff">
+          <div style="font-family:var(--csm-font-en);font-weight:800;color:#0f172a">VAT Centre</div>
+          <div style="font-size:13px;color:#5b6470;line-height:1.6;margin-top:6px">Input VAT, output VAT, VAT code mapping, return periods, adjustment journal and filing support.</div>
+        </div>
+        <div style="border:1px solid #dfe7ef;border-radius:10px;padding:14px;background:#fbfdff">
+          <div style="font-family:var(--csm-font-en);font-weight:800;color:#0f172a">Corporate Tax</div>
+          <div style="font-size:13px;color:#5b6470;line-height:1.6;margin-top:6px">Annual tax periods, taxable-profit adjustments, provision posting, payment and final filing archive.</div>
+        </div>
+        <div style="border:1px solid #dfe7ef;border-radius:10px;padding:14px;background:#fbfdff">
+          <div style="font-family:var(--csm-font-en);font-weight:800;color:#0f172a">AR / AP</div>
+          <div style="font-size:13px;color:#5b6470;line-height:1.6;margin-top:6px">Customer statements, supplier balances, due dates, settlement allocation and aging views.</div>
+        </div>
+        <div style="border:1px solid #dfe7ef;border-radius:10px;padding:14px;background:#fbfdff">
+          <div style="font-family:var(--csm-font-en);font-weight:800;color:#0f172a">Period Close & Reports</div>
+          <div style="font-size:13px;color:#5b6470;line-height:1.6;margin-top:6px">Month-end lock, trial balance, P&amp;L, balance sheet, VAT summary and audit-ready exports.</div>
+        </div>
+      </div>
+    </section>
+
+    <section style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px;margin-bottom:22px">
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;box-shadow:0 1px 8px rgba(0,0,0,.04)">
+        <h3 style="margin:0 0 12px;font-family:var(--csm-font-en);font-weight:700">Suggested chart of accounts</h3>
+        <div class="tw" style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="background:#f8fafc">
+              <th style="padding:8px 10px;text-align:left">Code</th>
+              <th style="padding:8px 10px;text-align:left">Account</th>
+              <th style="padding:8px 10px;text-align:left">Type</th>
+              <th style="padding:8px 10px;text-align:left">Use</th>
+            </tr></thead>
+            <tbody>
+              <tr><td style="padding:8px 10px;border-top:1px solid #eef2f7">1000</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Cash on Hand</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Asset</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Cash sales, petty cash, reimbursement</td></tr>
+              <tr><td style="padding:8px 10px;border-top:1px solid #eef2f7">1010</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Bank Current Account</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Asset</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Cheque deposits, transfers, supplier payment</td></tr>
+              <tr><td style="padding:8px 10px;border-top:1px solid #eef2f7">1100</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Accounts Receivable</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Asset</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Customer credit balance and allocation</td></tr>
+              <tr><td style="padding:8px 10px;border-top:1px solid #eef2f7">1300</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Input VAT Recoverable</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Asset</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Supplier invoice VAT claim</td></tr>
+              <tr><td style="padding:8px 10px;border-top:1px solid #eef2f7">2000</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Accounts Payable</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Liability</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Supplier payable and settlement tracking</td></tr>
+              <tr><td style="padding:8px 10px;border-top:1px solid #eef2f7">2200</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Output VAT Payable</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Liability</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">VAT collected from customer invoices</td></tr>
+              <tr><td style="padding:8px 10px;border-top:1px solid #eef2f7">2400</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Corporate Tax Payable</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Liability</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Year-end provision and tax payment</td></tr>
+              <tr><td style="padding:8px 10px;border-top:1px solid #eef2f7">4000</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Cold Store Revenue</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Income</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Sales orders and storage services</td></tr>
+              <tr><td style="padding:8px 10px;border-top:1px solid #eef2f7">5000</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Worker Expense</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Expense</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Worker settlement and direct labor</td></tr>
+              <tr><td style="padding:8px 10px;border-top:1px solid #eef2f7">5010</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Truck Expense</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Expense</td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Truck settlement and transport payout</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;box-shadow:0 1px 8px rgba(0,0,0,.04)">
+        <h3 style="margin:0 0 12px;font-family:var(--csm-font-en);font-weight:700">Suggested Firebase finance nodes</h3>
+        <div class="tw" style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="background:#f8fafc">
+              <th style="padding:8px 10px;text-align:left">Path</th>
+              <th style="padding:8px 10px;text-align:left">Purpose</th>
+            </tr></thead>
+            <tbody>
+              <tr><td style="padding:8px 10px;border-top:1px solid #eef2f7"><code>csm_fin/coa</code></td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Chart of accounts master</td></tr>
+              <tr><td style="padding:8px 10px;border-top:1px solid #eef2f7"><code>csm_fin/journals</code></td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Voucher header and approval state</td></tr>
+              <tr><td style="padding:8px 10px;border-top:1px solid #eef2f7"><code>csm_fin/journal_lines</code></td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Double-entry line details</td></tr>
+              <tr><td style="padding:8px 10px;border-top:1px solid #eef2f7"><code>csm_fin/accounts/cash</code></td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Cash ledger and cashbox movements</td></tr>
+              <tr><td style="padding:8px 10px;border-top:1px solid #eef2f7"><code>csm_fin/accounts/bank</code></td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Bank ledger and reconciliation items</td></tr>
+              <tr><td style="padding:8px 10px;border-top:1px solid #eef2f7"><code>csm_fin/subledgers/ar</code></td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Customer receivable documents and allocations</td></tr>
+              <tr><td style="padding:8px 10px;border-top:1px solid #eef2f7"><code>csm_fin/subledgers/ap</code></td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Supplier payable documents and settlements</td></tr>
+              <tr><td style="padding:8px 10px;border-top:1px solid #eef2f7"><code>csm_fin/tax/vat</code></td><td style="padding:8px 10px;border-top:1px solid #eef2f7">VAT codes, returns, adjustments, filings</td></tr>
+              <tr><td style="padding:8px 10px;border-top:1px solid #eef2f7"><code>csm_fin/tax/corporate_tax</code></td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Tax periods, adjustments, provisions, payments</td></tr>
+              <tr><td style="padding:8px 10px;border-top:1px solid #eef2f7"><code>csm_fin/reports</code></td><td style="padding:8px 10px;border-top:1px solid #eef2f7">Trial balance, P&amp;L, balance sheet, close packs</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;box-shadow:0 1px 8px rgba(0,0,0,.04)">
+      <h3 style="margin:0 0 12px;font-family:var(--csm-font-en);font-weight:700">Implementation approach</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+        <div style="border-left:4px solid #0f766e;background:#f8fffd;padding:12px 14px;border-radius:8px">
+          <div style="font-family:var(--csm-font-en);font-weight:800;color:#0f766e">Phase 1</div>
+          <div style="font-size:13px;color:#4b5563;line-height:1.6;margin-top:6px">Set up chart of accounts, voucher types, posting rules, finance roles and approval flow.</div>
+        </div>
+        <div style="border-left:4px solid #1d4ed8;background:#f8fbff;padding:12px 14px;border-radius:8px">
+          <div style="font-family:var(--csm-font-en);font-weight:800;color:#1d4ed8">Phase 2</div>
+          <div style="font-size:13px;color:#4b5563;line-height:1.6;margin-top:6px">Connect cash, bank, customer receipts, supplier payments and worker/truck settlement posting.</div>
+        </div>
+        <div style="border-left:4px solid #dc2626;background:#fffafa;padding:12px 14px;border-radius:8px">
+          <div style="font-family:var(--csm-font-en);font-weight:800;color:#dc2626">Phase 3</div>
+          <div style="font-size:13px;color:#4b5563;line-height:1.6;margin-top:6px">Add VAT transaction codes, return periods, input/output tax netting and Corporate Tax adjustments.</div>
+        </div>
+        <div style="border-left:4px solid #374151;background:#fbfbfc;padding:12px 14px;border-radius:8px">
+          <div style="font-family:var(--csm-font-en);font-weight:800;color:#374151">Phase 4</div>
+          <div style="font-size:13px;color:#4b5563;line-height:1.6;margin-top:6px">Deliver trial balance, P&amp;L, balance sheet, monthly close checklist and audit export.</div>
+        </div>
+      </div>
+    </section>
   </div>
 </div>
 

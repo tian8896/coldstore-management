@@ -5171,7 +5171,8 @@ function openFinCnReconDetailModal(el) {
         tr += csmFinCnReconDisplayCell(disp.initialNetUnit.toFixed(2), disp.changed);
         tr += csmFinCnReconDisplayCell(csmFinCnReconFmtQty(disp.initialQty), disp.changed);
         tr += '<td style="text-align:right;font-variant-numeric:tabular-nums;vertical-align:top">' + disp.netAmount.toFixed(2) + '</td>';
-        tr += '<td style="vertical-align:middle;white-space:nowrap"><button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="openFinCnReconLineEditModal(' + csmHtmlAttrJson(o.id) + ',' + parseInt(L._lineIndex, 10) + ')">Edit</button></td>';
+        var _liR = parseInt(L._lineIndex, 10);
+        tr += '<td style="vertical-align:middle;white-space:nowrap"><button type="button" class="abtn csm-fin-cn-recon-edit-btn" style="font-family:var(--csm-font-en);font-weight:700" data-order-id="' + csmAttrEscape(String(o.id)) + '" data-line-idx="' + csmAttrEscape(String(isNaN(_liR) ? -1 : _liR)) + '">Edit</button></td>';
         tr += '</tr>';
         parts.push(tr);
       });
@@ -7526,3 +7527,20 @@ try { window.openFinCnReconLineEditModal = openFinCnReconLineEditModal; } catch 
 try { window.clFinCnReconLineEditModal = clFinCnReconLineEditModal; } catch (e) {}
 try { window.saveFinCnReconLineEdit = saveFinCnReconLineEdit; } catch (e) {}
 try { window.csmFinCnReconEditPreview = csmFinCnReconEditPreview; } catch (e) {}
+(function csmFinCnReconEditClickDelegate() {
+  if (window._csmFinCnReconEditDelegateOk) return;
+  window._csmFinCnReconEditDelegateOk = true;
+  document.addEventListener('click', function(e) {
+    var btn = e.target && e.target.closest && e.target.closest('button.csm-fin-cn-recon-edit-btn');
+    if (!btn) return;
+    if (!btn.closest || !btn.closest('#fin-cn-recon-detail-modal')) return;
+    e.preventDefault();
+    var orderId = String(btn.getAttribute('data-order-id') || '').trim();
+    var lineIdx = parseInt(String(btn.getAttribute('data-line-idx') || ''), 10);
+    try {
+      openFinCnReconLineEditModal(orderId, lineIdx);
+    } catch (err) {
+      try { toast('Edit failed: ' + (err && err.message ? err.message : err), 'err'); } catch (e2) {}
+    }
+  });
+})();

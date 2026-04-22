@@ -452,7 +452,7 @@ function csmFinishFirebaseInitAfterAuthProxy() {
     csmAuthTryUseDeviceLanguage(auth);
     try { window.csmAuth = auth; } catch (e1) {}
     auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function () {});
-    dbRef = firebase.database().ref(SK);    purchaseRef = firebase.database().ref('csm_purchase');    supplierRef = firebase.database().ref('csm_supplier_recs');    salesCustomersRef = firebase.database().ref('csm_sales_w1/customers');    salesPaymentReceiversRef = firebase.database().ref('csm_sales_w1/payment_receivers');    salesWorkersRef = firebase.database().ref('csm_sales_w1/workers');    salesTrucksRef = firebase.database().ref('csm_sales_w1/trucks');    salesOrdersRef = firebase.database().ref('csm_sales_w1/orders');    salesPaymentsRef = firebase.database().ref('csm_sales_w1/payments');    salesWtSettlementsRef = firebase.database().ref('csm_sales_w1/wt_settlements');    legacyDbRef = (SK !== LOCAL_STORAGE_KEY) ? firebase.database().ref(LOCAL_STORAGE_KEY) : null;    settingsMetaRef = firebase.database().ref('csm_meta/settings');    finRootRef = firebase.database().ref('csm_fin');    finInboxRef = firebase.database().ref('csm_fin/inbox');    finJournalsRef = firebase.database().ref('csm_fin/journals');    finJournalLinesRef = firebase.database().ref('csm_fin/journal_lines');    finArRef = firebase.database().ref('csm_fin/subledgers/ar');    finApRef = firebase.database().ref('csm_fin/subledgers/ap');    finCashRef = firebase.database().ref('csm_fin/accounts/cash');    finBankRef = firebase.database().ref('csm_fin/accounts/bank');    finVatRef = firebase.database().ref('csm_fin/tax/vat');    finCorporateTaxRef = firebase.database().ref('csm_fin/tax/corporate_tax');    customsFeePendingRef = firebase.database().ref('csm_fin/pending_customs_fees');    try { customsFeePendingRef.on('value', function(snap) { var o = snap.val() || {}; customsFeeRequests = Object.keys(o).map(function(k) { var r = o[k] || {}; r.id = k; return r; }).sort(function(a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); }); try { renderCompanyFinancialPendingCustoms(); } catch (eCusR) {} try { csmFinRefreshPendingOverviewRow(); } catch (eCusR2) {} }); } catch (eCusB) {}    
+    dbRef = firebase.database().ref(SK);    purchaseRef = firebase.database().ref('csm_purchase');    supplierRef = firebase.database().ref('csm_supplier_recs');    salesCustomersRef = firebase.database().ref('csm_sales_w1/customers');    salesPaymentReceiversRef = firebase.database().ref('csm_sales_w1/payment_receivers');    salesWorkersRef = firebase.database().ref('csm_sales_w1/workers');    salesTrucksRef = firebase.database().ref('csm_sales_w1/trucks');    salesOrdersRef = firebase.database().ref('csm_sales_w1/orders');    salesPaymentsRef = firebase.database().ref('csm_sales_w1/payments');    salesWtSettlementsRef = firebase.database().ref('csm_sales_w1/wt_settlements');    legacyDbRef = (SK !== LOCAL_STORAGE_KEY) ? firebase.database().ref(LOCAL_STORAGE_KEY) : null;    settingsMetaRef = firebase.database().ref('csm_meta/settings');    finRootRef = firebase.database().ref('csm_fin');    finInboxRef = firebase.database().ref('csm_fin/inbox');    finJournalsRef = firebase.database().ref('csm_fin/journals');    finJournalLinesRef = firebase.database().ref('csm_fin/journal_lines');    finArRef = firebase.database().ref('csm_fin/subledgers/ar');    finApRef = firebase.database().ref('csm_fin/subledgers/ap');    finCashRef = firebase.database().ref('csm_fin/accounts/cash');    finBankRef = firebase.database().ref('csm_fin/accounts/bank');    finVatRef = firebase.database().ref('csm_fin/tax/vat');    finCorporateTaxRef = firebase.database().ref('csm_fin/tax/corporate_tax');    customsFeePendingRef = firebase.database().ref('csm_fin/pending_customs_fees');    try { customsFeePendingRef.on('value', function(snap) { var o = snap.val() || {}; customsFeeRequests = Object.keys(o).map(function(k) { var r = o[k] || {}; r.id = k; return r; }).sort(function(a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); }); try { renderCompanyFinancialPendingCustoms(); } catch (eCusR) {} }); } catch (eCusB) {}    
 // 初始化序号计数器引用（必须在这里做，避免 onAuthStateChanged 同步触发时 seqCounterRef 为 null）
 seqCounterRef = dbRef.parent.child('csm_seq_counter');    
 // Firebase Auth 状态监听    
@@ -4224,12 +4224,6 @@ function csmFinMoney(n) {
 function csmFinFmt(n) {
   return csmFinNum(csmSalesRound2(n)).toFixed(2);
 }
-function csmFinSetOverview(id, value, noteId, note) {
-  var el = gid(id);
-  if (el) el.textContent = value;
-  var noteEl = gid(noteId);
-  if (noteEl && note != null) noteEl.textContent = note;
-}
 function csmFinIsoDateOnly(iso) {
   var s = String(iso || '').trim();
   if (!s) return '';
@@ -4521,12 +4515,6 @@ function csmFinBuildSummary() {
   });
   return sum;
 }
-function csmFinRefreshPendingOverviewRow() {
-  try {
-    var sum = csmFinBuildSummary();
-    csmFinSetOverview('fin-overview-pending', csmFinMoney(sum.pendingApprovalAed), 'fin-overview-pending-note', sum.pendingApprovalCount + ' pending (WT + customs / 车工+清关)');
-  } catch (ePendOv) {}
-}
 function csmFinBuildWorkspaceState() {
   var summary = csmFinBuildSummary();
   var journals = csmFinBuildJournals();
@@ -4722,13 +4710,6 @@ function renderCompanyFinancialWorkspace() {
   var root = gid('suiteCompanyFinancial');
   if (!root) return;
   var state = csmFinBuildWorkspaceState();
-  var sum = state.summary;
-  csmFinSetOverview('fin-overview-sales', csmFinMoney(sum.confirmedRevenueAed), 'fin-overview-sales-note', sum.confirmedOrders + ' confirmed order(s)');
-  csmFinSetOverview('fin-overview-receipts', csmFinMoney(sum.receiptsAed), 'fin-overview-receipts-note', 'Recorded customer receipts');
-  csmFinSetOverview('fin-overview-cash', csmFinMoney(sum.cashAed), 'fin-overview-cash-note', 'Cash collected and posted');
-  csmFinSetOverview('fin-overview-bank', csmFinMoney(sum.bankAed), 'fin-overview-bank-note', 'Cheque / bank receipts recorded');
-  csmFinSetOverview('fin-overview-vat', csmFinMoney(sum.outputVatAed), 'fin-overview-vat-note', 'Output VAT from confirmed sales');
-  csmFinSetOverview('fin-overview-pending', csmFinMoney(sum.pendingApprovalAed), 'fin-overview-pending-note', sum.pendingApprovalCount + ' pending (WT + customs / 车工+清关)');
   renderCompanyFinSnapshotCards(state);
   renderCompanyFinInterfacesTable();
   renderCompanyFinGlTable(state);
@@ -4755,6 +4736,26 @@ function csmFinCnFuzzyMatch(cnList, q) {
   q = csmFinCnNormalize(q);
   if (!q) return cnList.slice();
   return cnList.filter(function(cn) { return cn.indexOf(q) !== -1; });
+}
+function csmFinCnFilterPurchaseRows(rows, supQ, startStr, endStr) {
+  if (!rows || !rows.length) return [];
+  supQ = String(supQ || '').trim().toLowerCase();
+  startStr = String(startStr || '').trim();
+  endStr = String(endStr || '').trim();
+  if (!supQ && !startStr && !endStr) return rows.slice();
+  return rows.filter(function(r) {
+    if (supQ) {
+      if (String(r.supplier || '').toLowerCase().indexOf(supQ) === -1) return false;
+    }
+    var pd = String(r.purchaseDate || '').trim();
+    if (startStr) {
+      if (!pd || pd < startStr) return false;
+    }
+    if (endStr) {
+      if (!pd || pd > endStr) return false;
+    }
+    return true;
+  });
 }
 function csmFinCnLineSubsetTotalAed(o, linesSubset) {
   if (!o || !linesSubset || !linesSubset.length) return 0;
@@ -4789,7 +4790,14 @@ function renderFinCnReconTable() {
   var byCn = csmFinCnPurchaseByContainer();
   var cns = Object.keys(byCn).sort();
   var q = gid('fin-cn-recon-search') ? String(gid('fin-cn-recon-search').value || '').trim() : '';
+  var supQ = gid('fin-cn-recon-supplier') ? String(gid('fin-cn-recon-supplier').value || '').trim() : '';
+  var dStart = gid('fin-cn-recon-date-start') ? String(gid('fin-cn-recon-date-start').value || '').trim() : '';
+  var dEnd = gid('fin-cn-recon-date-end') ? String(gid('fin-cn-recon-date-end').value || '').trim() : '';
+  if (dStart && dEnd && dStart > dEnd) { var t = dStart; dStart = dEnd; dEnd = t; }
   cns = csmFinCnFuzzyMatch(cns, q);
+  cns = cns.filter(function(cn) {
+    return csmFinCnFilterPurchaseRows(byCn[cn], supQ, dStart, dEnd).length > 0;
+  });
   if (!cns.length) {
     tb.innerHTML = '';
     if (empty) empty.style.display = 'block';
@@ -4797,7 +4805,7 @@ function renderFinCnReconTable() {
   }
   if (empty) empty.style.display = 'none';
   tb.innerHTML = cns.map(function(cn) {
-    var rows = byCn[cn];
+    var rows = csmFinCnFilterPurchaseRows(byCn[cn], supQ, dStart, dEnd);
     var purchaseHtml = rows.map(function(r) {
       var seq = (r.seq != null && r.seq !== '') ? String(r.seq) : '\u2014';
       var sup = csmEscapeHtml(String(r.supplier || '\u2014'));
@@ -4817,6 +4825,14 @@ function renderFinCnReconTable() {
       '<td style="vertical-align:middle"><button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" data-cn="' + cnEsc + '" onclick="openFinCnReconDetailModal(this)">Details</button></td></tr>';
   }).join('');
 }
+function finCnReconOpenOrderEdit(orderId) {
+  orderId = String(orderId || '').trim();
+  if (!orderId) return;
+  clFinCnReconDetailModal();
+  try { swTab('sales'); } catch (e1) {}
+  try { swSalesSub('orders'); } catch (e2) {}
+  setTimeout(function() { openSalesOrderModal(orderId); }, 50);
+}
 function openFinCnReconDetailModal(el) {
   var cn = el && el.getAttribute('data-cn');
   if (!cn) return;
@@ -4824,25 +4840,41 @@ function openFinCnReconDetailModal(el) {
   var title = gid('fin-cn-recon-detail-title');
   var tbody = gid('tb-fin-cn-recon-detail');
   if (!m || !tbody) return;
-  if (title) title.textContent = 'Container ' + cn + ' \u2014 Sales orders';
+  if (title) title.textContent = 'Container ' + cn + ' \u2014 All sales (this container)';
   var list = csmFinCnSalesOrdersForContainer(cn);
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;padding:16px;font-family:var(--csm-font-en);font-weight:700">No sales orders for this container.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#888;padding:16px;font-family:var(--csm-font-en);font-weight:700">No sales orders for this container.</td></tr>';
   } else {
-    tbody.innerHTML = list.map(function(item) {
+    var parts = [];
+    list.forEach(function(item) {
       var o = item.order;
       var Ls = item.lines;
-      var lineTxt = Ls.map(function(L) {
-        return csmEscapeHtml(L.productName) + ' \u00d7 ' + csmEscapeHtml(String(L.quantity)) + ' @ ' + csmSalesRound2(parseFloat(L.unitPrice) || 0).toFixed(2);
-      }).join('; ');
-      var sub = csmFinCnLineSubsetTotalAed(o, Ls);
-      return '<tr><td style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(o.orderNo || o.id) + '</td>' +
-        '<td style="font-size:12px">' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td>' +
-        '<td>' + csmEscapeHtml(o.customerName || '') + '</td>' +
-        '<td>' + csmEscapeHtml(o.orderStatus || '') + '</td>' +
-        '<td style="font-size:12px;max-width:280px">' + lineTxt + '</td>' +
-        '<td style="text-align:right;font-variant-numeric:tabular-nums">' + sub.toFixed(2) + '</td></tr>';
-    }).join('');
+      var n = Ls.length;
+      Ls.forEach(function(L, idx) {
+        var vm = csmSalesLineVatMode(L, o);
+        var a = csmSalesComputeTotals(L.unitPrice, L.quantity, vm);
+        var netU = csmSalesNetUnitAndVatFromLine(L, vm).netUnit;
+        var netAmt = csmSalesRound2(a.net);
+        var q = parseFloat(L.quantity) || 0;
+        var qStr = (Math.abs(q - Math.round(q)) < 1e-9) ? String(Math.round(q)) : csmSalesRound2(q).toFixed(2);
+        var tr = '<tr>';
+        if (idx === 0) {
+          tr += '<td rowspan="' + n + '" style="font-family:var(--csm-font-en);font-weight:700;vertical-align:top;white-space:nowrap">' + csmEscapeHtml(String(o.orderNo || o.id)) + '</td>';
+          tr += '<td rowspan="' + n + '" style="font-size:12px;vertical-align:top;white-space:nowrap">' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td>';
+          tr += '<td rowspan="' + n + '" style="vertical-align:top">' + csmEscapeHtml(o.customerName || '') + '</td>';
+        }
+        tr += '<td style="font-size:12px;max-width:200px;vertical-align:top">' + csmEscapeHtml(L.productName || '') + '</td>';
+        tr += '<td style="text-align:right;font-variant-numeric:tabular-nums;vertical-align:top">' + netU.toFixed(2) + '</td>';
+        tr += '<td style="text-align:right;font-variant-numeric:tabular-nums;vertical-align:top">' + qStr + '</td>';
+        tr += '<td style="text-align:right;font-variant-numeric:tabular-nums;vertical-align:top">' + netAmt.toFixed(2) + '</td>';
+        if (idx === 0) {
+          tr += '<td rowspan="' + n + '" style="vertical-align:middle;white-space:nowrap"><button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="finCnReconOpenOrderEdit(' + csmHtmlAttrJson(o.id) + ')">Edit</button></td>';
+        }
+        tr += '</tr>';
+        parts.push(tr);
+      });
+    });
+    tbody.innerHTML = parts.join('');
   }
   m.classList.add('sh');
 }
@@ -7080,3 +7112,4 @@ try { window.csmFinWtQuickApprove = csmFinWtQuickApprove; } catch (e) {}
 try { window.renderFinCnReconTable = renderFinCnReconTable; } catch (e) {}
 try { window.openFinCnReconDetailModal = openFinCnReconDetailModal; } catch (e) {}
 try { window.clFinCnReconDetailModal = clFinCnReconDetailModal; } catch (e) {}
+try { window.finCnReconOpenOrderEdit = finCnReconOpenOrderEdit; } catch (e) {}

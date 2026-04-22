@@ -174,6 +174,21 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 #modal-mdl.csm-detail-mdl h3{margin-bottom:8px;font-size:13px;letter-spacing:.5px;line-height:1.3;text-transform:none}
 #modal-mdl.csm-detail-mdl #mcon-scroll{flex:1 1 auto;min-height:0;max-height:calc(88vh - 110px);overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:2px}
 #modal-mdl.csm-detail-mdl .brow{margin-top:10px;flex-shrink:0}
+/* 财务记录 · 集装箱对账单 Details：近全屏大窗，四周留边显示遮罩 */
+#fin-cn-recon-detail-modal.sh{
+  align-items:center;justify-content:center;
+  padding:max(8px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));
+}
+#fin-cn-recon-detail-modal .fin-cn-recon-detail-mdl{
+  width:min(1200px,calc(100vw - 20px))!important;max-width:calc(100vw - 20px)!important;
+  height:min(calc(100dvh - 16px),calc(100vh - 16px))!important;max-height:min(calc(100dvh - 16px),calc(100vh - 16px))!important;
+  min-height:0!important;border-radius:10px!important;margin:0!important;
+  box-shadow:0 0 48px rgba(0,0,0,.35)!important;
+  display:flex!important;flex-direction:column!important;box-sizing:border-box!important;overflow:hidden!important;
+  padding:16px 18px!important;
+}
+#fin-cn-recon-detail-modal .fin-cn-recon-detail-scroll{flex:1 1 auto;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
+#fin-cn-recon-detail-modal .fin-cn-recon-detail-actions{margin-top:12px;flex-shrink:0}
 /* 所有弹窗（.mov）：英文以 Arial 为主，字重加粗；中文由系统黑体回退；!important 覆盖全局 .fg 等 monospace */
 .mov,.mov *{font-family:var(--csm-font-en)!important;font-weight:700!important}
 .tst{position:fixed;bottom:24px;right:24px;padding:12px 18px;border-radius:6px;font-size:13px;font-family:var(--csm-font-en);font-weight:700;letter-spacing:.5px;z-index:12000;animation:ti .3s ease;max-width:320px;line-height:1.6}
@@ -401,7 +416,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260421fin-customs-pending" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260422fin-recon-modal-tweak" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -1315,9 +1330,23 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <div class="brow" style="flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:14px">
       <button type="button" class="btn btn-s" id="fin-cn-recon-tab-btn" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none" disabled>集装箱对账单 · Container reconciliation</button>
     </div>
-    <div class="fg" style="margin-bottom:14px;max-width:420px">
-      <label style="font-family:var(--csm-font-en);font-weight:700;font-size:12px;color:#555">模糊搜索箱号 / Fuzzy search by container no.</label>
-      <input type="text" id="fin-cn-recon-search" placeholder="e.g. ABCD 1234567" autocomplete="off" oninput="renderFinCnReconTable()" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+    <div class="fg" style="margin-bottom:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;align-items:end;max-width:920px">
+      <div>
+        <label style="display:block;font-family:var(--csm-font-en);font-weight:700;font-size:12px;color:#555;margin-bottom:4px">模糊搜索箱号 / Fuzzy search by container no.</label>
+        <input type="text" id="fin-cn-recon-search" placeholder="e.g. ABCD 1234567" autocomplete="off" oninput="renderFinCnReconTable()" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="display:block;font-family:var(--csm-font-en);font-weight:700;font-size:12px;color:#555;margin-bottom:4px">按供应商 / Search by supplier</label>
+        <input type="text" id="fin-cn-recon-supplier" placeholder="Supplier name" autocomplete="off" oninput="renderFinCnReconTable()" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="display:block;font-family:var(--csm-font-en);font-weight:700;font-size:12px;color:#555;margin-bottom:4px">采购起止日期 / Purchase date from</label>
+        <input type="date" id="fin-cn-recon-date-start" onchange="renderFinCnReconTable()" style="width:100%;padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="display:block;font-family:var(--csm-font-en);font-weight:700;font-size:12px;color:#555;margin-bottom:4px">至 / to</label>
+        <input type="date" id="fin-cn-recon-date-end" onchange="renderFinCnReconTable()" style="width:100%;padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box">
+      </div>
     </div>
     <div class="tw tw-sales-dense"><table><thead><tr>
       <th style="min-width:120px">Container<br><span style="font-size:11px;color:#888;font-weight:700">集装箱号</span></th>
@@ -1396,41 +1425,6 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         </table>
       </div>
       <p id="fin-pending-customs-empty" style="display:none;text-align:center;padding:22px;color:#888;font-family:var(--csm-font-en);font-weight:700">No pending customs fee requests. · 暂无待审批清关费用。</p>
-    </section>
-
-    <section style="margin-bottom:22px">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
-        <div style="background:linear-gradient(135deg,#0f766e,#115e59);color:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 10px 24px rgba(15,118,110,.18)">
-          <div style="font-size:12px;letter-spacing:.04em;opacity:.88;text-transform:uppercase">Confirmed revenue</div>
-          <div id="fin-overview-sales" style="font-size:28px;font-weight:800;margin:8px 0 4px;font-family:var(--csm-font-en)">AED 0.00</div>
-          <div id="fin-overview-sales-note" style="font-size:12px;opacity:.86">Confirmed sales orders</div>
-        </div>
-        <div style="background:linear-gradient(135deg,#1d4ed8,#1e40af);color:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 10px 24px rgba(29,78,216,.18)">
-          <div style="font-size:12px;letter-spacing:.04em;opacity:.88;text-transform:uppercase">Receipts</div>
-          <div id="fin-overview-receipts" style="font-size:28px;font-weight:800;margin:8px 0 4px;font-family:var(--csm-font-en)">AED 0.00</div>
-          <div id="fin-overview-receipts-note" style="font-size:12px;opacity:.86">Cash + cheque received</div>
-        </div>
-        <div style="background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 10px 24px rgba(124,58,237,.18)">
-          <div style="font-size:12px;letter-spacing:.04em;opacity:.88;text-transform:uppercase">Cash account</div>
-          <div id="fin-overview-cash" style="font-size:28px;font-weight:800;margin:8px 0 4px;font-family:var(--csm-font-en)">AED 0.00</div>
-          <div id="fin-overview-cash-note" style="font-size:12px;opacity:.86">Till / petty cash intake</div>
-        </div>
-        <div style="background:linear-gradient(135deg,#b45309,#92400e);color:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 10px 24px rgba(180,83,9,.18)">
-          <div style="font-size:12px;letter-spacing:.04em;opacity:.88;text-transform:uppercase">Bank account</div>
-          <div id="fin-overview-bank" style="font-size:28px;font-weight:800;margin:8px 0 4px;font-family:var(--csm-font-en)">AED 0.00</div>
-          <div id="fin-overview-bank-note" style="font-size:12px;opacity:.86">Cheque / banked receipts</div>
-        </div>
-        <div style="background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 10px 24px rgba(220,38,38,.18)">
-          <div style="font-size:12px;letter-spacing:.04em;opacity:.88;text-transform:uppercase">Output VAT</div>
-          <div id="fin-overview-vat" style="font-size:28px;font-weight:800;margin:8px 0 4px;font-family:var(--csm-font-en)">AED 0.00</div>
-          <div id="fin-overview-vat-note" style="font-size:12px;opacity:.86">Sales-side VAT snapshot</div>
-        </div>
-        <div style="background:linear-gradient(135deg,#374151,#111827);color:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 10px 24px rgba(17,24,39,.22)">
-          <div style="font-size:12px;letter-spacing:.04em;opacity:.88;text-transform:uppercase">Pending approvals · 待审批合计</div>
-          <div id="fin-overview-pending" style="font-size:28px;font-weight:800;margin:8px 0 4px;font-family:var(--csm-font-en)">AED 0.00</div>
-          <div id="fin-overview-pending-note" style="font-size:12px;opacity:.86">WT + customs / 车工+清关</div>
-        </div>
-      </div>
     </section>
 
     <section style="margin-bottom:22px;background:#fff;border:1px solid #dbe6f3;border-radius:12px;padding:18px 20px;box-shadow:0 1px 8px rgba(0,0,0,.04)">
@@ -1724,17 +1718,21 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 </div>
 
 <div class="mov" id="fin-cn-recon-detail-modal">
-  <div class="mdl" style="width:min(760px,96vw);max-height:88vh;overflow-y:auto">
-    <h3 id="fin-cn-recon-detail-title" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none;margin-top:0">Sales orders</h3>
-    <div class="tw tw-sales-dense" style="margin-bottom:12px"><table style="width:100%"><thead><tr>
-      <th>Order No.</th>
-      <th>Created</th>
-      <th>Customer</th>
-      <th>Status</th>
-      <th>Lines (this CN)</th>
-      <th style="text-align:right">Subtotal AED</th>
+  <div class="mdl fin-cn-recon-detail-mdl">
+    <h3 id="fin-cn-recon-detail-title" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none;margin-top:0;margin-bottom:12px">Sales orders</h3>
+    <div class="fin-cn-recon-detail-scroll">
+      <div class="tw tw-sales-dense"><table style="width:100%"><thead><tr>
+      <th>Order No.<br><span style="font-size:11px;color:#888;font-weight:700">订单号</span></th>
+      <th>Time<br><span style="font-size:11px;color:#888;font-weight:700">时间</span></th>
+      <th>Customer<br><span style="font-size:11px;color:#888;font-weight:700">客户</span></th>
+      <th>Product<br><span style="font-size:11px;color:#888;font-weight:700">品名</span></th>
+      <th style="text-align:right">Net unit (AED)<br><span style="font-size:11px;color:#888;font-weight:700">净单价</span></th>
+      <th style="text-align:right">Qty<br><span style="font-size:11px;color:#888;font-weight:700">数量</span></th>
+      <th style="text-align:right">Net (AED)<br><span style="font-size:11px;color:#888;font-weight:700">净额</span></th>
+      <th>Action</th>
     </tr></thead><tbody id="tb-fin-cn-recon-detail"></tbody></table></div>
-    <div class="brow" style="justify-content:flex-end">
+    </div>
+    <div class="brow fin-cn-recon-detail-actions" style="justify-content:flex-end">
       <button type="button" class="btn btn-g" onclick="clFinCnReconDetailModal()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Close</button>
     </div>
   </div>

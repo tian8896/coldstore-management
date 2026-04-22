@@ -5273,7 +5273,7 @@ function openFinCnReconLineEditModal(orderId, lineIdx) {
     return;
   }
   orderId = String(orderId || '').trim();
-  lineIdx = parseInt(String(lineIdx || ''), 10);
+  lineIdx = parseInt(lineIdx, 10);
   if (!orderId || isNaN(lineIdx) || lineIdx < 0) {
     toast('Invalid reconciliation line', 'err');
     return;

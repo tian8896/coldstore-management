@@ -5239,6 +5239,54 @@ function csmFinCnReconPrintData(cn) {
     printedAt: new Date().toISOString()
   };
 }
+function csmOpenPrintHtmlDocument(docHtml, printTitle) {
+  var w = null;
+  var blobUrl = '';
+  try {
+    var blob = new Blob([String(docHtml || '')], { type: 'text/html;charset=utf-8' });
+    blobUrl = URL.createObjectURL(blob);
+    w = window.open(blobUrl, '_blank');
+  } catch (e1) {
+    w = null;
+  }
+  if (!w) {
+    try {
+      w = window.open('', '_blank');
+      if (w && w.document) {
+        w.document.open();
+        w.document.write(String(docHtml || ''));
+        w.document.close();
+      }
+    } catch (e2) {
+      w = null;
+    }
+  }
+  if (!w) {
+    toast('Pop-up blocked — allow pop-ups to print', 'err');
+    return;
+  }
+  try { if (printTitle) w.document.title = String(printTitle); } catch (e3) {}
+  var printed = false;
+  function doPrint() {
+    if (printed) return;
+    printed = true;
+    try {
+      w.focus();
+      w.print();
+    } catch (e4) {}
+    if (blobUrl) {
+      setTimeout(function() {
+        try { URL.revokeObjectURL(blobUrl); } catch (e5) {}
+      }, 60000);
+    }
+  }
+  try {
+    w.onload = function() {
+      setTimeout(doPrint, 250);
+    };
+  } catch (e6) {}
+  setTimeout(doPrint, 900);
+}
 function csmFinCnReconGetOverrides(order) {
   var raw = order && order.finCnReconOverrides;
   return raw && typeof raw === 'object' ? raw : {};
@@ -5527,19 +5575,7 @@ function printFinCnReconDetailPdf() {
   parts.push('<div class="balance"><div class="lbl">Balance / 结余费用</div><div class="val">' + csmSalesRound2(data.balance).toFixed(2) + ' AED</div></div>');
   parts.push('<p style="margin-top:18px;font-size:11px;color:#64748b">Printed ' + csmEscapeHtml(csmSalesFormatOrderCreated(data.printedAt)) + '</p>');
   parts.push('</body></html>');
-  var w = window.open('', '_blank', 'noopener,noreferrer');
-  if (!w) {
-    toast('Pop-up blocked — allow pop-ups to print', 'err');
-    return;
-  }
-  w.document.write(parts.join(''));
-  w.document.close();
-  setTimeout(function() {
-    try {
-      w.focus();
-      w.print();
-    } catch (e2) {}
-  }, 350);
+  csmOpenPrintHtmlDocument(parts.join(''), 'Container Detail PDF');
 }
 function clFinCnReconDetailModal() {
   var m = gid('fin-cn-recon-detail-modal');

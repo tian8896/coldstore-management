@@ -5233,7 +5233,9 @@ function csmFinCnReconPrintData(cn) {
     salesRows: salesRows,
     totalQty: csmSalesRound2(totalQty),
     totalNetAmount: csmSalesRound2(totalNetAmount),
-    feeRows: expenseData.rows || [],
+    feeRows: (expenseData.rows || []).filter(function(r) {
+      return Math.abs(parseFloat(r && r.amount) || 0) > 1e-9;
+    }),
     expenseTotal: csmSalesRound2(expenseData.expenseTotal || 0),
     balance: csmSalesRound2(expenseData.balance || 0),
     printedAt: new Date().toISOString()
@@ -5543,8 +5545,8 @@ function printFinCnReconDetailPdf() {
   parts.push('.sec{margin-top:18px}.sec h3{font-size:15px;margin:0 0 8px;color:#0f172a}');
   parts.push('table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #cbd5e1;padding:7px 8px;text-align:left;vertical-align:top}');
   parts.push('th{background:#f8fafc}.num{text-align:right;font-variant-numeric:tabular-nums}');
-  parts.push('.balance{margin-top:16px;padding:10px 12px;border:1px solid #cbd5e1;background:#f8fafc}');
-  parts.push('.balance .lbl{font-size:12px;color:#111827}.balance .val{margin-top:4px;font-size:18px;color:#111827}');
+  parts.push('.balance{margin-top:16px;padding:10px 12px;border:1px solid #cbd5e1;background:#f8fafc;display:flex;align-items:flex-end;justify-content:space-between;gap:12px}');
+  parts.push('.balance .lbl{font-size:12px;color:#111827;flex:1 1 auto}.balance .val{margin-top:0;font-size:18px;color:#111827;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}');
   parts.push('@media print{body{padding:10px}}</style></head><body>');
   parts.push('<h1>Container reconciliation detail / 集装箱对账明细</h1>');
   parts.push('<h2>Print to PDF summary</h2>');
@@ -5552,7 +5554,7 @@ function printFinCnReconDetailPdf() {
   parts.push('<div><strong>Supplier</strong> ' + csmEscapeHtml(data.supplierName || '—') + '</div>');
   parts.push('<div><strong>Container</strong> ' + csmEscapeHtml(data.cn) + '</div>');
   parts.push('</div>');
-  parts.push('<div class="sec"><h3>Sales reconciliation lines / 上栏明细</h3>');
+  parts.push('<div class="sec"><h3>Sales details / 销售明细</h3>');
   parts.push('<table><thead><tr><th>Product / 品名</th><th class="num">Net unit</th><th class="num">Qty</th><th class="num">Net amount</th></tr></thead><tbody>');
   if (data.salesRows.length) {
     data.salesRows.forEach(function(r) {
@@ -5562,7 +5564,7 @@ function printFinCnReconDetailPdf() {
     parts.push('<tr><td colspan="4" style="text-align:center;color:#64748b">No sales lines</td></tr>');
   }
   parts.push('</tbody><tfoot><tr><td style="text-align:right"><strong>Total</strong></td><td></td><td class="num"><strong>' + csmFinCnReconFmtQty(data.totalQty) + '</strong></td><td class="num"><strong>' + csmSalesRound2(data.totalNetAmount).toFixed(2) + '</strong></td></tr></tfoot></table></div>');
-  parts.push('<div class="sec"><h3>Container expense breakdown / 下栏费用明细</h3>');
+  parts.push('<div class="sec"><h3>Container expense / 费用明细</h3>');
   parts.push('<table><thead><tr><th>Fee item / 费用项目</th><th class="num">Amount (AED)</th></tr></thead><tbody>');
   if (data.feeRows.length) {
     data.feeRows.forEach(function(r) {
@@ -5572,7 +5574,7 @@ function printFinCnReconDetailPdf() {
     parts.push('<tr><td colspan="2" style="text-align:center;color:#64748b">No fees</td></tr>');
   }
   parts.push('</tbody><tfoot><tr><td style="text-align:right"><strong>Total fees</strong></td><td class="num"><strong>' + csmSalesRound2(data.expenseTotal).toFixed(2) + '</strong></td></tr></tfoot></table></div>');
-  parts.push('<div class="balance"><div class="lbl">Balance / 结余费用</div><div class="val">' + csmSalesRound2(data.balance).toFixed(2) + ' AED</div></div>');
+  parts.push('<div class="balance"><div class="lbl">Balance amount / 结余金额</div><div class="val">' + csmSalesRound2(data.balance).toFixed(2) + ' AED</div></div>');
   parts.push('<p style="margin-top:18px;font-size:11px;color:#64748b">Printed ' + csmEscapeHtml(csmSalesFormatOrderCreated(data.printedAt)) + '</p>');
   parts.push('</body></html>');
   csmOpenPrintHtmlDocument(parts.join(''), 'Container Detail PDF');

@@ -235,9 +235,9 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 #fin-cn-recon-detail-modal .fin-cn-recon-detail-block{border:1px solid #dbe6f3;border-radius:10px;background:#fff;padding:12px 12px 10px}
 #fin-cn-recon-detail-modal .fin-cn-recon-detail-block h4{margin:0 0 10px;font-family:var(--csm-font-en);font-weight:700;font-size:14px;color:#334155}
 #fin-cn-recon-detail-modal .fin-cn-recon-detail-note{margin:0 0 10px;font-size:12px;line-height:1.5;color:#64748b;font-family:var(--csm-font-en);font-weight:700}
-#fin-cn-recon-detail-modal .fin-cn-recon-balance{margin-top:12px;padding:10px 12px;border-radius:8px;background:var(--bg2);border:1px solid #dbe6f3}
-#fin-cn-recon-detail-modal .fin-cn-recon-balance-label{font-size:12px;color:#111827;font-family:var(--csm-font-en);font-weight:700}
-#fin-cn-recon-detail-modal .fin-cn-recon-balance-value{margin-top:4px;font-size:18px;line-height:1.2;color:#111827;font-family:var(--csm-font-en);font-weight:700}
+#fin-cn-recon-detail-modal .fin-cn-recon-balance{margin-top:12px;padding:10px 12px;border-radius:8px;background:var(--bg2);border:1px solid #dbe6f3;display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+#fin-cn-recon-detail-modal .fin-cn-recon-balance-label{font-size:12px;color:#111827;font-family:var(--csm-font-en);font-weight:700;flex:1 1 auto}
+#fin-cn-recon-detail-modal .fin-cn-recon-balance-value{margin-top:0;font-size:18px;line-height:1.2;color:#111827;font-family:var(--csm-font-en);font-weight:700;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 /* Action column: above rowspan cells in some engines (clicks on Edit were lost) */
 #fin-cn-recon-detail-modal .fin-cn-recon-detail-scroll table tbody tr td:last-child{position:relative;z-index:2}
 #fin-cn-recon-detail-modal .fin-cn-recon-detail-scroll table .csm-fin-cn-recon-edit-btn{position:relative;z-index:3;touch-action:manipulation}
@@ -1826,7 +1826,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <div class="fin-cn-recon-detail-scroll">
       <div class="fin-cn-recon-detail-stack">
       <section class="fin-cn-recon-detail-block">
-      <h4>Sales reconciliation lines · 销售对账明细</h4>
+      <h4>Sales details / 销售明细</h4>
       <div class="tw tw-sales-dense"><table style="width:100%"><thead><tr>
       <th>Order No.<br><span style="font-size:11px;color:#888;font-weight:700">订单号</span></th>
       <th>Time<br><span style="font-size:11px;color:#888;font-weight:700">时间</span></th>
@@ -1842,7 +1842,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     </tr></thead><tbody id="tb-fin-cn-recon-detail"></tbody><tfoot id="tf-fin-cn-recon-detail"></tfoot></table></div>
       </section>
       <section class="fin-cn-recon-detail-block">
-      <h4>Container expense breakdown · 集装箱费用明细</h4>
+      <h4>Container expense / 费用明细</h4>
       <p class="fin-cn-recon-detail-note">Purchase fees are summed from all purchase rows under this container. Worker / Truck equals the total unloading, delivery and return-related charges from all sales lines under the same container.</p>
       <div class="tw tw-sales-dense"><table style="width:100%"><thead><tr>
       <th>Fee item<br><span style="font-size:11px;color:#888;font-weight:700">费用项目</span></th>
@@ -1850,7 +1850,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <th>Action<br><span style="font-size:11px;color:#888;font-weight:700">操作</span></th>
       </tr></thead><tbody id="tb-fin-cn-recon-fees"></tbody><tfoot id="tf-fin-cn-recon-fees"></tfoot></table></div>
       <div class="fin-cn-recon-balance">
-      <div class="fin-cn-recon-balance-label">Balance after fees & commission · 结余费用</div>
+      <div class="fin-cn-recon-balance-label">Balance amount / 结余金额</div>
       <div class="fin-cn-recon-balance-value" id="fin-cn-recon-balance-value">0.00 AED</div>
       </div>
       </section>

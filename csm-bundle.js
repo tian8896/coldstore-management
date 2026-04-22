@@ -5139,6 +5139,36 @@ function finCnReconOpenOrderEdit(orderId) {
   try { swSalesSub('orders'); } catch (e2) {}
   setTimeout(function() { openSalesOrderModal(orderId); }, 50);
 }
+/** Map display line L to index in a fresh csmSalesNormalizeLinesFromOrder (cannot use indexOf: new object instances each call). */
+function csmFinCnReconLineMatchesNorm(a, b) {
+  if (!a || !b) return false;
+  if (csmSalesLineKey(a) !== csmSalesLineKey(b)) return false;
+  if (Math.abs((parseFloat(a.quantity) || 0) - (parseFloat(b.quantity) || 0)) > 1e-6) return false;
+  return true;
+}
+function csmFinCnReconResolveLineIndex(o, L) {
+  var fl = csmSalesNormalizeLinesFromOrder(o);
+  if (!fl.length || !L) return -1;
+  var n = parseInt(L._lineIndex, 10);
+  if (!isNaN(n) && n >= 0 && n < fl.length) {
+    if (csmFinCnReconLineMatchesNorm(fl[n], L)) return n;
+  }
+  var k = csmSalesLineKey(L);
+  var qL = parseFloat(L.quantity) || 0;
+  var hits = [];
+  for (var i = 0; i < fl.length; i++) {
+    if (csmSalesLineKey(fl[i]) !== k) continue;
+    if (Math.abs((parseFloat(fl[i].quantity) || 0) - qL) > 1e-6) continue;
+    hits.push(i);
+  }
+  if (hits.length === 1) return hits[0];
+  if (hits.length > 1 && !isNaN(n) && n >= 0 && hits.indexOf(n) >= 0) return n;
+  if (hits.length > 0) return hits[0];
+  for (var j = 0; j < fl.length; j++) {
+    if (csmSalesLineKey(fl[j]) === k) return j;
+  }
+  return -1;
+}
 function csmFinCnReconBindEditButtons(tbody) {
   if (!tbody || !tbody.querySelectorAll) return;
   var btns = tbody.querySelectorAll('button.csm-fin-cn-recon-edit-btn');
@@ -5175,7 +5205,6 @@ function openFinCnReconDetailModal(el) {
     list.forEach(function(item) {
       var o = item.order;
       var Ls = item.lines;
-      var fullLines = csmSalesNormalizeLinesFromOrder(o);
       var n = Ls.length;
       Ls.forEach(function(L, idx) {
         var disp = csmFinCnReconDisplayState(L, o);
@@ -5192,20 +5221,13 @@ function openFinCnReconDetailModal(el) {
         tr += csmFinCnReconDisplayCell(disp.initialNetUnit.toFixed(2), disp.changed);
         tr += csmFinCnReconDisplayCell(csmFinCnReconFmtQty(disp.initialQty), disp.changed);
         tr += '<td style="text-align:right;font-variant-numeric:tabular-nums;vertical-align:top">' + disp.netAmount.toFixed(2) + '</td>';
-        var _liR = parseInt(L._lineIndex, 10);
-        if (isNaN(_liR) || _liR < 0) {
-          _liR = fullLines.indexOf(L);
-        }
+        var _liR = csmFinCnReconResolveLineIndex(o, L);
+        var _oid = o && o.id != null ? String(o.id) : '';
         if (_liR < 0) {
-          var keyW = csmSalesLineKey(L);
-          for (var _fi = 0; _fi < fullLines.length; _fi++) {
-            if (csmSalesLineKey(fullLines[_fi]) === keyW) {
-              _liR = _fi;
-              break;
-            }
-          }
+          tr += '<td style="vertical-align:middle;white-space:nowrap;color:#888;font-size:12px" title="Could not map line (contact admin)">\u2014</td>';
+        } else {
+          tr += '<td style="vertical-align:middle;white-space:nowrap"><button type="button" class="abtn csm-fin-cn-recon-edit-btn" style="font-family:var(--csm-font-en);font-weight:700" data-order-id="' + csmAttrEscape(_oid) + '" data-line-idx="' + csmAttrEscape(String(_liR)) + '">Edit</button></td>';
         }
-        tr += '<td style="vertical-align:middle;white-space:nowrap"><button type="button" class="abtn csm-fin-cn-recon-edit-btn" style="font-family:var(--csm-font-en);font-weight:700" data-order-id="' + csmAttrEscape(String(o.id)) + '" data-line-idx="' + csmAttrEscape(String(_liR)) + '">Edit</button></td>';
         tr += '</tr>';
         parts.push(tr);
       });

@@ -5056,6 +5056,18 @@ function csmFinCnPrimaryPurchaseRow(cn) {
   var rows = csmFinCnPurchaseRows(cn);
   return rows.length ? rows[0] : null;
 }
+function csmFinCnSupplierDisplay(cn) {
+  var seen = {};
+  var list = [];
+  csmFinCnPurchaseRows(cn).forEach(function(r) {
+    var s = String(r && r.supplier || '').trim();
+    var k = s.toLowerCase();
+    if (!s || seen[k]) return;
+    seen[k] = true;
+    list.push(s);
+  });
+  return list.join(' · ');
+}
 function csmFinCnNetAmountTotal(cn) {
   var total = 0;
   csmFinCnSalesOrdersForContainer(cn).forEach(function(item) {
@@ -5192,6 +5204,39 @@ function csmFinCnExpenseBreakdown(cn) {
     rows: normalizedRows,
     expenseTotal: csmSalesRound2(expenseTotal),
     balance: csmSalesRound2(netAmountTotal - expenseTotal)
+  };
+}
+function csmFinCnReconPrintData(cn) {
+  var key = csmFinCnNormalize(cn);
+  var supplierName = csmFinCnSupplierDisplay(key) || '—';
+  var salesRows = [];
+  var totalQty = 0;
+  var totalNetAmount = 0;
+  csmFinCnSalesOrdersForContainer(key).forEach(function(item) {
+    var o = item.order;
+    (item.lines || []).forEach(function(L) {
+      var disp = csmFinCnReconDisplayState(L, o);
+      salesRows.push({
+        productName: String(L.productName || ''),
+        netUnit: csmSalesRound2(disp.netUnit),
+        qty: disp.qty,
+        netAmount: csmSalesRound2(disp.netAmount)
+      });
+      totalQty += disp.qty;
+      totalNetAmount += disp.netAmount;
+    });
+  });
+  var expenseData = csmFinCnExpenseBreakdown(key);
+  return {
+    cn: key,
+    supplierName: supplierName,
+    salesRows: salesRows,
+    totalQty: csmSalesRound2(totalQty),
+    totalNetAmount: csmSalesRound2(totalNetAmount),
+    feeRows: expenseData.rows || [],
+    expenseTotal: csmSalesRound2(expenseData.expenseTotal || 0),
+    balance: csmSalesRound2(expenseData.balance || 0),
+    printedAt: new Date().toISOString()
   };
 }
 function csmFinCnReconGetOverrides(order) {
@@ -5351,6 +5396,7 @@ function openFinCnReconDetailModal(el) {
   var feeBody = gid('tb-fin-cn-recon-fees');
   var feeFoot = gid('tf-fin-cn-recon-fees');
   if (!m || !tbody) return;
+  try { m.setAttribute('data-cn', csmFinCnNormalize(cn)); } catch (eSet) {}
   if (title) title.textContent = 'Container ' + cn + ' \u2014 All sales (this container)';
   var list = csmFinCnSalesOrdersForContainer(cn);
   if (!list.length) {
@@ -5435,6 +5481,65 @@ function openFinCnReconDetailModal(el) {
     }
   }
   m.classList.add('sh');
+}
+function printFinCnReconDetailPdf() {
+  var modal = gid('fin-cn-recon-detail-modal');
+  var cn = modal ? String(modal.getAttribute('data-cn') || '').trim() : '';
+  if (!cn) { toast('Container not found', 'err'); return; }
+  var data = csmFinCnReconPrintData(cn);
+  var parts = [];
+  parts.push('<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Container Detail PDF</title><style>');
+  parts.push('body{font-family:Arial,Helvetica,sans-serif;font-weight:700;padding:24px;color:#111827;font-size:14px}');
+  parts.push('h1{font-size:20px;margin:0 0 6px}h2{font-size:14px;margin:0 0 18px;color:#475569;font-weight:700}');
+  parts.push('.meta{margin:0 0 18px}.meta div{margin:5px 0}');
+  parts.push('.sec{margin-top:18px}.sec h3{font-size:15px;margin:0 0 8px;color:#0f172a}');
+  parts.push('table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #cbd5e1;padding:7px 8px;text-align:left;vertical-align:top}');
+  parts.push('th{background:#f8fafc}.num{text-align:right;font-variant-numeric:tabular-nums}');
+  parts.push('.balance{margin-top:16px;padding:10px 12px;border:1px solid #cbd5e1;background:#f8fafc}');
+  parts.push('.balance .lbl{font-size:12px;color:#111827}.balance .val{margin-top:4px;font-size:18px;color:#111827}');
+  parts.push('@media print{body{padding:10px}}</style></head><body>');
+  parts.push('<h1>Container reconciliation detail / 集装箱对账明细</h1>');
+  parts.push('<h2>Print to PDF summary</h2>');
+  parts.push('<div class="meta">');
+  parts.push('<div><strong>Supplier</strong> ' + csmEscapeHtml(data.supplierName || '—') + '</div>');
+  parts.push('<div><strong>Container</strong> ' + csmEscapeHtml(data.cn) + '</div>');
+  parts.push('</div>');
+  parts.push('<div class="sec"><h3>Sales reconciliation lines / 上栏明细</h3>');
+  parts.push('<table><thead><tr><th>Product / 品名</th><th class="num">Net unit</th><th class="num">Qty</th><th class="num">Net amount</th></tr></thead><tbody>');
+  if (data.salesRows.length) {
+    data.salesRows.forEach(function(r) {
+      parts.push('<tr><td>' + csmEscapeHtml(r.productName || '—') + '</td><td class="num">' + csmSalesRound2(r.netUnit).toFixed(2) + '</td><td class="num">' + csmFinCnReconFmtQty(r.qty) + '</td><td class="num">' + csmSalesRound2(r.netAmount).toFixed(2) + '</td></tr>');
+    });
+  } else {
+    parts.push('<tr><td colspan="4" style="text-align:center;color:#64748b">No sales lines</td></tr>');
+  }
+  parts.push('</tbody><tfoot><tr><td style="text-align:right"><strong>Total</strong></td><td></td><td class="num"><strong>' + csmFinCnReconFmtQty(data.totalQty) + '</strong></td><td class="num"><strong>' + csmSalesRound2(data.totalNetAmount).toFixed(2) + '</strong></td></tr></tfoot></table></div>');
+  parts.push('<div class="sec"><h3>Container expense breakdown / 下栏费用明细</h3>');
+  parts.push('<table><thead><tr><th>Fee item / 费用项目</th><th class="num">Amount (AED)</th></tr></thead><tbody>');
+  if (data.feeRows.length) {
+    data.feeRows.forEach(function(r) {
+      parts.push('<tr><td>' + csmEscapeHtml(String(r.en || '') + '/' + String(r.cn || '')) + '</td><td class="num">' + csmSalesRound2(r.amount).toFixed(2) + '</td></tr>');
+    });
+  } else {
+    parts.push('<tr><td colspan="2" style="text-align:center;color:#64748b">No fees</td></tr>');
+  }
+  parts.push('</tbody><tfoot><tr><td style="text-align:right"><strong>Total fees</strong></td><td class="num"><strong>' + csmSalesRound2(data.expenseTotal).toFixed(2) + '</strong></td></tr></tfoot></table></div>');
+  parts.push('<div class="balance"><div class="lbl">Balance / 结余费用</div><div class="val">' + csmSalesRound2(data.balance).toFixed(2) + ' AED</div></div>');
+  parts.push('<p style="margin-top:18px;font-size:11px;color:#64748b">Printed ' + csmEscapeHtml(csmSalesFormatOrderCreated(data.printedAt)) + '</p>');
+  parts.push('</body></html>');
+  var w = window.open('', '_blank', 'noopener,noreferrer');
+  if (!w) {
+    toast('Pop-up blocked — allow pop-ups to print', 'err');
+    return;
+  }
+  w.document.write(parts.join(''));
+  w.document.close();
+  setTimeout(function() {
+    try {
+      w.focus();
+      w.print();
+    } catch (e2) {}
+  }, 350);
 }
 function clFinCnReconDetailModal() {
   var m = gid('fin-cn-recon-detail-modal');
@@ -7858,6 +7963,7 @@ try { window.csmFinWtQuickApprove = csmFinWtQuickApprove; } catch (e) {}
 try { window.renderFinCnReconTable = renderFinCnReconTable; } catch (e) {}
 try { window.openFinCnReconDetailModal = openFinCnReconDetailModal; } catch (e) {}
 try { window.clFinCnReconDetailModal = clFinCnReconDetailModal; } catch (e) {}
+try { window.printFinCnReconDetailPdf = printFinCnReconDetailPdf; } catch (e) {}
 try { window.finCnReconOpenOrderEdit = finCnReconOpenOrderEdit; } catch (e) {}
 try { window.openFinCnReconLineEditModal = openFinCnReconLineEditModal; } catch (e) {}
 try { window.clFinCnReconLineEditModal = clFinCnReconLineEditModal; } catch (e) {}

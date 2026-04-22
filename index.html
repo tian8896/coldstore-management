@@ -468,7 +468,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260422fin-recon-fee-item-inline-balance" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260422fin-recon-print-pdf" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -1857,6 +1857,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       </div>
     </div>
     <div class="brow fin-cn-recon-detail-actions" style="justify-content:flex-end">
+      <button type="button" class="btn btn-s" onclick="printFinCnReconDetailPdf()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Print PDF</button>
       <button type="button" class="btn btn-g" onclick="clFinCnReconDetailModal()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Close</button>
     </div>
   </div>

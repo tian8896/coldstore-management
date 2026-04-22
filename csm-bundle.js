@@ -3811,7 +3811,7 @@ function csmSalesLineVatMode(L, order) {
 function csmSalesNormalizeLinesFromOrder(o) {
   if (!o) return [];
   var arr = [];
-  csmSalesLinesRawToArr(o.lines).forEach(function(L) {
+  csmSalesLinesRawToArr(o.lines).forEach(function(L, idx) {
     if (!L || typeof L !== 'object') return;
     var cn = String(L.containerNo || '').trim().toUpperCase();
     var pr = canonicalProductName(String(L.productName || '').trim());
@@ -3834,7 +3834,8 @@ function csmSalesNormalizeLinesFromOrder(o) {
       truckName: String(L.truckName || '').trim(),
       truckQty: parseFloat(L.truckQty) || 0,
       truckRate: parseFloat(L.truckRate) || 0,
-      truckAmount: parseFloat(L.truckAmount) || 0
+      truckAmount: parseFloat(L.truckAmount) || 0,
+      _lineIndex: idx
     });
   });
   if (!arr.length) {
@@ -3858,7 +3859,8 @@ function csmSalesNormalizeLinesFromOrder(o) {
         truckName: String(o.truckName || '').trim(),
         truckQty: parseFloat(o.truckQty) || 0,
         truckRate: parseFloat(o.truckRate) || 0,
-        truckAmount: parseFloat(o.truckAmount) || 0
+        truckAmount: parseFloat(o.truckAmount) || 0,
+        _lineIndex: 0
       });
     }
   }
@@ -5044,6 +5046,48 @@ function csmFinCnSalesOrdersForContainer(cn) {
   });
   return out;
 }
+function csmFinCnReconGetOverrides(order) {
+  var raw = order && order.finCnReconOverrides;
+  return raw && typeof raw === 'object' ? raw : {};
+}
+function csmFinCnReconLineOverride(order, lineIdx) {
+  var map = csmFinCnReconGetOverrides(order);
+  var key = String(parseInt(lineIdx, 10));
+  return map[key] && typeof map[key] === 'object' ? map[key] : null;
+}
+function csmFinCnReconFmtQty(q) {
+  var num = parseFloat(q);
+  if (!(num >= 0)) return '0';
+  return (Math.abs(num - Math.round(num)) < 1e-9) ? String(Math.round(num)) : csmSalesRound2(num).toFixed(2);
+}
+function csmFinCnReconBaseQty(L) {
+  return parseFloat(L && L.quantity) || 0;
+}
+function csmFinCnReconBaseNetUnit(L, o) {
+  return csmSalesNetUnitAndVatFromLine(L, csmSalesLineVatMode(L, o)).netUnit;
+}
+function csmFinCnReconDisplayState(L, o) {
+  var ov = csmFinCnReconLineOverride(o, L && L._lineIndex);
+  var baseQty = csmFinCnReconBaseQty(L);
+  var baseNetUnit = csmFinCnReconBaseNetUnit(L, o);
+  var initialQty = (ov && ov.initialQty != null && ov.initialQty !== '' && !isNaN(parseFloat(ov.initialQty))) ? parseFloat(ov.initialQty) : baseQty;
+  var initialNetUnit = (ov && ov.initialNetUnit != null && ov.initialNetUnit !== '' && !isNaN(parseFloat(ov.initialNetUnit))) ? parseFloat(ov.initialNetUnit) : baseNetUnit;
+  var currentQty = (ov && ov.qty != null && ov.qty !== '' && !isNaN(parseFloat(ov.qty))) ? parseFloat(ov.qty) : baseQty;
+  var currentNetUnit = (ov && ov.netUnit != null && ov.netUnit !== '' && !isNaN(parseFloat(ov.netUnit))) ? parseFloat(ov.netUnit) : baseNetUnit;
+  return {
+    initialQty: initialQty,
+    initialNetUnit: initialNetUnit,
+    qty: currentQty,
+    netUnit: currentNetUnit,
+    netAmount: csmSalesRound2(currentNetUnit * currentQty),
+    changed: Math.abs(initialQty - currentQty) > 1e-9 || Math.abs(initialNetUnit - currentNetUnit) > 1e-9
+  };
+}
+function csmFinCnReconDisplayCell(valueText, isChanged) {
+  var style = 'text-align:right;font-variant-numeric:tabular-nums;vertical-align:top';
+  if (isChanged) style += ';color:#cc0000;font-weight:700';
+  return '<td style="' + style + '">' + csmEscapeHtml(String(valueText)) + '</td>';
+}
 function renderFinCnReconTable() {
   if (!isAdmin && !isStaff) return;
   var tb = gid('tb-fin-cn-recon');
@@ -5105,7 +5149,7 @@ function openFinCnReconDetailModal(el) {
   if (title) title.textContent = 'Container ' + cn + ' \u2014 All sales (this container)';
   var list = csmFinCnSalesOrdersForContainer(cn);
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#888;padding:16px;font-family:var(--csm-font-en);font-weight:700">No sales orders for this container.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#888;padding:16px;font-family:var(--csm-font-en);font-weight:700">No sales orders for this container.</td></tr>';
   } else {
     var parts = [];
     list.forEach(function(item) {
@@ -5113,12 +5157,8 @@ function openFinCnReconDetailModal(el) {
       var Ls = item.lines;
       var n = Ls.length;
       Ls.forEach(function(L, idx) {
-        var vm = csmSalesLineVatMode(L, o);
-        var a = csmSalesComputeTotals(L.unitPrice, L.quantity, vm);
-        var netU = csmSalesNetUnitAndVatFromLine(L, vm).netUnit;
-        var netAmt = csmSalesRound2(a.net);
-        var q = parseFloat(L.quantity) || 0;
-        var qStr = (Math.abs(q - Math.round(q)) < 1e-9) ? String(Math.round(q)) : csmSalesRound2(q).toFixed(2);
+        var disp = csmFinCnReconDisplayState(L, o);
+        var qStr = csmFinCnReconFmtQty(disp.qty);
         var tr = '<tr>';
         if (idx === 0) {
           tr += '<td rowspan="' + n + '" style="font-family:var(--csm-font-en);font-weight:700;vertical-align:top;white-space:nowrap">' + csmEscapeHtml(String(o.orderNo || o.id)) + '</td>';
@@ -5126,12 +5166,12 @@ function openFinCnReconDetailModal(el) {
           tr += '<td rowspan="' + n + '" style="vertical-align:top">' + csmEscapeHtml(o.customerName || '') + '</td>';
         }
         tr += '<td style="font-size:12px;max-width:200px;vertical-align:top">' + csmEscapeHtml(L.productName || '') + '</td>';
-        tr += '<td style="text-align:right;font-variant-numeric:tabular-nums;vertical-align:top">' + netU.toFixed(2) + '</td>';
+        tr += '<td style="text-align:right;font-variant-numeric:tabular-nums;vertical-align:top">' + disp.netUnit.toFixed(2) + '</td>';
         tr += '<td style="text-align:right;font-variant-numeric:tabular-nums;vertical-align:top">' + qStr + '</td>';
-        tr += '<td style="text-align:right;font-variant-numeric:tabular-nums;vertical-align:top">' + netAmt.toFixed(2) + '</td>';
-        if (idx === 0) {
-          tr += '<td rowspan="' + n + '" style="vertical-align:middle;white-space:nowrap"><button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="finCnReconOpenOrderEdit(' + csmHtmlAttrJson(o.id) + ')">Edit</button></td>';
-        }
+        tr += csmFinCnReconDisplayCell(disp.initialNetUnit.toFixed(2), disp.changed);
+        tr += csmFinCnReconDisplayCell(csmFinCnReconFmtQty(disp.initialQty), disp.changed);
+        tr += '<td style="text-align:right;font-variant-numeric:tabular-nums;vertical-align:top">' + disp.netAmount.toFixed(2) + '</td>';
+        tr += '<td style="vertical-align:middle;white-space:nowrap"><button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="openFinCnReconLineEditModal(' + csmHtmlAttrJson(o.id) + ',' + parseInt(L._lineIndex, 10) + ')">Edit</button></td>';
         tr += '</tr>';
         parts.push(tr);
       });
@@ -5143,6 +5183,94 @@ function openFinCnReconDetailModal(el) {
 function clFinCnReconDetailModal() {
   var m = gid('fin-cn-recon-detail-modal');
   if (m) m.classList.remove('sh');
+}
+function csmFinCnReconLineEditGetContext() {
+  var orderId = String((gid('fin-cn-recon-edit-order-id') || {}).value || '').trim();
+  var lineIdx = parseInt(String((gid('fin-cn-recon-edit-line-idx') || {}).value || ''), 10);
+  if (!orderId || isNaN(lineIdx) || lineIdx < 0) return null;
+  var order = salesOrders.find(function(x) { return x && x.id === orderId; });
+  if (!order || order.voided) return null;
+  var lines = csmSalesNormalizeLinesFromOrder(order);
+  if (lineIdx >= lines.length) return null;
+  return { orderId: orderId, lineIdx: lineIdx, order: order, lines: lines, line: lines[lineIdx] };
+}
+function csmFinCnReconEditPreview() {
+  var out = gid('fin-cn-recon-edit-preview');
+  if (!out) return;
+  var ctx = csmFinCnReconLineEditGetContext();
+  if (!ctx) {
+    out.textContent = 'Net amount: 0.00 AED';
+    return;
+  }
+  var netUnit = parseFloat((gid('fin-cn-recon-edit-net-unit') || {}).value);
+  var qty = parseFloat((gid('fin-cn-recon-edit-qty') || {}).value);
+  if (!(netUnit >= 0) || !(qty > 0)) {
+    out.textContent = 'Net amount: —';
+    return;
+  }
+  out.textContent = 'Net amount: ' + csmSalesRound2(netUnit * qty).toFixed(2) + ' AED';
+}
+function openFinCnReconLineEditModal(orderId, lineIdx) {
+  if (!isAdmin && !isStaff) return;
+  orderId = String(orderId || '').trim();
+  lineIdx = parseInt(String(lineIdx || ''), 10);
+  if (!orderId || isNaN(lineIdx) || lineIdx < 0) return;
+  var order = salesOrders.find(function(x) { return x && x.id === orderId; });
+  if (!order || order.voided) { toast('Order not found', 'err'); return; }
+  var lines = csmSalesNormalizeLinesFromOrder(order);
+  var line = lines[lineIdx];
+  if (!line) { toast('Line not found', 'err'); return; }
+  var meta = gid('fin-cn-recon-edit-line-meta');
+  var orderIdEl = gid('fin-cn-recon-edit-order-id');
+  var lineIdxEl = gid('fin-cn-recon-edit-line-idx');
+  var unitEl = gid('fin-cn-recon-edit-net-unit');
+  var qtyEl = gid('fin-cn-recon-edit-qty');
+  var modal = gid('fin-cn-recon-line-edit-modal');
+  if (!orderIdEl || !lineIdxEl || !unitEl || !qtyEl || !modal) return;
+  var disp = csmFinCnReconDisplayState(line, order);
+  orderIdEl.value = orderId;
+  lineIdxEl.value = String(lineIdx);
+  unitEl.value = disp.netUnit.toFixed(2);
+  qtyEl.value = csmFinCnReconFmtQty(disp.qty);
+  if (meta) {
+    meta.innerHTML = 'Order: ' + csmEscapeHtml(String(order.orderNo || order.id)) +
+      '<br>Product: ' + csmEscapeHtml(String(line.productName || '')) +
+      '<br>Container: ' + csmEscapeHtml(String(line.containerNo || '')) +
+      '<br>VAT mode: ' + csmEscapeHtml(csmSalesLineVatMode(line, order) === 'included' ? 'Include VAT' : 'Exclude VAT');
+  }
+  csmFinCnReconEditPreview();
+  modal.classList.add('sh');
+}
+function clFinCnReconLineEditModal() {
+  var modal = gid('fin-cn-recon-line-edit-modal');
+  if (modal) modal.classList.remove('sh');
+}
+function saveFinCnReconLineEdit() {
+  if (!salesOrdersRef) { toast('Database not connected', 'err'); return; }
+  var ctx = csmFinCnReconLineEditGetContext();
+  if (!ctx) { toast('Line not found', 'err'); return; }
+  var netUnit = parseFloat((gid('fin-cn-recon-edit-net-unit') || {}).value);
+  var qty = parseFloat((gid('fin-cn-recon-edit-qty') || {}).value);
+  if (!(netUnit >= 0)) { toast('Enter valid net unit', 'err'); return; }
+  if (!(qty > 0)) { toast('Enter valid qty', 'err'); return; }
+  var disp = csmFinCnReconDisplayState(ctx.line, ctx.order);
+  var overrides = Object.assign({}, csmFinCnReconGetOverrides(ctx.order));
+  overrides[String(ctx.lineIdx)] = {
+    netUnit: csmSalesRound2(netUnit),
+    qty: qty,
+    initialNetUnit: disp.initialNetUnit,
+    initialQty: disp.initialQty
+  };
+  salesOrdersRef.child(ctx.orderId).update({
+    finCnReconOverrides: overrides,
+    finCnReconUpdatedAt: new Date().toISOString()
+  }).then(function() {
+    toast('Reconciliation line updated', 'ok');
+    clFinCnReconLineEditModal();
+    openFinCnReconDetailModal({ getAttribute: function(name) { return name === 'data-cn' ? ctx.line.containerNo : ''; } });
+  }).catch(function(e) {
+    toast('Save failed: ' + (e.message || e), 'err');
+  });
 }
 function swSalesSub(view) {
   salesSubView = view || 'dash';
@@ -7375,3 +7503,7 @@ try { window.renderFinCnReconTable = renderFinCnReconTable; } catch (e) {}
 try { window.openFinCnReconDetailModal = openFinCnReconDetailModal; } catch (e) {}
 try { window.clFinCnReconDetailModal = clFinCnReconDetailModal; } catch (e) {}
 try { window.finCnReconOpenOrderEdit = finCnReconOpenOrderEdit; } catch (e) {}
+try { window.openFinCnReconLineEditModal = openFinCnReconLineEditModal; } catch (e) {}
+try { window.clFinCnReconLineEditModal = clFinCnReconLineEditModal; } catch (e) {}
+try { window.saveFinCnReconLineEdit = saveFinCnReconLineEdit; } catch (e) {}
+try { window.csmFinCnReconEditPreview = csmFinCnReconEditPreview; } catch (e) {}

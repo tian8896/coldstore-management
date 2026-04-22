@@ -797,10 +797,6 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <button type="button" class="portal-app-btn" id="portalBtnW2" onclick="switchMainSuite('w2')">Warehouse 2<br><span style="font-size:10px;font-weight:normal;opacity:.85">独立业务域 · 另一冷库</span></button>
     <button type="button" class="portal-app-btn" id="portalBtnFin" onclick="switchMainSuite('fin')">公司财务<br><span style="font-size:10px;font-weight:normal;opacity:.85">独立业务域 · Company Financial</span></button>
   </div>
-  <div class="portal-arch-note" style="margin-top:10px;font-size:12px;color:#555;line-height:1.7;max-width:980px">
-    <strong>架构说明</strong>：Warehouse 1、Warehouse 2 与<strong>公司财务</strong>为三套<strong>相互独立</strong>的产品域（各自界面、数据模型与权限边界）。将来若需要联动，建议通过<strong>业务主键引用</strong>（如单据 ID、集装箱号、供应商编码）、<strong>只读聚合</strong>或<strong>异步同步</strong>建立关联，避免把不同域的核心表硬耦合在一起。
-    <span style="display:block;margin-top:6px;font-size:11px;color:#888">Architecture: three independent domains; future cross-domain ties via explicit references, read-only rollups, or sync—not shared mutable core tables.</span>
-  </div>
 </div>
 
 <div id="suiteWarehouse1" class="portal-suite" data-portal-suite="w1">
@@ -1473,7 +1469,6 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 
 <div id="suiteCompanyFinancial" class="portal-suite" style="display:none" data-portal-suite="fin">
   <div style="padding:8px 14px 24px 8px;width:calc(100vw - 8px);max-width:none;margin:0;box-sizing:border-box">
-    <h2 style="font-family:var(--csm-font-en);font-weight:700;font-size:22px;margin:0 0 8px">Company Financial · 公司财务</h2>
     <section style="margin-bottom:22px;background:#fff;border:1px solid #dbe6f3;border-radius:12px;padding:18px 20px;box-shadow:0 1px 8px rgba(0,0,0,.04)">
       <div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px">
         <div>

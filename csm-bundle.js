@@ -5046,6 +5046,94 @@ function csmFinCnSalesOrdersForContainer(cn) {
   });
   return out;
 }
+function csmFinCnPurchaseRows(cn) {
+  var key = csmFinCnNormalize(cn);
+  return (purchaseRecs || []).filter(function(p) {
+    return csmFinCnNormalize(p && p.cn) === key;
+  });
+}
+function csmFinCnPrimaryPurchaseRow(cn) {
+  var rows = csmFinCnPurchaseRows(cn);
+  return rows.length ? rows[0] : null;
+}
+function csmFinCnNetAmountTotal(cn) {
+  var total = 0;
+  csmFinCnSalesOrdersForContainer(cn).forEach(function(item) {
+    var o = item.order;
+    (item.lines || []).forEach(function(L) {
+      total += csmFinCnReconDisplayState(L, o).netAmount;
+    });
+  });
+  return csmSalesRound2(total);
+}
+function csmFinCnGetCommissionRate(cn) {
+  var primary = csmFinCnPrimaryPurchaseRow(cn);
+  var rate = parseFloat(primary && primary.finCnCommissionRate);
+  return rate >= 0 ? rate : 5;
+}
+function csmFinCnGetWorkerTruckAmount(cn) {
+  var primary = csmFinCnPrimaryPurchaseRow(cn);
+  var ov = parseFloat(primary && primary.finCnWorkerTruckOverride);
+  if (ov >= 0) return csmSalesRound2(ov);
+  var wtTotal = 0;
+  csmFinCnSalesOrdersForContainer(cn).forEach(function(item) {
+    (item.lines || []).forEach(function(L) {
+      wtTotal += (parseFloat(L && L.workerAmount) || 0) + (parseFloat(L && L.truckAmount) || 0);
+    });
+  });
+  return csmSalesRound2(wtTotal);
+}
+function csmFinCnDistributeTotal(total, weights) {
+  var roundedTotal = csmSalesRound2(total);
+  var out = [];
+  var sumW = 0;
+  var i;
+  for (i = 0; i < weights.length; i++) sumW += parseFloat(weights[i]) || 0;
+  if (!(sumW > 0)) {
+    for (i = 0; i < weights.length; i++) weights[i] = 1;
+    sumW = weights.length || 1;
+  }
+  var remain = roundedTotal;
+  for (i = 0; i < weights.length; i++) {
+    var part = (i === weights.length - 1) ? csmSalesRound2(remain) : csmSalesRound2(roundedTotal * ((parseFloat(weights[i]) || 0) / sumW));
+    out.push(part);
+    remain = csmSalesRound2(remain - part);
+  }
+  if (out.length) out[out.length - 1] = csmSalesRound2(out[out.length - 1] + remain);
+  return out;
+}
+function csmFinCnSavePurchaseFieldTotal(cn, fieldKey, total) {
+  var rows = csmFinCnPurchaseRows(cn);
+  if (!rows.length) return Promise.reject(new Error('No purchase rows for this container'));
+  var currentTotal = rows.reduce(function(sum, r) { return sum + (parseFloat(r && r[fieldKey]) || 0); }, 0);
+  var weights = [];
+  if (currentTotal > 0) {
+    weights = rows.map(function(r) { return parseFloat(r && r[fieldKey]) || 0; });
+  } else {
+    var qtyTotal = rows.reduce(function(sum, r) { return sum + (parseFloat(r && r.qty) || 0); }, 0);
+    weights = qtyTotal > 0 ? rows.map(function(r) { return parseFloat(r && r.qty) || 0; }) : rows.map(function() { return 1; });
+  }
+  var distributed = csmFinCnDistributeTotal(total, weights);
+  var tasks = [];
+  rows.forEach(function(r, idx) {
+    var nextVal = csmSalesRound2(distributed[idx] || 0);
+    r[fieldKey] = nextVal;
+    if (fieldKey === 'coldFee' && r.coldfee != null) r.coldfee = nextVal;
+    if (purchaseRef && r.id) tasks.push(purchaseRef.child(r.id).update((function() {
+      var patch = {};
+      patch[fieldKey] = nextVal;
+      return patch;
+    })()));
+  });
+  return Promise.all(tasks);
+}
+function csmFinCnSavePrimaryPurchaseMeta(cn, patch) {
+  var primary = csmFinCnPrimaryPurchaseRow(cn);
+  if (!primary) return Promise.reject(new Error('No purchase rows for this container'));
+  Object.keys(patch || {}).forEach(function(k) { primary[k] = patch[k]; });
+  if (!purchaseRef || !primary.id) return Promise.resolve();
+  return purchaseRef.child(primary.id).update(patch);
+}
 function csmFinCnExpenseBreakdown(cn) {
   var key = csmFinCnNormalize(cn);
   var fees = [
@@ -5058,7 +5146,7 @@ function csmFinCnExpenseBreakdown(cn) {
     { key: 'other', cn: '其他', en: 'Other', source: 'Purchase records · 采购记录' }
   ];
   var rows = fees.map(function(x) {
-    return { key: x.key, cn: x.cn, en: x.en, source: x.source, amount: 0 };
+    return { key: x.key, cn: x.cn, en: x.en, source: x.source, amount: 0, editable: true };
   });
   (purchaseRecs || []).forEach(function(p) {
     if (csmFinCnNormalize(p && p.cn) !== key) return;
@@ -5066,28 +5154,45 @@ function csmFinCnExpenseBreakdown(cn) {
       r.amount += parseFloat(p && p[r.key]) || 0;
     });
   });
-  var wtTotal = 0;
-  csmFinCnSalesOrdersForContainer(key).forEach(function(item) {
-    (item.lines || []).forEach(function(L) {
-      wtTotal += (parseFloat(L && L.workerAmount) || 0) + (parseFloat(L && L.truckAmount) || 0);
-    });
-  });
+  var netAmountTotal = csmFinCnNetAmountTotal(key);
+  var commissionRate = csmFinCnGetCommissionRate(key);
+  var workerTruckAmount = csmFinCnGetWorkerTruckAmount(key);
   rows.push({
     key: 'workerTruck',
     cn: '卸货送货及退换货',
     en: 'Worker / Truck',
     source: 'Sales lines · 销售订单行',
-    amount: wtTotal
+    amount: workerTruckAmount,
+    editable: true
   });
-  return rows.map(function(r) {
+  rows.push({
+    key: 'commission',
+    cn: '佣金',
+    en: 'Commission',
+    source: 'Net amount × ' + csmSalesRound2(commissionRate).toFixed(2) + '% · 上栏净额 × 费率',
+    amount: csmSalesRound2(netAmountTotal * commissionRate / 100),
+    editable: true,
+    rate: commissionRate
+  });
+  var normalizedRows = rows.map(function(r) {
     return {
       key: r.key,
       cn: r.cn,
       en: r.en,
       source: r.source,
-      amount: csmSalesRound2(r.amount)
+      amount: csmSalesRound2(r.amount),
+      editable: r.editable !== false,
+      rate: r.rate
     };
   });
+  var expenseTotal = normalizedRows.reduce(function(sum, r) { return sum + (parseFloat(r.amount) || 0); }, 0);
+  return {
+    netAmountTotal: netAmountTotal,
+    commissionRate: commissionRate,
+    rows: normalizedRows,
+    expenseTotal: csmSalesRound2(expenseTotal),
+    balance: csmSalesRound2(netAmountTotal - expenseTotal)
+  };
 }
 function csmFinCnReconGetOverrides(order) {
   var raw = order && order.finCnReconOverrides;
@@ -5304,21 +5409,27 @@ function openFinCnReconDetailModal(el) {
     csmFinCnReconBindEditButtons(tbody);
   }
   if (feeBody) {
-    var feeRows = csmFinCnExpenseBreakdown(cn);
-    var feeTotal = 0;
-    feeBody.innerHTML = feeRows.map(function(r) {
-      feeTotal += parseFloat(r.amount) || 0;
+    var feeData = csmFinCnExpenseBreakdown(cn);
+    feeBody.innerHTML = feeData.rows.map(function(r) {
+      var actionHtml = r.editable ? '<button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="openFinCnReconExpenseEditModal(' + csmHtmlAttrJson(cn) + ',' + csmHtmlAttrJson(r.key) + ')">Edit</button>' : '—';
       return '<tr>' +
         '<td>' + csmEscapeHtml(r.en) + '<br><span style="font-size:11px;color:#888;font-weight:700">' + csmEscapeHtml(r.cn) + '</span></td>' +
         '<td style="color:#64748b">' + csmEscapeHtml(r.source) + '</td>' +
         '<td style="text-align:right;font-variant-numeric:tabular-nums">' + csmSalesRound2(r.amount).toFixed(2) + '</td>' +
+        '<td style="white-space:nowrap">' + actionHtml + '</td>' +
       '</tr>';
     }).join('');
     if (feeFoot) {
       feeFoot.innerHTML = '<tr>' +
         '<td colspan="2" style="text-align:right;font-family:var(--csm-font-en);font-weight:700;background:var(--bg2)">Total</td>' +
-        '<td style="text-align:right;font-variant-numeric:tabular-nums;background:var(--bg2)">' + csmSalesRound2(feeTotal).toFixed(2) + '</td>' +
+        '<td style="text-align:right;font-variant-numeric:tabular-nums;background:var(--bg2)">' + csmSalesRound2(feeData.expenseTotal).toFixed(2) + '</td>' +
+        '<td style="background:var(--bg2)"></td>' +
       '</tr>';
+    }
+    var balEl = gid('fin-cn-recon-balance-value');
+    if (balEl) {
+      balEl.textContent = csmSalesRound2(feeData.balance).toFixed(2) + ' AED';
+      balEl.style.color = feeData.balance < 0 ? '#b91c1c' : '#065f46';
     }
   }
   m.classList.add('sh');
@@ -5432,6 +5543,87 @@ function saveFinCnReconLineEdit() {
     openFinCnReconDetailModal({ getAttribute: function(name) { return name === 'data-cn' ? ctx.line.containerNo : ''; } });
   }).catch(function(e) {
     toast('Save failed: ' + (e.message || e), 'err');
+  });
+}
+function csmFinCnRefreshAfterExpenseEdit(cn) {
+  try { renderPurchase(); } catch (e1) {}
+  try { renderFinCnReconTable(); } catch (e2) {}
+  openFinCnReconDetailModal({ getAttribute: function(name) { return name === 'data-cn' ? cn : ''; } });
+}
+function openFinCnReconExpenseEditModal(cn, key) {
+  if (!isAdmin && !isStaff) {
+    toast('Only admin or staff can edit expense items', 'err');
+    return;
+  }
+  cn = csmFinCnNormalize(cn);
+  key = String(key || '').trim();
+  var feeData = csmFinCnExpenseBreakdown(cn);
+  var row = (feeData.rows || []).find(function(r) { return r && r.key === key; });
+  if (!cn || !row) { toast('Expense item not found', 'err'); return; }
+  var modal = gid('fin-cn-recon-expense-edit-modal');
+  var titleEl = gid('fin-cn-recon-expense-edit-title');
+  var cnEl = gid('fin-cn-recon-expense-edit-cn');
+  var keyEl = gid('fin-cn-recon-expense-edit-key');
+  var metaEl = gid('fin-cn-recon-expense-edit-meta');
+  var labelEl = gid('fin-cn-recon-expense-edit-label');
+  var valueEl = gid('fin-cn-recon-expense-edit-value');
+  if (!modal || !cnEl || !keyEl || !valueEl) { toast('Expense editor not available', 'err'); return; }
+  try { window._finCnReconDetailRestoreCn = cn; } catch (e0) {}
+  clFinCnReconDetailModal();
+  cnEl.value = cn;
+  keyEl.value = key;
+  if (titleEl) titleEl.textContent = 'Edit ' + row.en;
+  if (key === 'commission') {
+    if (labelEl) labelEl.textContent = 'Commission rate (%)';
+    valueEl.step = '0.01';
+    valueEl.min = '0';
+    valueEl.value = csmSalesRound2(feeData.commissionRate).toFixed(2);
+    if (metaEl) {
+      metaEl.innerHTML = 'Container: ' + csmEscapeHtml(cn) +
+        '<br>Formula: Net amount ' + csmSalesRound2(feeData.netAmountTotal).toFixed(2) + ' AED × rate' +
+        '<br>Current commission: ' + csmSalesRound2(row.amount).toFixed(2) + ' AED';
+    }
+  } else {
+    if (labelEl) labelEl.textContent = 'Amount (AED)';
+    valueEl.step = '0.01';
+    valueEl.min = '0';
+    valueEl.value = csmSalesRound2(row.amount).toFixed(2);
+    if (metaEl) {
+      metaEl.innerHTML = 'Container: ' + csmEscapeHtml(cn) +
+        '<br>Item: ' + csmEscapeHtml(row.en) + ' · ' + csmEscapeHtml(row.cn) +
+        '<br>Source: ' + csmEscapeHtml(row.source);
+    }
+  }
+  modal.classList.add('sh');
+}
+function clFinCnReconExpenseEditModal(reopenDetail) {
+  var modal = gid('fin-cn-recon-expense-edit-modal');
+  if (modal) modal.classList.remove('sh');
+  var cn = '';
+  try { cn = String(window._finCnReconDetailRestoreCn || '').trim(); } catch (e1) { cn = ''; }
+  try { window._finCnReconDetailRestoreCn = ''; } catch (e2) {}
+  if (reopenDetail && cn) csmFinCnRefreshAfterExpenseEdit(cn);
+}
+function saveFinCnReconExpenseEdit() {
+  var cn = csmFinCnNormalize((gid('fin-cn-recon-expense-edit-cn') || {}).value || '');
+  var key = String((gid('fin-cn-recon-expense-edit-key') || {}).value || '').trim();
+  var raw = parseFloat((gid('fin-cn-recon-expense-edit-value') || {}).value);
+  if (!cn || !key) { toast('Expense item not found', 'err'); return; }
+  if (!(raw >= 0)) { toast(key === 'commission' ? 'Enter valid commission rate' : 'Enter valid amount', 'err'); return; }
+  var task;
+  if (key === 'commission') {
+    task = csmFinCnSavePrimaryPurchaseMeta(cn, { finCnCommissionRate: csmSalesRound2(raw) });
+  } else if (key === 'workerTruck') {
+    task = csmFinCnSavePrimaryPurchaseMeta(cn, { finCnWorkerTruckOverride: csmSalesRound2(raw) });
+  } else {
+    task = csmFinCnSavePurchaseFieldTotal(cn, key, csmSalesRound2(raw));
+  }
+  Promise.resolve(task).then(function() {
+    toast('Expense updated', 'ok');
+    clFinCnReconExpenseEditModal(false);
+    csmFinCnRefreshAfterExpenseEdit(cn);
+  }).catch(function(e) {
+    toast('Save failed: ' + (e && e.message ? e.message : e), 'err');
   });
 }
 function swSalesSub(view) {
@@ -7669,3 +7861,6 @@ try { window.openFinCnReconLineEditModal = openFinCnReconLineEditModal; } catch 
 try { window.clFinCnReconLineEditModal = clFinCnReconLineEditModal; } catch (e) {}
 try { window.saveFinCnReconLineEdit = saveFinCnReconLineEdit; } catch (e) {}
 try { window.csmFinCnReconEditPreview = csmFinCnReconEditPreview; } catch (e) {}
+try { window.openFinCnReconExpenseEditModal = openFinCnReconExpenseEditModal; } catch (e) {}
+try { window.clFinCnReconExpenseEditModal = clFinCnReconExpenseEditModal; } catch (e) {}
+try { window.saveFinCnReconExpenseEdit = saveFinCnReconExpenseEdit; } catch (e) {}

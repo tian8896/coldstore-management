@@ -5175,6 +5175,7 @@ function openFinCnReconDetailModal(el) {
     list.forEach(function(item) {
       var o = item.order;
       var Ls = item.lines;
+      var fullLines = csmSalesNormalizeLinesFromOrder(o);
       var n = Ls.length;
       Ls.forEach(function(L, idx) {
         var disp = csmFinCnReconDisplayState(L, o);
@@ -5192,7 +5193,19 @@ function openFinCnReconDetailModal(el) {
         tr += csmFinCnReconDisplayCell(csmFinCnReconFmtQty(disp.initialQty), disp.changed);
         tr += '<td style="text-align:right;font-variant-numeric:tabular-nums;vertical-align:top">' + disp.netAmount.toFixed(2) + '</td>';
         var _liR = parseInt(L._lineIndex, 10);
-        tr += '<td style="vertical-align:middle;white-space:nowrap"><button type="button" class="abtn csm-fin-cn-recon-edit-btn" style="font-family:var(--csm-font-en);font-weight:700" data-order-id="' + csmAttrEscape(String(o.id)) + '" data-line-idx="' + csmAttrEscape(String(isNaN(_liR) ? -1 : _liR)) + '">Edit</button></td>';
+        if (isNaN(_liR) || _liR < 0) {
+          _liR = fullLines.indexOf(L);
+        }
+        if (_liR < 0) {
+          var keyW = csmSalesLineKey(L);
+          for (var _fi = 0; _fi < fullLines.length; _fi++) {
+            if (csmSalesLineKey(fullLines[_fi]) === keyW) {
+              _liR = _fi;
+              break;
+            }
+          }
+        }
+        tr += '<td style="vertical-align:middle;white-space:nowrap"><button type="button" class="abtn csm-fin-cn-recon-edit-btn" style="font-family:var(--csm-font-en);font-weight:700" data-order-id="' + csmAttrEscape(String(o.id)) + '" data-line-idx="' + csmAttrEscape(String(_liR)) + '">Edit</button></td>';
         tr += '</tr>';
         parts.push(tr);
       });

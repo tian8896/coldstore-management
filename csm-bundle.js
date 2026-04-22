@@ -4815,9 +4815,11 @@ function csmFinBuildWorkspaceState() {
   };
 }
 function swCompanyFinView(view) {
+  var views = ['dashboard', 'gl', 'detail', 'cashbank', 'tax', 'pending'];
   companyFinView = view || 'dashboard';
+  if (views.indexOf(companyFinView) === -1) companyFinView = 'dashboard';
   try { sessionStorage.setItem('csm_company_fin_view', companyFinView); } catch (e0) {}
-  ['dashboard', 'gl', 'detail', 'cashbank', 'tax'].forEach(function(key) {
+  views.forEach(function(key) {
     var panel = gid('company-fin-panel-' + key);
     if (panel) panel.style.display = key === companyFinView ? 'block' : 'none';
     var btn = gid('company-fin-btn-' + key);
@@ -4827,8 +4829,18 @@ function swCompanyFinView(view) {
     }
   });
   if (companyFinView === 'detail') renderCompanyFinDetailTable();
+  if (companyFinView === 'pending') {
+    try { renderCompanyFinancialPending(); } catch (e1) {}
+    try { renderCompanyFinancialPendingCustoms(); } catch (e2) {}
+  }
 }
 try { window.swCompanyFinView = swCompanyFinView; } catch (eCFW) {}
+function renderCompanyFinPendingBadge(state) {
+  var el = gid('company-fin-pending-badge');
+  if (!el) return;
+  var count = state && state.summary ? csmFinNum(state.summary.pendingApprovalCount) : 0;
+  el.textContent = String(count);
+}
 function renderCompanyFinSnapshotCards(state) {
   var el = gid('company-fin-snapshot-cards');
   if (!el) return;
@@ -4974,12 +4986,15 @@ function renderCompanyFinancialWorkspace() {
   var root = gid('suiteCompanyFinancial');
   if (!root) return;
   var state = csmFinBuildWorkspaceState();
+  renderCompanyFinPendingBadge(state);
   renderCompanyFinSnapshotCards(state);
   renderCompanyFinInterfacesTable();
   renderCompanyFinGlTable(state);
   renderCompanyFinDetailFilter(state);
   renderCompanyFinCashBankPanels(state);
   renderCompanyFinTaxPanels(state);
+  renderCompanyFinancialPending();
+  renderCompanyFinancialPendingCustoms();
   try { companyFinView = sessionStorage.getItem('csm_company_fin_view') || companyFinView || 'dashboard'; } catch (eVw) {}
   swCompanyFinView(companyFinView || 'dashboard');
 }
@@ -5537,6 +5552,9 @@ function printFinCnReconDetailPdf() {
   var cn = modal ? String(modal.getAttribute('data-cn') || '').trim() : '';
   if (!cn) { toast('Container not found', 'err'); return; }
   var data = csmFinCnReconPrintData(cn);
+  var printableFeeRows = (data.feeRows || []).filter(function(r) {
+    return csmSalesRound2(parseFloat(r && r.amount) || 0) !== 0;
+  });
   var parts = [];
   parts.push('<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Container Detail PDF</title><style>');
   parts.push('body{font-family:Arial,Helvetica,sans-serif;font-weight:700;padding:24px;color:#111827;font-size:14px}');
@@ -5545,8 +5563,8 @@ function printFinCnReconDetailPdf() {
   parts.push('.sec{margin-top:18px}.sec h3{font-size:15px;margin:0 0 8px;color:#0f172a}');
   parts.push('table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #cbd5e1;padding:7px 8px;text-align:left;vertical-align:top}');
   parts.push('th{background:#f8fafc}.num{text-align:right;font-variant-numeric:tabular-nums}');
-  parts.push('.balance{margin-top:16px;padding:10px 12px;border:1px solid #cbd5e1;background:#f8fafc;display:flex;align-items:flex-end;justify-content:space-between;gap:12px}');
-  parts.push('.balance .lbl{font-size:12px;color:#111827;flex:1 1 auto}.balance .val{margin-top:0;font-size:18px;color:#111827;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}');
+  parts.push('.balance{margin-top:16px;padding:10px 12px;border:1px solid #cbd5e1;background:#f8fafc;display:table;width:100%;table-layout:fixed;box-sizing:border-box}');
+  parts.push('.balance .lbl,.balance .val{display:table-cell;vertical-align:bottom}.balance .lbl{font-size:12px;color:#111827}.balance .val{font-size:18px;color:#111827;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;width:180px}');
   parts.push('@media print{body{padding:10px}}</style></head><body>');
   parts.push('<h1>Container reconciliation detail / 集装箱对账明细</h1>');
   parts.push('<h2>Print to PDF summary</h2>');
@@ -5566,8 +5584,8 @@ function printFinCnReconDetailPdf() {
   parts.push('</tbody><tfoot><tr><td style="text-align:right"><strong>Total</strong></td><td></td><td class="num"><strong>' + csmFinCnReconFmtQty(data.totalQty) + '</strong></td><td class="num"><strong>' + csmSalesRound2(data.totalNetAmount).toFixed(2) + '</strong></td></tr></tfoot></table></div>');
   parts.push('<div class="sec"><h3>Container expense / 费用明细</h3>');
   parts.push('<table><thead><tr><th>Fee item / 费用项目</th><th class="num">Amount (AED)</th></tr></thead><tbody>');
-  if (data.feeRows.length) {
-    data.feeRows.forEach(function(r) {
+  if (printableFeeRows.length) {
+    printableFeeRows.forEach(function(r) {
       parts.push('<tr><td>' + csmEscapeHtml(String(r.en || '') + '/' + String(r.cn || '')) + '</td><td class="num">' + csmSalesRound2(r.amount).toFixed(2) + '</td></tr>');
     });
   } else {

@@ -468,7 +468,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260422fin-recon-print-blob-fix" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260422fin-recon-print-align-zero-filter" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -1476,67 +1476,20 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <h2 style="font-family:var(--csm-font-en);font-weight:700;font-size:22px;margin:0 0 8px">Company Financial · 公司财务</h2>
     <p style="color:#555;font-size:14px;margin:0 0 18px;line-height:1.55;font-family:var(--csm-font-en);font-weight:700"><strong>Pending approvals</strong> · <strong>待审批</strong> — two queues: (1) <strong>Worker / Truck</strong> settlements from Warehouse 1 (<strong>Sales → 财务统计 → Worker / Truck</strong>), path <code style="font-size:12px">csm_sales_w1/wt_settlements</code>; (2) <strong>Customs clearance</strong> company bills (demurrage, cold, docs, etc.), path <code style="font-size:12px">csm_fin/pending_customs_fees</code>. Flow: <strong>submit → approve → pay</strong> · <strong>提交 → 审批 → 支付</strong>.</p>
 
-    <section style="background:linear-gradient(135deg,#fff8e1,#fffde7);border:1px solid #ffb74d;border-radius:10px;padding:16px 18px;margin-bottom:22px;box-shadow:0 1px 6px rgba(0,0,0,.06)">
-      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">
-        <h3 style="font-family:var(--csm-font-en);font-weight:700;margin:0;font-size:17px;color:#e65100">Worker / Truck · 工人 / 车工 — Pending · 待审批</h3>
-        <span style="font-family:var(--csm-font-en);font-weight:700;font-size:14px;color:#666">Queue · 队列: <strong id="fin-pending-count">0</strong></span>
-      </div>
-      <div class="tw" style="overflow-x:auto;border:1px solid #ffe0b2;border-radius:8px;background:#fff">
-        <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:var(--csm-font-en);font-weight:700">
-          <thead><tr style="background:#fff3e0">
-            <th style="padding:10px 12px;text-align:left;text-transform:none;letter-spacing:.02em">Created<br><span style="font-size:11px;color:#a1887f;font-weight:700">创建时间</span></th>
-            <th style="padding:10px 12px;text-align:left;text-transform:none">Submitted by<br><span style="font-size:11px;color:#a1887f;font-weight:700">提交人</span></th>
-            <th style="padding:10px 12px;text-align:left;text-transform:none">Period<br><span style="font-size:11px;color:#a1887f;font-weight:700">期间</span></th>
-            <th style="padding:10px 12px;text-align:left;text-transform:none">Worker<br><span style="font-size:11px;color:#a1887f;font-weight:700">工人</span></th>
-            <th style="padding:10px 12px;text-align:left;text-transform:none">Truck<br><span style="font-size:11px;color:#a1887f;font-weight:700">车工</span></th>
-            <th style="padding:10px 12px;text-align:center;text-transform:none">Lines<br><span style="font-size:11px;color:#a1887f;font-weight:700">行数</span></th>
-            <th style="padding:10px 12px;text-align:right;text-transform:none">Gross (AED)<br><span style="font-size:11px;color:#a1887f;font-weight:700">合计 AED</span></th>
-            <th style="padding:10px 12px;text-align:left;text-transform:none">Actions<br><span style="font-size:11px;color:#a1887f;font-weight:700">操作</span></th>
-          </tr></thead>
-          <tbody id="tb-fin-pending"></tbody>
-        </table>
-      </div>
-      <p id="fin-pending-empty" style="display:none;text-align:center;padding:22px;color:#888;font-family:var(--csm-font-en);font-weight:700">No pending Worker/Truck requests. · 暂无待审批的工人/车工结算。</p>
-    </section>
-
-    <section style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:1px solid #a78bfa;border-radius:10px;padding:16px 18px;margin-bottom:22px;box-shadow:0 1px 6px rgba(0,0,0,.06)">
-      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
-        <h3 style="font-family:var(--csm-font-en);font-weight:700;margin:0;font-size:17px;color:#5b21b6">Customs clearance · 清关公司账单 — Pending · 待审批</h3>
-        <span style="font-family:var(--csm-font-en);font-weight:700;font-size:14px;color:#666">Queue · 队列: <strong id="fin-pending-customs-count">0</strong></span>
-      </div>
-      <p style="margin:0 0 12px;color:#4c1d95;font-size:13px;line-height:1.55;font-family:var(--csm-font-en);font-weight:700">Covers demurrage / detention-style charges and related fees. Submit application here; finance approves; payment is recorded in a later step. · 含停柜等费用线；在此提交申请，财务审批通过后另行登记支付。</p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:12px;font-size:12px;font-family:var(--csm-font-en);font-weight:700;color:#334155">
-        <div style="background:#fff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 10px;line-height:1.45"><span style="color:#64748b">停柜费</span> · Logistics</div>
-        <div style="background:#fff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 10px;line-height:1.45"><span style="color:#64748b">清关费</span> · Cold Fee</div>
-        <div style="background:#fff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 10px;line-height:1.45"><span style="color:#64748b">冷藏费</span> · Attestation</div>
-        <div style="background:#fff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 10px;line-height:1.45"><span style="color:#64748b">单据认证</span> · Repack</div>
-        <div style="background:#fff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 10px;line-height:1.45"><span style="color:#64748b">翻包费</span> · Waste</div>
-        <div style="background:#fff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 10px;line-height:1.45"><span style="color:#64748b">其他（含垃圾费等）</span> · Other</div>
-      </div>
-      <div class="tw" style="overflow-x:auto;border:1px solid #c4b5fd;border-radius:8px;background:#fff">
-        <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:var(--csm-font-en);font-weight:700">
-          <thead><tr style="background:#ede9fe">
-            <th style="padding:10px 12px;text-align:left;text-transform:none">Created<br><span style="font-size:11px;color:#6d28d9;font-weight:700">创建时间</span></th>
-            <th style="padding:10px 12px;text-align:left;text-transform:none">Submitted by<br><span style="font-size:11px;color:#6d28d9;font-weight:700">提交人</span></th>
-            <th style="padding:10px 12px;text-align:left;text-transform:none">Ref<br><span style="font-size:11px;color:#6d28d9;font-weight:700">参考号</span></th>
-            <th style="padding:10px 12px;text-align:left;text-transform:none">BL / Container<br><span style="font-size:11px;color:#6d28d9;font-weight:700">提单 / 柜号</span></th>
-            <th style="padding:10px 12px;text-align:right;text-transform:none">Total (AED)<br><span style="font-size:11px;color:#6d28d9;font-weight:700">合计</span></th>
-            <th style="padding:10px 12px;text-align:left;text-transform:none">Breakdown<br><span style="font-size:11px;color:#6d28d9;font-weight:700">分项</span></th>
-            <th style="padding:10px 12px;text-align:left;text-transform:none">Actions<br><span style="font-size:11px;color:#6d28d9;font-weight:700">操作</span></th>
-          </tr></thead>
-          <tbody id="tb-fin-pending-customs"></tbody>
-        </table>
-      </div>
-      <p id="fin-pending-customs-empty" style="display:none;text-align:center;padding:22px;color:#888;font-family:var(--csm-font-en);font-weight:700">No pending customs fee requests. · 暂无待审批清关费用。</p>
-    </section>
-
     <section style="margin-bottom:22px;background:#fff;border:1px solid #dbe6f3;border-radius:12px;padding:18px 20px;box-shadow:0 1px 8px rgba(0,0,0,.04)">
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px">
+        <div>
+          <h3 style="margin:0 0 6px;font-family:var(--csm-font-en);font-weight:700;color:#0f172a">Finance workspace · 财务工作台</h3>
+          <p style="margin:0;color:#52606d;font-size:13px;line-height:1.6;font-family:var(--csm-font-en);font-weight:700">Use the top switcher below to open dashboard, ledgers, cash &amp; bank, tax, and pending approval items in one place. · 下方列表与对应显示内容已统一移到页面上方。</p>
+        </div>
+      </div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
-        <button type="button" class="btn btn-s" id="company-fin-btn-dashboard" onclick="swCompanyFinView('dashboard')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Dashboard</button>
-        <button type="button" class="btn btn-g" id="company-fin-btn-gl" onclick="swCompanyFinView('gl')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">General Ledger</button>
-        <button type="button" class="btn btn-g" id="company-fin-btn-detail" onclick="swCompanyFinView('detail')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Detailed Ledger</button>
-        <button type="button" class="btn btn-g" id="company-fin-btn-cashbank" onclick="swCompanyFinView('cashbank')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Cash &amp; Bank</button>
-        <button type="button" class="btn btn-g" id="company-fin-btn-tax" onclick="swCompanyFinView('tax')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">VAT &amp; Corporate Tax</button>
+        <button type="button" class="btn btn-s" id="company-fin-btn-dashboard" onclick="swCompanyFinView('dashboard')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Dashboard <span style="font-size:11px;opacity:.9;font-family:var(--csm-font-en);font-weight:700">总览</span></button>
+        <button type="button" class="btn btn-g" id="company-fin-btn-gl" onclick="swCompanyFinView('gl')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">General Ledger <span style="font-size:11px;opacity:.9;font-family:var(--csm-font-en);font-weight:700">总账</span></button>
+        <button type="button" class="btn btn-g" id="company-fin-btn-detail" onclick="swCompanyFinView('detail')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Detailed Ledger <span style="font-size:11px;opacity:.9;font-family:var(--csm-font-en);font-weight:700">明细账</span></button>
+        <button type="button" class="btn btn-g" id="company-fin-btn-cashbank" onclick="swCompanyFinView('cashbank')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Cash &amp; Bank <span style="font-size:11px;opacity:.9;font-family:var(--csm-font-en);font-weight:700">现金与银行</span></button>
+        <button type="button" class="btn btn-g" id="company-fin-btn-tax" onclick="swCompanyFinView('tax')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">VAT &amp; Corporate Tax <span style="font-size:11px;opacity:.9;font-family:var(--csm-font-en);font-weight:700">增值税与企业所得税</span></button>
+        <button type="button" class="btn btn-g" id="company-fin-btn-pending" onclick="swCompanyFinView('pending')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Pending approvals <span style="font-size:11px;opacity:.9;font-family:var(--csm-font-en);font-weight:700">待审批项目</span> <span id="company-fin-pending-badge" style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;border:1px solid currentColor;font-size:11px;font-family:var(--csm-font-en);font-weight:700;line-height:1">0</span></button>
       </div>
 
       <div id="company-fin-panel-dashboard">
@@ -1654,6 +1607,61 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
             <h3 style="margin:0 0 10px;font-family:var(--csm-font-en);font-weight:700">Corporate Tax</h3>
             <div id="company-fin-tax-summary" style="font-size:13px;color:#475569;line-height:1.8"></div>
           </div>
+        </div>
+      </div>
+      <div id="company-fin-panel-pending" style="display:none">
+        <div style="background:linear-gradient(135deg,#fff8e1,#fffde7);border:1px solid #ffb74d;border-radius:10px;padding:16px 18px;margin-bottom:18px;box-shadow:0 1px 6px rgba(0,0,0,.06)">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">
+            <h3 style="font-family:var(--csm-font-en);font-weight:700;margin:0;font-size:17px;color:#e65100">Worker / Truck · 工人 / 车工 — Pending · 待审批</h3>
+            <span style="font-family:var(--csm-font-en);font-weight:700;font-size:14px;color:#666">Queue · 队列: <strong id="fin-pending-count">0</strong></span>
+          </div>
+          <div class="tw" style="overflow-x:auto;border:1px solid #ffe0b2;border-radius:8px;background:#fff">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:var(--csm-font-en);font-weight:700">
+              <thead><tr style="background:#fff3e0">
+                <th style="padding:10px 12px;text-align:left;text-transform:none;letter-spacing:.02em">Created<br><span style="font-size:11px;color:#a1887f;font-weight:700">创建时间</span></th>
+                <th style="padding:10px 12px;text-align:left;text-transform:none">Submitted by<br><span style="font-size:11px;color:#a1887f;font-weight:700">提交人</span></th>
+                <th style="padding:10px 12px;text-align:left;text-transform:none">Period<br><span style="font-size:11px;color:#a1887f;font-weight:700">期间</span></th>
+                <th style="padding:10px 12px;text-align:left;text-transform:none">Worker<br><span style="font-size:11px;color:#a1887f;font-weight:700">工人</span></th>
+                <th style="padding:10px 12px;text-align:left;text-transform:none">Truck<br><span style="font-size:11px;color:#a1887f;font-weight:700">车工</span></th>
+                <th style="padding:10px 12px;text-align:center;text-transform:none">Lines<br><span style="font-size:11px;color:#a1887f;font-weight:700">行数</span></th>
+                <th style="padding:10px 12px;text-align:right;text-transform:none">Gross (AED)<br><span style="font-size:11px;color:#a1887f;font-weight:700">合计 AED</span></th>
+                <th style="padding:10px 12px;text-align:left;text-transform:none">Actions<br><span style="font-size:11px;color:#a1887f;font-weight:700">操作</span></th>
+              </tr></thead>
+              <tbody id="tb-fin-pending"></tbody>
+            </table>
+          </div>
+          <p id="fin-pending-empty" style="display:none;text-align:center;padding:22px;color:#888;font-family:var(--csm-font-en);font-weight:700">No pending Worker/Truck requests. · 暂无待审批的工人/车工结算。</p>
+        </div>
+
+        <div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:1px solid #a78bfa;border-radius:10px;padding:16px 18px;box-shadow:0 1px 6px rgba(0,0,0,.06)">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+            <h3 style="font-family:var(--csm-font-en);font-weight:700;margin:0;font-size:17px;color:#5b21b6">Customs clearance · 清关公司账单 — Pending · 待审批</h3>
+            <span style="font-family:var(--csm-font-en);font-weight:700;font-size:14px;color:#666">Queue · 队列: <strong id="fin-pending-customs-count">0</strong></span>
+          </div>
+          <p style="margin:0 0 12px;color:#4c1d95;font-size:13px;line-height:1.55;font-family:var(--csm-font-en);font-weight:700">Covers demurrage / detention-style charges and related fees. Submit application here; finance approves; payment is recorded in a later step. · 含停柜等费用线；在此提交申请，财务审批通过后另行登记支付。</p>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:12px;font-size:12px;font-family:var(--csm-font-en);font-weight:700;color:#334155">
+            <div style="background:#fff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 10px;line-height:1.45"><span style="color:#64748b">停柜费</span> · Logistics</div>
+            <div style="background:#fff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 10px;line-height:1.45"><span style="color:#64748b">清关费</span> · Cold Fee</div>
+            <div style="background:#fff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 10px;line-height:1.45"><span style="color:#64748b">冷藏费</span> · Attestation</div>
+            <div style="background:#fff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 10px;line-height:1.45"><span style="color:#64748b">单据认证</span> · Repack</div>
+            <div style="background:#fff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 10px;line-height:1.45"><span style="color:#64748b">翻包费</span> · Waste</div>
+            <div style="background:#fff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 10px;line-height:1.45"><span style="color:#64748b">其他（含垃圾费等）</span> · Other</div>
+          </div>
+          <div class="tw" style="overflow-x:auto;border:1px solid #c4b5fd;border-radius:8px;background:#fff">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:var(--csm-font-en);font-weight:700">
+              <thead><tr style="background:#ede9fe">
+                <th style="padding:10px 12px;text-align:left;text-transform:none">Created<br><span style="font-size:11px;color:#6d28d9;font-weight:700">创建时间</span></th>
+                <th style="padding:10px 12px;text-align:left;text-transform:none">Submitted by<br><span style="font-size:11px;color:#6d28d9;font-weight:700">提交人</span></th>
+                <th style="padding:10px 12px;text-align:left;text-transform:none">Ref<br><span style="font-size:11px;color:#6d28d9;font-weight:700">参考号</span></th>
+                <th style="padding:10px 12px;text-align:left;text-transform:none">BL / Container<br><span style="font-size:11px;color:#6d28d9;font-weight:700">提单 / 柜号</span></th>
+                <th style="padding:10px 12px;text-align:right;text-transform:none">Total (AED)<br><span style="font-size:11px;color:#6d28d9;font-weight:700">合计</span></th>
+                <th style="padding:10px 12px;text-align:left;text-transform:none">Breakdown<br><span style="font-size:11px;color:#6d28d9;font-weight:700">分项</span></th>
+                <th style="padding:10px 12px;text-align:left;text-transform:none">Actions<br><span style="font-size:11px;color:#6d28d9;font-weight:700">操作</span></th>
+              </tr></thead>
+              <tbody id="tb-fin-pending-customs"></tbody>
+            </table>
+          </div>
+          <p id="fin-pending-customs-empty" style="display:none;text-align:center;padding:22px;color:#888;font-family:var(--csm-font-en);font-weight:700">No pending customs fee requests. · 暂无待审批清关费用。</p>
         </div>
       </div>
     </section>

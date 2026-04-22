@@ -231,6 +231,9 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 }
 #fin-cn-recon-detail-modal .fin-cn-recon-detail-scroll{flex:1 1 auto;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
 #fin-cn-recon-detail-modal .fin-cn-recon-detail-actions{margin-top:12px;flex-shrink:0}
+/* Action column: above rowspan cells in some engines (clicks on Edit were lost) */
+#fin-cn-recon-detail-modal .fin-cn-recon-detail-scroll table tbody tr td:last-child{position:relative;z-index:2}
+#fin-cn-recon-detail-modal .fin-cn-recon-detail-scroll table .csm-fin-cn-recon-edit-btn{position:relative;z-index:3;touch-action:manipulation}
 /* 所有弹窗（.mov）：英文以 Arial 为主，字重加粗；中文由系统黑体回退；!important 覆盖全局 .fg 等 monospace */
 .mov,.mov *{font-family:var(--csm-font-en)!important;font-weight:700!important}
 .tst{position:fixed;bottom:24px;right:24px;padding:12px 18px;border-radius:6px;font-size:13px;font-family:var(--csm-font-en);font-weight:700;letter-spacing:.5px;z-index:12000;animation:ti .3s ease;max-width:320px;line-height:1.6}
@@ -458,7 +461,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260422recon-edit-delegate" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260422recon-edit-directbind" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {

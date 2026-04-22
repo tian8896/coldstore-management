@@ -5139,6 +5139,26 @@ function finCnReconOpenOrderEdit(orderId) {
   try { swSalesSub('orders'); } catch (e2) {}
   setTimeout(function() { openSalesOrderModal(orderId); }, 50);
 }
+function csmFinCnReconBindEditButtons(tbody) {
+  if (!tbody || !tbody.querySelectorAll) return;
+  var btns = tbody.querySelectorAll('button.csm-fin-cn-recon-edit-btn');
+  for (var i = 0; i < btns.length; i++) {
+    (function(btn) {
+      function onEditClick(ev) {
+        ev.stopPropagation();
+        ev.preventDefault();
+        var orderId = String(btn.getAttribute('data-order-id') || '').trim();
+        var lineIdx = parseInt(String(btn.getAttribute('data-line-idx') || ''), 10);
+        try {
+          openFinCnReconLineEditModal(orderId, lineIdx);
+        } catch (err) {
+          try { toast('Edit failed: ' + (err && err.message ? err.message : err), 'err'); } catch (e2) {}
+        }
+      }
+      btn.addEventListener('click', onEditClick, true);
+    })(btns[i]);
+  }
+}
 function openFinCnReconDetailModal(el) {
   var cn = el && el.getAttribute('data-cn');
   if (!cn) return;
@@ -5178,6 +5198,7 @@ function openFinCnReconDetailModal(el) {
       });
     });
     tbody.innerHTML = parts.join('');
+    csmFinCnReconBindEditButtons(tbody);
   }
   m.classList.add('sh');
 }
@@ -7527,20 +7548,3 @@ try { window.openFinCnReconLineEditModal = openFinCnReconLineEditModal; } catch 
 try { window.clFinCnReconLineEditModal = clFinCnReconLineEditModal; } catch (e) {}
 try { window.saveFinCnReconLineEdit = saveFinCnReconLineEdit; } catch (e) {}
 try { window.csmFinCnReconEditPreview = csmFinCnReconEditPreview; } catch (e) {}
-(function csmFinCnReconEditClickDelegate() {
-  if (window._csmFinCnReconEditDelegateOk) return;
-  window._csmFinCnReconEditDelegateOk = true;
-  document.addEventListener('click', function(e) {
-    var btn = e.target && e.target.closest && e.target.closest('button.csm-fin-cn-recon-edit-btn');
-    if (!btn) return;
-    if (!btn.closest || !btn.closest('#fin-cn-recon-detail-modal')) return;
-    e.preventDefault();
-    var orderId = String(btn.getAttribute('data-order-id') || '').trim();
-    var lineIdx = parseInt(String(btn.getAttribute('data-line-idx') || ''), 10);
-    try {
-      openFinCnReconLineEditModal(orderId, lineIdx);
-    } catch (err) {
-      try { toast('Edit failed: ' + (err && err.message ? err.message : err), 'err'); } catch (e2) {}
-    }
-  });
-})();

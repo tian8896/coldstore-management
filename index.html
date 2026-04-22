@@ -883,6 +883,8 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <th style="font-family:Arial;font-size:12px">Supplier<br><span style="font-size:11px;color:#888">供应商</span></th>
     <th style="font-family:Arial;font-size:12px">Product<br><span style="font-size:11px;color:#888">品名</span></th>
     <th style="font-family:Arial;font-size:12px">Purchase Date<br><span style="font-size:11px;color:#888">采购日期</span></th>
+    <th style="font-family:Arial;font-size:12px">POL<br><span style="font-size:11px;color:#888">起运港</span></th>
+    <th style="font-family:Arial;font-size:12px">POD<br><span style="font-size:11px;color:#888">目的港</span></th>
     <th style="font-family:Arial;font-size:12px">Qty<br><span style="font-size:11px;color:#888">数量</span></th>
     <th style="font-family:Arial;font-size:12px">ETD/ETA<br><span style="font-size:11px;color:#888">船期</span></th>
     <th style="font-family:Arial;font-size:12px">Ship Name<br><span style="font-size:11px;color:#888">船名</span></th>
@@ -986,6 +988,16 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           <option value="">请选择船公司</option>
         </select>
       </div>
+      <div class="fg"><label>POL (Port of loading) 起运港 *</label>
+        <select id="supplier-pol" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+          <option value="">Select POL / 选择起运港</option>
+        </select>
+      </div>
+      <div class="fg"><label>POD (Port of discharge) 目的港 *</label>
+        <select id="supplier-pod" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+          <option value="">Select POD / 选择目的港</option>
+        </select>
+      </div>
       <div class="fg"><label>预计开船日 ETD</label>
         <input type="date" id="supplier-etd" autocomplete="off">
       </div>
@@ -1070,7 +1082,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <button class="btn" onclick="filterPurchase()">确定 Confirm</button>
       <button class="btn btn-g" onclick="resetPurchaseSearch()">重置 Reset</button>
     </div>
-    <div class="tw csm-purchase-list-wrap"><table class="csm-purchase-table"><thead><tr><th>Seq No<br><span>序列号</span></th><th>Container<br><span>集装箱号</span></th><th>Supplier<br><span>供应商</span></th><th>Product<br><span>品名</span></th><th>Date<br><span>采购日期</span></th><th>Quantity<br><span>数量</span></th><th>Rem. Items<br><span>剩余件数</span></th><th>Demurrage<br><span>停柜费</span></th><th>Logistics<br><span>清关费</span></th><th>Cold Fee<br><span>冷藏费</span></th><th>Attestation<br><span>单据认证</span></th><th>Repack<br><span>翻包费</span></th><th>Waste<br><span>垃圾费</span></th><th>Other<br><span>其他</span></th><th>Total<br><span>合计</span></th><th>Action<br><span>操作</span></th></tr></thead><tbody id="tb-purchase"></tbody></table></div>
+    <div class="tw csm-purchase-list-wrap"><table class="csm-purchase-table"><thead><tr><th>Seq No<br><span>序列号</span></th><th>Container<br><span>集装箱号</span></th><th>Supplier<br><span>供应商</span></th><th>Product<br><span>品名</span></th><th>Date<br><span>采购日期</span></th><th>POL<br><span>起运港</span></th><th>POD<br><span>目的港</span></th><th>Quantity<br><span>数量</span></th><th>Rem. Items<br><span>剩余件数</span></th><th>Demurrage<br><span>停柜费</span></th><th>Logistics<br><span>清关费</span></th><th>Cold Fee<br><span>冷藏费</span></th><th>Attestation<br><span>单据认证</span></th><th>Repack<br><span>翻包费</span></th><th>Waste<br><span>垃圾费</span></th><th>Other<br><span>其他</span></th><th>Total<br><span>合计</span></th><th>Action<br><span>操作</span></th></tr></thead><tbody id="tb-purchase"></tbody></table></div>
     <div class="csm-w1-pager" id="w1-pager-purchase" style="display:none">
       <label for="w1-pager-purchase-size">Rows / page · 每页行数</label>
       <select id="w1-pager-purchase-size" onchange="csmW1SetPageSize('purchase', this.value)" title="Same container group stays together when possible · 同一集装箱主行与子行尽量同页">
@@ -2099,6 +2111,16 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           <option value="">请选择船公司</option>
         </select>
       </div>
+      <div class="fg"><label>POL (Port of loading) 起运港 *</label>
+        <select id="fp-pol" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+          <option value="">Select POL / 选择起运港</option>
+        </select>
+      </div>
+      <div class="fg"><label>POD (Port of discharge) 目的港 *</label>
+        <select id="fp-pod" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+          <option value="">Select POD / 选择目的港</option>
+        </select>
+      </div>
       <div class="fg"><label>预计开船日 ETD</label>
         <input type="date" id="fp-etd" autocomplete="off" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
       </div>
@@ -2215,6 +2237,22 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <button class="sett-add-btn" onclick="addSettItem('shipcompany')">+ 添加</button>
       </div>
       <div id="sett-shipcompany-list"></div>
+    </div>
+    <div class="sett-section">
+      <h4>⚓ POL 起运港 / Port of Loading</h4>
+      <div class="sett-row">
+        <input type="text" id="sett-pol-input" placeholder="e.g. Shanghai — 在采购表单中可选的起运港" onkeydown="if(event.key==='Enter')addSettItem('pol')">
+        <button class="sett-add-btn" onclick="addSettItem('pol')">+ 添加</button>
+      </div>
+      <div id="sett-pol-list"></div>
+    </div>
+    <div class="sett-section">
+      <h4>🎯 POD 目的港 / Port of Discharge</h4>
+      <div class="sett-row">
+        <input type="text" id="sett-pod-input" placeholder="e.g. Jebel Ali — 在采购表单中可选的目的港" onkeydown="if(event.key==='Enter')addSettItem('pod')">
+        <button class="sett-add-btn" onclick="addSettItem('pod')">+ 添加</button>
+      </div>
+      <div id="sett-pod-list"></div>
     </div>
     <div class="sett-section">
       <h4>💰 冷库费率设置 / Warehouse Rate Settings</h4>

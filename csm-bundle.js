@@ -57,7 +57,9 @@ function syncUnifiedSettingsFormEditability() {
   [
     { inputId: 'sett-supplier-input' },
     { inputId: 'sett-product-input' },
-    { inputId: 'sett-shipcompany-input' }
+    { inputId: 'sett-shipcompany-input' },
+    { inputId: 'sett-pol-input' },
+    { inputId: 'sett-pod-input' }
   ].forEach(function(cfg) {
     var inp = gid(cfg.inputId);
     if (inp) {
@@ -361,6 +363,8 @@ function createPurchaseRecordFromSupplierRec(rec, id, item) {
     invoiceNumber: String(rec.invoiceNumber || '').trim(),
     etd: rec.etd || '',
     eta: rec.eta || '',
+    pol: rec.pol || '',
+    pod: rec.pod || '',
     sourceSupplierRecId: rec.id || '',
     remarks: String(rec.remarks || '').trim(),
     netWeightMt: wp.netWeightMt,
@@ -533,6 +537,30 @@ function refreshShipCompanyDropdown(selectId, selectedValue) {
 function refreshSupplierShipCompanyOptions(selectedValue) {
   refreshShipCompanyDropdown('supplier-shipcompany', selectedValue);
 }
+function refreshPortListDropdown(selectId, listKey, selectedValue) {
+  var el = gid(selectId);
+  if (!el) return;
+  var current = String(selectedValue != null ? selectedValue : el.value || '').trim();
+  var source = listKey === 'pod' ? (settData.pod || []) : (settData.pol || []);
+  var list = (Array.isArray(source) ? source : []).slice().sort(function(a, b) { return String(a).localeCompare(String(b)); });
+  var emptyLabel = listKey === 'pod' ? 'Select POD / 选择目的港' : 'Select POL / 选择起运港';
+  var html = '<option value="">' + emptyLabel + '</option>' + list.map(function(name) {
+    var safe = String(name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    var selected = current && current === String(name) ? ' selected' : '';
+    return '<option value="' + safe + '"' + selected + '>' + safe + '</option>';
+  }).join('');
+  if (current && list.indexOf(current) === -1) {
+    var safeCurrent = current.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    html += '<option value="' + safeCurrent + '" selected>' + safeCurrent + '（旧值）</option>';
+  }
+  el.innerHTML = html;
+}
+function refreshAllPolPodDropdowns(selectedPol, selectedPod) {
+  refreshPortListDropdown('supplier-pol', 'pol', selectedPol);
+  refreshPortListDropdown('supplier-pod', 'pod', selectedPod);
+  refreshPortListDropdown('fp-pol', 'pol', selectedPol);
+  refreshPortListDropdown('fp-pod', 'pod', selectedPod);
+}
 function refreshFpSupplierSelect(selectedValue) {
   var el = gid('fp-supplier');
   if (!el || el.tagName !== 'SELECT') return;
@@ -586,6 +614,10 @@ function resetW1PurchaseFormFields(clearDate) {
   var eta = gid('fp-eta');
   if (etd) etd.value = '';
   if (eta) eta.value = '';
+  var fpol = gid('fp-pol');
+  var fpod = gid('fp-pod');
+  if (fpol) fpol.value = '';
+  if (fpod) fpod.value = '';
   var fd = gid('fp-date');
   if (fd && clearDate) fd.value = '';
   var ft = gid('fp-time');
@@ -1077,6 +1109,7 @@ function openSupplierFormBody() {
   resetSupplierItemRows();
   gid('supplier-shipname').value = '';
   refreshSupplierShipCompanyOptions('');
+  refreshAllPolPodDropdowns('', '');
   gid('supplier-bl').value = '';
   if (gid('supplier-invoice')) gid('supplier-invoice').value = '';
   gid('supplier-etd').value = '';
@@ -1119,6 +1152,8 @@ function saveSupplierRec() {
   var invoiceNumber = gid('supplier-invoice') ? String(gid('supplier-invoice').value || '').trim() : '';
   var etd = (gid('supplier-etd').value || '').trim();
   var eta = (gid('supplier-eta').value || '').trim();
+  var pol = gid('supplier-pol') ? String(gid('supplier-pol').value || '').trim() : '';
+  var pod = gid('supplier-pod') ? String(gid('supplier-pod').value || '').trim() : '';
   var remarks = (gid('supplier-remark') && gid('supplier-remark').value != null) ? String(gid('supplier-remark').value).trim() : '';
   var tradeTermRaw = gid('supplier-trade-term') ? String(gid('supplier-trade-term').value || '').trim().toUpperCase() : '';
   if (['CFR', 'CIF', 'FOB'].indexOf(tradeTermRaw) === -1) tradeTermRaw = '';
@@ -1152,6 +1187,20 @@ function saveSupplierRec() {
   if (!shipCompany) { toast('请选择船公司 / Shipping company is required', 'err'); return; }
   if ((settData.shipCompanies || []).indexOf(shipCompany) === -1) {
     toast('船公司必须从设置列表中选择', 'err');
+    return;
+  }
+  var polList = coerceSettingsStringList(settData.pol);
+  var podList = coerceSettingsStringList(settData.pod);
+  if (!polList.length || !podList.length) {
+    toast('请先在「设置」中维护 POL 起运港与 POD 目的港列表', 'err');
+    return;
+  }
+  if (!pol || polList.indexOf(pol) === -1) {
+    toast('请选择有效的 POL 起运港（须来自设置列表）', 'err');
+    return;
+  }
+  if (!pod || podList.indexOf(pod) === -1) {
+    toast('请选择有效的 POD 目的港（须来自设置列表）', 'err');
     return;
   }
   if (getW1ProductsNormalized().length === 0) {
@@ -1188,6 +1237,8 @@ function saveSupplierRec() {
     invoiceNumber: invoiceNumber,
     etd: etd,
     eta: eta,
+    pol: pol,
+    pod: pod,
     remarks: remarks,
     netWeightMt: isNaN(netMtParsed) ? '' : netMtParsed,
     grossWeightMt: isNaN(grossMtParsed) ? '' : grossMtParsed,
@@ -1307,6 +1358,8 @@ function confirmSupplierRec(id) {
       var adoptRemarks = String(rec.remarks || '').trim();
       var adoptInvoice = String(rec.invoiceNumber || '').trim();
       var wpAdopt = supplierRecWeightPriceForPurchase(rec);
+      var adoptPol = String(rec.pol || '').trim();
+      var adoptPod = String(rec.pod || '').trim();
       existingPurchases.forEach(function(item) {
         writes.push(purchaseRef.child(item.id).update({
           seq: seq,
@@ -1317,7 +1370,9 @@ function confirmSupplierRec(id) {
           tradeTerm: wpAdopt.tradeTerm,
           unitPriceUsdMt: wpAdopt.unitPriceUsdMt,
           totalAmountUsd: wpAdopt.totalAmountUsd,
-          totalAmountAed: wpAdopt.totalAmountAed
+          totalAmountAed: wpAdopt.totalAmountAed,
+          pol: adoptPol,
+          pod: adoptPod
         }));
       });
     } else {
@@ -1368,6 +1423,7 @@ function editSupplierRec(id) {
     resetSupplierItemRows(normalizeSupplierRecItems(rec));
     gid('supplier-shipname').value = rec.shipname || '';
     refreshSupplierShipCompanyOptions(rec.shipCompany || '');
+    refreshAllPolPodDropdowns(rec.pol || '', rec.pod || '');
     gid('supplier-bl').value = String(rec.bl || '').trim().toUpperCase();
     if (gid('supplier-invoice')) gid('supplier-invoice').value = String(rec.invoiceNumber || '').trim();
     gid('supplier-etd').value = rec.etd || '';
@@ -1520,6 +1576,8 @@ function renderSupplierTable() {
       '<td style="font-family:Arial">' + fmtSupplierName(r.supplier) + '</td>' +
       '<td><div style="font-family:Arial;text-transform:capitalize">' + w1ProductHtml(firstItem.product) + '</div>' + (itemCount > 1 ? '<div style="font-size:11px;color:#888;margin-top:2px">其余 ' + (itemCount - 1) + ' 个品名点展开查看</div>' : '') + '</td>' +
       '<td style="white-space:nowrap">' + (r.purchaseDate || '-') + (r.purchaseTime ? '<br><span style="font-size:11px;color:#888">' + r.purchaseTime + '</span>' : '') + '</td>' +
+      '<td style="font-family:Arial;font-size:12px">' + w1EscHtml(resolvePortListDisplayName(r.pol, 'pol')) + '</td>' +
+      '<td style="font-family:Arial;font-size:12px">' + w1EscHtml(resolvePortListDisplayName(r.pod, 'pod')) + '</td>' +
       '<td style="text-align:center">' + getSupplierQtyTotal(r) + '</td>' +
       '<td>' + etdHtml + etaHtml + '</td>' +
       '<td style="font-family:Arial;text-transform:capitalize">' + fmtTitleCase(r.shipname) + '</td>' +
@@ -1535,6 +1593,8 @@ function renderSupplierTable() {
         '<td style="padding-left:38px;color:#666">明细 ' + (index + 1) + '</td>' +
         '<td style="font-family:Arial;color:#666">' + fmtSupplierName(r.supplier) + '</td>' +
         '<td style="font-family:Arial;text-transform:capitalize">' + w1ProductHtml(item.product) + '</td>' +
+        '<td style="color:#999">-</td>' +
+        '<td style="color:#999">-</td>' +
         '<td style="color:#999">-</td>' +
         '<td style="text-align:center">' + (item.qty || 0) + '</td>' +
         '<td style="color:#999">-</td>' +
@@ -1608,6 +1668,8 @@ function openSupplierCNDetail(id) {
     remarksHtml: remarksHtml,
     shipname: rec.shipname,
     shipCompany: rec.shipCompany,
+    pol: rec.pol,
+    pod: rec.pod,
     bl: rec.bl,
     invoiceNumber: rec.invoiceNumber,
     etd: rec.etd,
@@ -2058,6 +2120,8 @@ function htmlContainerDetailUnified(d) {
   html += row('Remarks', d.remarksHtml || '<span style="color:#999">—</span>');
   html += row('Ship Name', csmEscapeHtml(String(d.shipname || '—')));
   html += row('Shipping Company', csmEscapeHtml(String(d.shipCompany || '—')));
+  html += row('POL (Port of Loading)', csmEscapeHtml(String(d.pol || '—')));
+  html += row('POD (Port of Discharge)', csmEscapeHtml(String(d.pod || '—')));
   html += row('B/L No.', csmEscapeHtml(String(d.bl || '—')));
   html += row('Invoice Number', csmEscapeHtml(String(d.invoiceNumber || '—')));
   html += row('ETD', csmEscapeHtml(String(d.etd || '—')));
@@ -2191,6 +2255,8 @@ function showPurchaseCnDetail(cn) {
     remarksHtml: remarksHtml,
     shipname: base.shipname,
     shipCompany: base.shipCompany,
+    pol: base.pol,
+    pod: base.pod,
     bl: base.bl,
     invoiceNumber: invoiceDisplay,
     etd: base.etd,
@@ -2671,6 +2737,7 @@ function openPurchaseForm() {
     try { loadSettings(); } catch (eLs) {}
     refreshFpSupplierSelect('');
     refreshShipCompanyDropdown('fp-shipcompany', '');
+    refreshAllPolPodDropdowns('', '');
     resetW1PurchaseFormFields(true);
     var dateField = gid('fp-date');
     if (dateField) dateField.value = nowFmt();
@@ -2698,6 +2765,7 @@ function clPurchaseModal() {
   resetW1PurchaseFormFields(true);
   refreshFpSupplierSelect('');
   refreshShipCompanyDropdown('fp-shipcompany', '');
+  refreshAllPolPodDropdowns('', '');
   var itemsBody = gid('purchaseItemsBody');
   if (itemsBody) itemsBody.innerHTML = htmlPurchaseItemsBodySingleRow();
   gid('purchaseModal').classList.remove('sh');
@@ -2717,6 +2785,22 @@ function addPurchase() {
   if (!shipCompany) { toast('请选择船公司 / Select shipping company', 'err'); return; }
   if ((settData.shipCompanies || []).indexOf(shipCompany) === -1) {
     toast('船公司必须从设置列表中选择', 'err');
+    return;
+  }
+  var polW1 = gid('fp-pol') ? String(gid('fp-pol').value || '').trim() : '';
+  var podW1 = gid('fp-pod') ? String(gid('fp-pod').value || '').trim() : '';
+  var polListW1 = coerceSettingsStringList(settData.pol);
+  var podListW1 = coerceSettingsStringList(settData.pod);
+  if (!polListW1.length || !podListW1.length) {
+    toast('请先在「设置」中维护 POL 起运港与 POD 目的港列表', 'err');
+    return;
+  }
+  if (!polW1 || polListW1.indexOf(polW1) === -1) {
+    toast('请选择有效的 POL 起运港（须来自设置列表）', 'err');
+    return;
+  }
+  if (!podW1 || podListW1.indexOf(podW1) === -1) {
+    toast('请选择有效的 POD 目的港（须来自设置列表）', 'err');
     return;
   }
   if (getW1ProductsNormalized().length === 0) { toast('请先在「设置 → 品名管理」中添加品名', 'err'); return; }
@@ -2773,6 +2857,8 @@ function addPurchase() {
       shipCompany: shipCompany,
       etd: etd,
       eta: eta,
+      pol: polW1,
+      pod: podW1,
       remarks: remarks,
       netWeightMt: wpForm.netWeightMt === '' ? '' : wpForm.netWeightMt,
       grossWeightMt: wpForm.grossWeightMt === '' ? '' : wpForm.grossWeightMt,
@@ -2825,13 +2911,13 @@ var cnGroups = {};  filteredRecs.forEach(function(r) {    var key = r.cn || '_em
 // 按集装箱汇总所有冷库的冷库费；只有全部出库完成后才在采购页显示总和    
 var coldFeeSummary = getContainerColdFeeSummary(rawCn);    var coldFeeDisplay = '-';    if (coldFeeSummary.hasInRec && coldFeeSummary.allCheckedOut) {      coldFeeDisplay = '<strong style="color:#0066cc;background:#e8f4ff;padding:2px 6px;border-radius:3px;font-size:14px">' + coldFeeSummary.totalFee.toFixed(2) + '</strong>';    }    if (cn === '_empty_') cn = '-';    
 // 主行：集装箱号 + 展开按钮    
-var expandBtn = totalItems > 1 ?      '<button type="button" class="abtn" style="background:#f0f0f0;border:1px solid #ddd;padding:2px 6px;font-size:14px" onclick="togglePurchaseGroup(\'' + groupId + '\',this)">+</button>' : '';    var firstQty = firstItem.qty || '-';    var firstSeq = firstItem.seq || '-';    grpRows.push('<tr style="background:#f9f9f9;font-weight:bold" id="pur-main-' + groupId + '">' +      '<td style="color:#0066cc">' + firstSeq + '</td>' +      '<td>' + expandBtn + ' <button type="button" class="abtn" style="background:#e8f4ff;border-color:#00bfff;color:#00bfff;padding:2px 6px;font-size:11px" onclick="quickCheckIn(' + csmHtmlAttrJson(firstItem.id) + ')">📥</button> <a href="javascript:void(0)" onclick="showPurchaseCnDetail(' + csmHtmlAttrJson(rawCn) + ');return false;" style="color:#0066cc;font-weight:bold;text-decoration:underline;cursor:pointer">' + csmEscapeHtml(String(cn)) + '</a> <span style="color:#999;font-size:11px">(' + totalItems + '品名)</span></td>' +      '<td style="font-family:Arial">'+fmtSupplierName(firstItem.supplier)+'</td><td style="font-family:Arial;text-transform:capitalize">'+w1ProductHtml(firstItem.product)+'</td><td>'+purchaseDate+'</td><td style="font-family:Arial">'+firstQty+'</td><td style="font-family:Arial">'+htmlPurchaseRemainingGroup(items)+'</td><td style="font-family:Arial">'+(firstItem.demurrage||0)+'</td><td style="font-family:Arial">'+(firstItem.customs||0)+'</td><td style="font-family:Arial">'+(coldFeeDisplay||'-')+'</td><td style="font-family:Arial">'+(firstItem.attestation||0)+'</td><td style="font-family:Arial">'+(firstItem.repack||0)+'</td><td style="font-family:Arial">'+(firstItem.waste||0)+'</td><td style="font-family:Arial">'+(firstItem.other||0)+'</td>' +      '<td><strong style="color:#0066cc">'+totalAmount.toFixed(2)+'</strong></td>' +      '<td><button type="button" class="abtn" onclick="openEditPurchase(\''+firstItem.id+'\')">✏️</button><button type="button" class="abtn x" onclick="delPurchaseGroup(\'' + cn + '\')">🗑</button></td></tr>');    
+var expandBtn = totalItems > 1 ?      '<button type="button" class="abtn" style="background:#f0f0f0;border:1px solid #ddd;padding:2px 6px;font-size:14px" onclick="togglePurchaseGroup(\'' + groupId + '\',this)">+</button>' : '';    var firstQty = firstItem.qty || '-';    var firstSeq = firstItem.seq || '-';    grpRows.push('<tr style="background:#f9f9f9;font-weight:bold" id="pur-main-' + groupId + '">' +      '<td style="color:#0066cc">' + firstSeq + '</td>' +      '<td>' + expandBtn + ' <button type="button" class="abtn" style="background:#e8f4ff;border-color:#00bfff;color:#00bfff;padding:2px 6px;font-size:11px" onclick="quickCheckIn(' + csmHtmlAttrJson(firstItem.id) + ')">📥</button> <a href="javascript:void(0)" onclick="showPurchaseCnDetail(' + csmHtmlAttrJson(rawCn) + ');return false;" style="color:#0066cc;font-weight:bold;text-decoration:underline;cursor:pointer">' + csmEscapeHtml(String(cn)) + '</a> <span style="color:#999;font-size:11px">(' + totalItems + '品名)</span></td>' +      '<td style="font-family:Arial">'+fmtSupplierName(firstItem.supplier)+'</td><td style="font-family:Arial;text-transform:capitalize">'+w1ProductHtml(firstItem.product)+'</td><td>'+purchaseDate+'</td><td style="font-family:Arial">'+w1EscHtml(resolvePortListDisplayName(firstItem.pol, 'pol'))+'</td><td style="font-family:Arial">'+w1EscHtml(resolvePortListDisplayName(firstItem.pod, 'pod'))+'</td><td style="font-family:Arial">'+firstQty+'</td><td style="font-family:Arial">'+htmlPurchaseRemainingGroup(items)+'</td><td style="font-family:Arial">'+(firstItem.demurrage||0)+'</td><td style="font-family:Arial">'+(firstItem.customs||0)+'</td><td style="font-family:Arial">'+(coldFeeDisplay||'-')+'</td><td style="font-family:Arial">'+(firstItem.attestation||0)+'</td><td style="font-family:Arial">'+(firstItem.repack||0)+'</td><td style="font-family:Arial">'+(firstItem.waste||0)+'</td><td style="font-family:Arial">'+(firstItem.other||0)+'</td>' +      '<td><strong style="color:#0066cc">'+totalAmount.toFixed(2)+'</strong></td>' +      '<td><button type="button" class="abtn" onclick="openEditPurchase(\''+firstItem.id+'\')">✏️</button><button type="button" class="abtn x" onclick="delPurchaseGroup(\'' + cn + '\')">🗑</button></td></tr>');    
 // 子行：每个品名    
-items.forEach(function(r) {      var total = (r.demurrage||0)+(r.customs||0)+(r.coldFee||0)+(r.attestation||0)+(r.repack||0)+(r.waste||0)+(r.other||0);      grpRows.push('<tr class="purchase-sub-row ' + groupId + '" style="display:none;background:#fff">' +        '<td style="color:#0066cc">' + (r.seq || '-') + '</td>' +        '<td style="padding-left:40px;color:#666;font-family:Arial;text-transform:capitalize">└ '+w1ProductHtml(r.product)+'</td>' +        '<td style="font-family:Arial;color:#666">'+fmtSupplierName(r.supplier)+'</td><td style="font-family:Arial;text-transform:capitalize">'+w1ProductHtml(r.product)+'</td><td>-</td><td>'+(r.qty||0)+'</td><td style="font-family:Arial">'+htmlPurchaseRemainingOne(r)+'</td>' +        '<td>'+(r.demurrage||0)+'</td><td>'+(r.customs||0)+'</td><td>-</td>' +        '<td>'+(r.attestation||0)+'</td><td>'+(r.repack||0)+'</td><td>'+(r.waste||0)+'</td><td>'+(r.other||0)+'</td>' +        '<td><strong style="color:#0066cc">'+total.toFixed(2)+'</strong></td>' +        '<td><button type="button" class="abtn" onclick="openEditPurchase(\''+r.id+'\')">✏️</button><button type="button" class="abtn x" onclick="delPurchase(\''+r.id+'\')">🗑</button></td></tr>');    }); rowGroups.push(grpRows);  });  
+items.forEach(function(r) {      var total = (r.demurrage||0)+(r.customs||0)+(r.coldFee||0)+(r.attestation||0)+(r.repack||0)+(r.waste||0)+(r.other||0);      grpRows.push('<tr class="purchase-sub-row ' + groupId + '" style="display:none;background:#fff">' +        '<td style="color:#0066cc">' + (r.seq || '-') + '</td>' +        '<td style="padding-left:40px;color:#666;font-family:Arial;text-transform:capitalize">└ '+w1ProductHtml(r.product)+'</td>' +        '<td style="font-family:Arial;color:#666">'+fmtSupplierName(r.supplier)+'</td><td style="font-family:Arial;text-transform:capitalize">'+w1ProductHtml(r.product)+'</td><td>-</td><td>-</td><td>-</td><td>'+(r.qty||0)+'</td><td style="font-family:Arial">'+htmlPurchaseRemainingOne(r)+'</td>' +        '<td>'+(r.demurrage||0)+'</td><td>'+(r.customs||0)+'</td><td>-</td>' +        '<td>'+(r.attestation||0)+'</td><td>'+(r.repack||0)+'</td><td>'+(r.waste||0)+'</td><td>'+(r.other||0)+'</td>' +        '<td><strong style="color:#0066cc">'+total.toFixed(2)+'</strong></td>' +        '<td><button type="button" class="abtn" onclick="openEditPurchase(\''+r.id+'\')">✏️</button><button type="button" class="abtn x" onclick="delPurchase(\''+r.id+'\')">🗑</button></td></tr>');    }); rowGroups.push(grpRows);  });  
 // 显示供应商专属记录（在 warehouse1 采购列表中没有的）  
 if (supplierOnlyRecs.length > 0) {    
 // 按采购日期时间新→旧（与主表一致）    
-supplierOnlyRecs.sort(csmPurchaseRowCompareDesc);    supplierOnlyRecs.forEach(function(r) {      var status = r.status || 'draft';      var supplierLabel = '<span style="background:#fff3e0;color:#e65100;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">供应商</span>';      var statusBadge = status === 'submitted' ? '<span style="background:#fff8e1;color:#f57f17;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">已提交</span>' : '<span style="background:#e8f5e9;color:#2e7d32;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">已确认</span>';      var cnClickFn = "openSupplierCNDetail('" + r.id + "')";      var actionBtn = isAdmin ? (status === 'submitted' ? '<button type="button" class="abtn" style="background:#2e7d32;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">✅ 确认采用</button>' : '<button type="button" class="abtn" style="background:#0066cc;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">📥 采用</button>') : '<span style="color:#888;font-size:12px">' + (status === 'submitted' ? '待管理员确认' : '待管理员采用') + '</span>';      rowGroups.push(['<tr style="background:#fffbf5">' +        '<td style="color:#ff9900">' + (r.seq || '-') + '</td>' +        '<td><a href="javascript:void(0)" onclick="' + cnClickFn + '" style="color:#ff9900;font-weight:bold;text-decoration:underline">' + (r.cn || '-') + '</a>' + supplierLabel + statusBadge + '</td>' +        '<td style="font-family:Arial;color:#666">' + fmtSupplierName(r.supplier) + '</td>' +        '<td style="font-family:Arial;text-transform:capitalize">' + w1ProductHtml(r.product) + '</td>' +        '<td>' + (r.purchaseDate ? fdt(r.purchaseDate+'T00:00:00') : '-') + '</td>' +        '<td style="font-family:Arial">' + (r.qty || 0) + '</td><td style="font-family:Arial">' + htmlPurchaseRemainingOne(r) + '</td>' +        '<td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>' +        '<td style="color:#f57f17;font-weight:bold">' + (status === 'submitted' ? '待管理员确认' : '待采用') + '</td>' +        '<td>' + actionBtn + '</td>' +      '</tr>']);    });  }  var stPu = csmW1PagerState.purchase;  var allFlatPu = [];  rowGroups.forEach(function(g) { g.forEach(function(row) { allFlatPu.push(row); }); });  var pagesPu;  if (!stPu.size || stPu.size <= 0) pagesPu = [allFlatPu];  else pagesPu = csmW1BuildPagesFromRowGroups(rowGroups, stPu.size);  var totalPagesPu = Math.max(1, pagesPu.length);  var pagePu = Math.min(Math.max(1, stPu.page), totalPagesPu);  stPu.page = pagePu;  var slicePu = pagesPu[pagePu - 1] || [];  tb.innerHTML = slicePu.join('');  var totalRowsPu = allFlatPu.length;  var rowStartPu = totalRowsPu === 0 ? 0 : (function() { var s = 0; for (var pi = 0; pi < pagePu - 1; pi++) s += (pagesPu[pi] || []).length; return s + 1; })();  var rowEndPu = totalRowsPu === 0 ? 0 : rowStartPu + slicePu.length - 1;  csmW1UpdatePagerBar('purchase', totalRowsPu, rowStartPu, rowEndPu, pagePu, totalPagesPu);  csmW1PagerSave();}
+supplierOnlyRecs.sort(csmPurchaseRowCompareDesc);    supplierOnlyRecs.forEach(function(r) {      var status = r.status || 'draft';      var supplierLabel = '<span style="background:#fff3e0;color:#e65100;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">供应商</span>';      var statusBadge = status === 'submitted' ? '<span style="background:#fff8e1;color:#f57f17;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">已提交</span>' : '<span style="background:#e8f5e9;color:#2e7d32;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">已确认</span>';      var cnClickFn = "openSupplierCNDetail('" + r.id + "')";      var actionBtn = isAdmin ? (status === 'submitted' ? '<button type="button" class="abtn" style="background:#2e7d32;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">✅ 确认采用</button>' : '<button type="button" class="abtn" style="background:#0066cc;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">📥 采用</button>') : '<span style="color:#888;font-size:12px">' + (status === 'submitted' ? '待管理员确认' : '待管理员采用') + '</span>';      rowGroups.push(['<tr style="background:#fffbf5">' +        '<td style="color:#ff9900">' + (r.seq || '-') + '</td>' +        '<td><a href="javascript:void(0)" onclick="' + cnClickFn + '" style="color:#ff9900;font-weight:bold;text-decoration:underline">' + (r.cn || '-') + '</a>' + supplierLabel + statusBadge + '</td>' +        '<td style="font-family:Arial;color:#666">' + fmtSupplierName(r.supplier) + '</td>' +        '<td style="font-family:Arial;text-transform:capitalize">' + w1ProductHtml(r.product) + '</td>' +        '<td>' + (r.purchaseDate ? fdt(r.purchaseDate+'T00:00:00') : '-') + '</td>' +        '<td style="font-family:Arial">' + w1EscHtml(resolvePortListDisplayName(r.pol, 'pol')) + '</td><td style="font-family:Arial">' + w1EscHtml(resolvePortListDisplayName(r.pod, 'pod')) + '</td>' +        '<td style="font-family:Arial">' + (r.qty || 0) + '</td><td style="font-family:Arial">' + htmlPurchaseRemainingOne(r) + '</td>' +        '<td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>' +        '<td style="color:#f57f17;font-weight:bold">' + (status === 'submitted' ? '待管理员确认' : '待采用') + '</td>' +        '<td>' + actionBtn + '</td>' +      '</tr>']);    });  }  var stPu = csmW1PagerState.purchase;  var allFlatPu = [];  rowGroups.forEach(function(g) { g.forEach(function(row) { allFlatPu.push(row); }); });  var pagesPu;  if (!stPu.size || stPu.size <= 0) pagesPu = [allFlatPu];  else pagesPu = csmW1BuildPagesFromRowGroups(rowGroups, stPu.size);  var totalPagesPu = Math.max(1, pagesPu.length);  var pagePu = Math.min(Math.max(1, stPu.page), totalPagesPu);  stPu.page = pagePu;  var slicePu = pagesPu[pagePu - 1] || [];  tb.innerHTML = slicePu.join('');  var totalRowsPu = allFlatPu.length;  var rowStartPu = totalRowsPu === 0 ? 0 : (function() { var s = 0; for (var pi = 0; pi < pagePu - 1; pi++) s += (pagesPu[pi] || []).length; return s + 1; })();  var rowEndPu = totalRowsPu === 0 ? 0 : rowStartPu + slicePu.length - 1;  csmW1UpdatePagerBar('purchase', totalRowsPu, rowStartPu, rowEndPu, pagePu, totalPagesPu);  csmW1PagerSave();}
 // 按集装箱号查找供应商记录并弹出详情
 function openSupplierCNDetailByCN(cn) {  var rec = supplierRecs.find(function(r) { return r.cn === cn; });  if (!rec) return;  openSupplierCNDetail(rec.id);}
 // 按集装箱号编辑供应商记录
@@ -2844,7 +2930,7 @@ function delPurchaseGroup(cn) {  if (!confirm('确认删除集装箱 ' + cn + ' 
 // SETTINGS - Supplier & Product Management
 // ============================================================
 var SETTINGS_KEY = 'csm_settings_v1';
-var settData = { suppliers: [], products: [], shipCompanies: [] };
+var settData = { suppliers: [], products: [], shipCompanies: [], pol: [], pod: [] };
 var hasCloudSettingsSnapshot = false;
 function normalizeSettingsPayload() {
   function clean(arr) {
@@ -2853,7 +2939,9 @@ function normalizeSettingsPayload() {
   return {
     suppliers: clean(settData.suppliers),
     products: clean(settData.products),
-    shipCompanies: clean(settData.shipCompanies)
+    shipCompanies: clean(settData.shipCompanies),
+    pol: clean(settData.pol),
+    pod: clean(settData.pod)
   };
 }
 function coerceSettingsStringList(v) {
@@ -2886,6 +2974,8 @@ function applySettDataFromPayload(val) {
   settData.suppliers = coerceSettingsStringList(val.suppliers);
   settData.products = coerceSettingsStringList(val.products);
   settData.shipCompanies = coerceSettingsStringList(val.shipCompanies);
+  settData.pol = coerceSettingsStringList(val.pol);
+  settData.pod = coerceSettingsStringList(val.pod);
 }
 function saveSettingsLocalOnly() {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settData)); } catch (eL) {}
@@ -2893,6 +2983,7 @@ function saveSettingsLocalOnly() {
 function afterUnifiedSettingsApplied() {
   try { syncAllProductSelects(); } catch (e1) {}
   try { refreshSupplierShipCompanyOptions(); } catch (e2) {}
+  try { refreshAllPolPodDropdowns(); } catch (e2b) {}
   try {
     if (isSupplier && typeof renderSupplierTable === 'function') renderSupplierTable();
   } catch (e3) {}
@@ -2929,26 +3020,32 @@ function onSettingsMetaSnap(snap) {
         if (!Array.isArray(settData.suppliers)) settData.suppliers = [];
         if (!Array.isArray(settData.products)) settData.products = [];
         if (!Array.isArray(settData.shipCompanies)) settData.shipCompanies = [];
+        if (!Array.isArray(settData.pol)) settData.pol = [];
+        if (!Array.isArray(settData.pod)) settData.pod = [];
       } else {
         settData = {
           suppliers: ['ABC Trading', 'XYZ Imports', 'Fresh Farm Co'],
           products: ['Carrots', 'Potatoes', 'Onions', 'Tomatoes'],
-          shipCompanies: ['MAERSK', 'MSC', 'CMA CGM']
+          shipCompanies: ['MAERSK', 'MSC', 'CMA CGM'],
+          pol: [],
+          pod: []
         };
         saveSettingsLocalOnly();
       }
     } catch (e0) {
-      settData = { suppliers: [], products: [], shipCompanies: [] };
+      settData = { suppliers: [], products: [], shipCompanies: [], pol: [], pod: [] };
     }
     if ((isAdmin || isStaff) && settingsMetaRef && firebase.auth && firebase.auth().currentUser) {
       var pl = normalizeSettingsPayload();
-      if (pl.suppliers.length || pl.products.length || pl.shipCompanies.length) {
+      if (pl.suppliers.length || pl.products.length || pl.shipCompanies.length || pl.pol.length || pl.pod.length) {
         settingsMetaRef.set(pl).catch(function(e) { console.error('csm seed settings', e); });
       } else {
         settData = {
           suppliers: ['ABC Trading', 'XYZ Imports', 'Fresh Farm Co'],
           products: ['Carrots', 'Potatoes', 'Onions', 'Tomatoes'],
-          shipCompanies: ['MAERSK', 'MSC', 'CMA CGM']
+          shipCompanies: ['MAERSK', 'MSC', 'CMA CGM'],
+          pol: [],
+          pod: []
         };
         settingsMetaRef.set(normalizeSettingsPayload()).catch(function(e) { console.error('csm seed default settings', e); });
       }
@@ -2970,16 +3067,20 @@ function loadSettings() {
       if (!Array.isArray(settData.suppliers)) settData.suppliers = [];
       if (!Array.isArray(settData.products)) settData.products = [];
       if (!Array.isArray(settData.shipCompanies)) settData.shipCompanies = [];
+      if (!Array.isArray(settData.pol)) settData.pol = [];
+      if (!Array.isArray(settData.pod)) settData.pod = [];
     } else {
       settData = {
         suppliers: ['ABC Trading', 'XYZ Imports', 'Fresh Farm Co'],
         products: ['Carrots', 'Potatoes', 'Onions', 'Tomatoes'],
-        shipCompanies: ['MAERSK', 'MSC', 'CMA CGM']
+        shipCompanies: ['MAERSK', 'MSC', 'CMA CGM'],
+        pol: [],
+        pod: []
       };
       saveSettingsLocalOnly();
     }
   } catch(e) {
-    settData = { suppliers: [], products: [], shipCompanies: [] };
+    settData = { suppliers: [], products: [], shipCompanies: [], pol: [], pod: [] };
   }
 }
 function saveSettings() {
@@ -3018,6 +3119,16 @@ function resolveShipCompanyDisplayName(raw) {
   if (!s) return '-';
   try { loadSettings(); } catch (eShip) {}
   var list = coerceSettingsStringList(settData.shipCompanies);
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].toLowerCase() === s.toLowerCase()) return list[i];
+  }
+  return fmtTitleCase(s);
+}
+function resolvePortListDisplayName(raw, kind) {
+  var s = String(raw == null ? '' : raw).trim();
+  if (!s) return '-';
+  try { loadSettings(); } catch (ePort) {}
+  var list = kind === 'pod' ? coerceSettingsStringList(settData.pod) : coerceSettingsStringList(settData.pol);
   for (var i = 0; i < list.length; i++) {
     if (list[i].toLowerCase() === s.toLowerCase()) return list[i];
   }
@@ -3068,6 +3179,8 @@ function openSettings() {
   renderSettList('supplier');
   renderSettList('product');
   renderSettList('shipcompany');
+  renderSettList('pol');
+  renderSettList('pod');
   loadRatesToSettings();
   if (canManageAccounts()) loadUserList();
   else {
@@ -3387,19 +3500,25 @@ function migrateSupplierRecordOwners() {
 }
 function addSettItem(type) {
   if (!isAdmin && !isStaff) {
-    toast('仅管理员或大丰收员工可修改品名/供应商/船公司列表', 'err');
+    toast('仅管理员或大丰收员工可修改品名/供应商/船公司/港口列表', 'err');
     return;
   }
   var inputId = 'sett-' + type + '-input';
   var val = (gid(inputId).value || '').trim();
   if (!val) return;
   val = val.toLowerCase().replace(/\b\w/g, function(c) { return c.toUpperCase(); });
-  var list = type === 'supplier' ? settData.suppliers : (type === 'product' ? settData.products : settData.shipCompanies);
+  var list;
+  if (type === 'supplier') list = settData.suppliers;
+  else if (type === 'product') list = settData.products;
+  else if (type === 'shipcompany') list = settData.shipCompanies;
+  else if (type === 'pol') list = settData.pol;
+  else if (type === 'pod') list = settData.pod;
+  else list = [];
   if (list.indexOf(val) !== -1) {
     toast('已存在: ' + val, 'err');
     return;
   }
-  var typeLabel = type === 'supplier' ? '供应商' : (type === 'product' ? '品名' : '船公司');
+  var typeLabel = type === 'supplier' ? '供应商' : (type === 'product' ? '品名' : (type === 'shipcompany' ? '船公司' : (type === 'pol' ? 'POL 起运港' : (type === 'pod' ? 'POD 目的港' : type))));
   if (!confirm('确认添加 ' + typeLabel + ': ' + val + ' ？')) return;
   list.push(val);
   saveSettings();
@@ -3409,17 +3528,21 @@ function addSettItem(type) {
 }
 function delSettItem(type, val) {
   if (!isAdmin && !isStaff) {
-    toast('仅管理员或大丰收员工可修改品名/供应商/船公司列表', 'err');
+    toast('仅管理员或大丰收员工可修改品名/供应商/船公司/港口列表', 'err');
     return;
   }
-  var typeLabel = type === 'supplier' ? '供应商' : (type === 'product' ? '品名' : '船公司');
+  var typeLabel = type === 'supplier' ? '供应商' : (type === 'product' ? '品名' : (type === 'shipcompany' ? '船公司' : (type === 'pol' ? 'POL 起运港' : (type === 'pod' ? 'POD 目的港' : type))));
   if (!confirm('确认删除 ' + typeLabel + ': ' + val + ' ？')) return;
   if (type === 'supplier') {
     settData.suppliers = settData.suppliers.filter(function(s) { return s !== val; });
   } else if (type === 'product') {
     settData.products = settData.products.filter(function(s) { return s !== val; });
-  } else {
+  } else if (type === 'shipcompany') {
     settData.shipCompanies = settData.shipCompanies.filter(function(s) { return s !== val; });
+  } else if (type === 'pol') {
+    settData.pol = (settData.pol || []).filter(function(s) { return s !== val; });
+  } else if (type === 'pod') {
+    settData.pod = (settData.pod || []).filter(function(s) { return s !== val; });
   }
   saveSettings();
   renderSettList(type);
@@ -3429,7 +3552,13 @@ function renderSettList(type) {
   var listId = 'sett-' + type + '-list';
   var el = gid(listId);
   if (!el) return;
-  var items = type === 'supplier' ? settData.suppliers : (type === 'product' ? settData.products : settData.shipCompanies);
+  var items;
+  if (type === 'supplier') items = settData.suppliers;
+  else if (type === 'product') items = settData.products;
+  else if (type === 'shipcompany') items = settData.shipCompanies;
+  else if (type === 'pol') items = settData.pol;
+  else if (type === 'pod') items = settData.pod;
+  else items = [];
   if (items.length === 0) {
     el.innerHTML = '<div style="color:#999;font-size:12px;padding:4px">暂无数据 / No data</div>';
     return;

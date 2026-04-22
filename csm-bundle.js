@@ -5416,15 +5416,14 @@ function openFinCnReconDetailModal(el) {
     feeBody.innerHTML = feeData.rows.map(function(r) {
       var actionHtml = r.editable ? '<button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="openFinCnReconExpenseEditModal(' + csmHtmlAttrJson(cn) + ',' + csmHtmlAttrJson(r.key) + ')">Edit</button>' : '—';
       return '<tr>' +
-        '<td>' + csmEscapeHtml(r.en) + '<br><span style="font-size:11px;color:#888;font-weight:700">' + csmEscapeHtml(r.cn) + '</span></td>' +
-        '<td style="color:#64748b">' + csmEscapeHtml(r.source) + '</td>' +
+        '<td>' + csmEscapeHtml(r.en + '/' + r.cn) + '</td>' +
         '<td style="text-align:right;font-variant-numeric:tabular-nums">' + csmSalesRound2(r.amount).toFixed(2) + '</td>' +
         '<td style="white-space:nowrap">' + actionHtml + '</td>' +
       '</tr>';
     }).join('');
     if (feeFoot) {
       feeFoot.innerHTML = '<tr>' +
-        '<td colspan="2" style="text-align:right;font-family:var(--csm-font-en);font-weight:700;background:var(--bg2)">Total</td>' +
+        '<td style="text-align:right;font-family:var(--csm-font-en);font-weight:700;background:var(--bg2)">Total</td>' +
         '<td style="text-align:right;font-variant-numeric:tabular-nums;background:var(--bg2)">' + csmSalesRound2(feeData.expenseTotal).toFixed(2) + '</td>' +
         '<td style="background:var(--bg2)"></td>' +
       '</tr>';
@@ -5432,7 +5431,7 @@ function openFinCnReconDetailModal(el) {
     var balEl = gid('fin-cn-recon-balance-value');
     if (balEl) {
       balEl.textContent = csmSalesRound2(feeData.balance).toFixed(2) + ' AED';
-      balEl.style.color = feeData.balance < 0 ? '#b91c1c' : '#065f46';
+      balEl.style.color = '#111827';
     }
   }
   m.classList.add('sh');

@@ -5211,10 +5211,16 @@ function csmFinCnReconEditPreview() {
   out.textContent = 'Net amount: ' + csmSalesRound2(netUnit * qty).toFixed(2) + ' AED';
 }
 function openFinCnReconLineEditModal(orderId, lineIdx) {
-  if (!isAdmin && !isStaff) return;
+  if (!isAdmin && !isStaff) {
+    toast('Only admin or staff can edit reconciliation lines', 'err');
+    return;
+  }
   orderId = String(orderId || '').trim();
   lineIdx = parseInt(String(lineIdx || ''), 10);
-  if (!orderId || isNaN(lineIdx) || lineIdx < 0) return;
+  if (!orderId || isNaN(lineIdx) || lineIdx < 0) {
+    toast('Invalid reconciliation line', 'err');
+    return;
+  }
   var order = salesOrders.find(function(x) { return x && x.id === orderId; });
   if (!order || order.voided) { toast('Order not found', 'err'); return; }
   var lines = csmSalesNormalizeLinesFromOrder(order);
@@ -5226,7 +5232,12 @@ function openFinCnReconLineEditModal(orderId, lineIdx) {
   var unitEl = gid('fin-cn-recon-edit-net-unit');
   var qtyEl = gid('fin-cn-recon-edit-qty');
   var modal = gid('fin-cn-recon-line-edit-modal');
-  if (!orderIdEl || !lineIdxEl || !unitEl || !qtyEl || !modal) return;
+  if (!orderIdEl || !lineIdxEl || !unitEl || !qtyEl || !modal) {
+    toast('Edit form not available', 'err');
+    return;
+  }
+  try { window._finCnReconDetailRestoreCn = String(line.containerNo || '').trim(); } catch (eCn) {}
+  clFinCnReconDetailModal();
   var disp = csmFinCnReconDisplayState(line, order);
   orderIdEl.value = orderId;
   lineIdxEl.value = String(lineIdx);
@@ -5241,9 +5252,17 @@ function openFinCnReconLineEditModal(orderId, lineIdx) {
   csmFinCnReconEditPreview();
   modal.classList.add('sh');
 }
-function clFinCnReconLineEditModal() {
+function clFinCnReconLineEditModal(reopenDetail) {
   var modal = gid('fin-cn-recon-line-edit-modal');
   if (modal) modal.classList.remove('sh');
+  var cn = '';
+  try { cn = String(window._finCnReconDetailRestoreCn || '').trim(); } catch (e1) { cn = ''; }
+  try { window._finCnReconDetailRestoreCn = ''; } catch (e2) {}
+  if (reopenDetail && cn) {
+    try {
+      openFinCnReconDetailModal({ getAttribute: function(name) { return name === 'data-cn' ? cn : ''; } });
+    } catch (e3) {}
+  }
 }
 function saveFinCnReconLineEdit() {
   if (!salesOrdersRef) { toast('Database not connected', 'err'); return; }
@@ -5266,7 +5285,7 @@ function saveFinCnReconLineEdit() {
     finCnReconUpdatedAt: new Date().toISOString()
   }).then(function() {
     toast('Reconciliation line updated', 'ok');
-    clFinCnReconLineEditModal();
+    clFinCnReconLineEditModal(false);
     openFinCnReconDetailModal({ getAttribute: function(name) { return name === 'data-cn' ? ctx.line.containerNo : ''; } });
   }).catch(function(e) {
     toast('Save failed: ' + (e.message || e), 'err');

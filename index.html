@@ -185,8 +185,8 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 #sales-payment-receivers-modal.sh{z-index:1100}
 #sales-worker-truck-modal.sh{z-index:1100}
 #sales-order-upwt-modal.sh{z-index:1100}
-/* Container reconciliation: line edit must appear above the full-screen Details modal (both use .mov z-index 999) */
-#fin-cn-recon-line-edit-modal.sh{z-index:1100}
+/* Container reconciliation: line edit above any other overlay (Details closed when opening edit; z-index is a safety net) */
+#fin-cn-recon-line-edit-modal.sh{z-index:10050}
 /* Sales order modal line editor: worker/truck row must wrap; qty needs fixed flex basis */
 #sales-order-modal table.csm-sales-order-lines-table td{white-space:normal!important}
 #sales-order-modal table.csm-sales-order-lines-table tr.csm-sol-sub td{padding:8px 10px!important;overflow:visible!important;vertical-align:top!important}
@@ -458,7 +458,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260422records-checkout-typography" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260422recon-edit-modal" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -1853,7 +1853,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     </div>
     <div class="brow">
       <button type="button" class="btn btn-s" onclick="saveFinCnReconLineEdit()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Save</button>
-      <button type="button" class="btn btn-g" onclick="clFinCnReconLineEditModal()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Cancel</button>
+      <button type="button" class="btn btn-g" onclick="clFinCnReconLineEditModal(true)" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Cancel</button>
     </div>
   </div>
 </div>

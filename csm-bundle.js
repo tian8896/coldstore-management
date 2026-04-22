@@ -5262,21 +5262,31 @@ function renderFinCnReconTable() {
   tb.innerHTML = cns.map(function(cn) {
     var rows = csmFinCnFilterPurchaseRows(byCn[cn], supQ, dStart, dEnd);
     var purchaseHtml = rows.map(function(r) {
-      var seq = (r.seq != null && r.seq !== '') ? String(r.seq) : '\u2014';
+      var seq = csmEscapeHtml((r.seq != null && r.seq !== '') ? String(r.seq) : '\u2014');
       var sup = csmEscapeHtml(String(r.supplier || '\u2014'));
       var pr = csmEscapeHtml(String(r.product || '\u2014'));
-      var qty = r.qty != null ? String(r.qty) : '\u2014';
+      var qty = csmEscapeHtml(r.qty != null ? String(r.qty) : '\u2014');
       var dt = csmEscapeHtml(String(r.purchaseDate || '\u2014'));
-      return '<div style="font-size:13px;line-height:1.45;border-bottom:1px solid #eee;padding:5px 0;font-family:var(--csm-font-en);font-weight:700">' +
-        '<span style="color:#666">Seq</span> ' + csmEscapeHtml(seq) +
-        ' \u00b7 <span style="color:#666">Supplier</span> ' + sup +
-        ' \u00b7 <span style="color:#666">Product</span> ' + pr +
-        ' \u00b7 <span style="color:#666">Qty</span> ' + csmEscapeHtml(qty) +
-        ' \u00b7 <span style="color:#666">Date</span> ' + dt + '</div>';
+      return '<div style="font-size:14px;line-height:1.5;border-bottom:1px solid #e5e7eb;padding:7px 0;font-family:var(--csm-font-en);font-weight:700">' +
+        '<div style="display:grid;grid-template-columns:96px minmax(220px,1.9fr) minmax(150px,1.2fr) 88px 120px;gap:8px;align-items:end">' +
+          '<div style="font-size:12px;color:#64748b">Seq</div>' +
+          '<div style="font-size:12px;color:#64748b">Supplier</div>' +
+          '<div style="font-size:12px;color:#64748b">Product</div>' +
+          '<div style="font-size:12px;color:#64748b;text-align:right">Qty</div>' +
+          '<div style="font-size:12px;color:#64748b">Date</div>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:96px minmax(220px,1.9fr) minmax(150px,1.2fr) 88px 120px;gap:8px;align-items:start;margin-top:2px">' +
+          '<div>' + seq + '</div>' +
+          '<div style="word-break:break-word">' + sup + '</div>' +
+          '<div style="word-break:break-word">' + pr + '</div>' +
+          '<div style="text-align:right">' + qty + '</div>' +
+          '<div>' + dt + '</div>' +
+        '</div>' +
+      '</div>';
     }).join('');
     var cnEsc = csmAttrEscape(cn);
     return '<tr><td style="font-family:var(--csm-font-en);font-weight:700;white-space:nowrap;vertical-align:top">' + csmEscapeHtml(cn) + '</td>' +
-      '<td style="max-width:420px;vertical-align:top">' + purchaseHtml + '</td>' +
+      '<td style="min-width:760px;max-width:880px;vertical-align:top">' + purchaseHtml + '</td>' +
       '<td style="vertical-align:middle"><button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" data-cn="' + cnEsc + '" onclick="openFinCnReconDetailModal(this)">Details</button></td></tr>';
   }).join('');
 }

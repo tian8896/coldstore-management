@@ -5046,6 +5046,49 @@ function csmFinCnSalesOrdersForContainer(cn) {
   });
   return out;
 }
+function csmFinCnExpenseBreakdown(cn) {
+  var key = csmFinCnNormalize(cn);
+  var fees = [
+    { key: 'demurrage', cn: '停柜费', en: 'Demurrage', source: 'Purchase records · 采购记录' },
+    { key: 'customs', cn: '清关费', en: 'Logistics', source: 'Purchase records · 采购记录' },
+    { key: 'coldFee', cn: '冷藏费', en: 'Cold Fee', source: 'Purchase records · 采购记录' },
+    { key: 'attestation', cn: '单据认证', en: 'Attestation', source: 'Purchase records · 采购记录' },
+    { key: 'repack', cn: '翻包费', en: 'Repack', source: 'Purchase records · 采购记录' },
+    { key: 'waste', cn: '垃圾费', en: 'Waste', source: 'Purchase records · 采购记录' },
+    { key: 'other', cn: '其他', en: 'Other', source: 'Purchase records · 采购记录' }
+  ];
+  var rows = fees.map(function(x) {
+    return { key: x.key, cn: x.cn, en: x.en, source: x.source, amount: 0 };
+  });
+  (purchaseRecs || []).forEach(function(p) {
+    if (csmFinCnNormalize(p && p.cn) !== key) return;
+    rows.forEach(function(r) {
+      r.amount += parseFloat(p && p[r.key]) || 0;
+    });
+  });
+  var wtTotal = 0;
+  csmFinCnSalesOrdersForContainer(key).forEach(function(item) {
+    (item.lines || []).forEach(function(L) {
+      wtTotal += (parseFloat(L && L.workerAmount) || 0) + (parseFloat(L && L.truckAmount) || 0);
+    });
+  });
+  rows.push({
+    key: 'workerTruck',
+    cn: '卸货送货及退换货',
+    en: 'Worker / Truck',
+    source: 'Sales lines · 销售订单行',
+    amount: wtTotal
+  });
+  return rows.map(function(r) {
+    return {
+      key: r.key,
+      cn: r.cn,
+      en: r.en,
+      source: r.source,
+      amount: csmSalesRound2(r.amount)
+    };
+  });
+}
 function csmFinCnReconGetOverrides(order) {
   var raw = order && order.finCnReconOverrides;
   return raw && typeof raw === 'object' ? raw : {};
@@ -5077,6 +5120,7 @@ function csmFinCnReconDisplayState(L, o) {
   return {
     initialQty: initialQty,
     initialNetUnit: initialNetUnit,
+    initialAmount: csmSalesRound2(initialNetUnit * initialQty),
     qty: currentQty,
     netUnit: currentNetUnit,
     netAmount: csmSalesRound2(currentNetUnit * currentQty),
@@ -5118,7 +5162,7 @@ function renderFinCnReconTable() {
       var pr = csmEscapeHtml(String(r.product || '\u2014'));
       var qty = r.qty != null ? String(r.qty) : '\u2014';
       var dt = csmEscapeHtml(String(r.purchaseDate || '\u2014'));
-      return '<div style="font-size:12px;line-height:1.35;border-bottom:1px solid #eee;padding:4px 0;font-family:var(--csm-font-en);font-weight:700">' +
+      return '<div style="font-size:13px;line-height:1.45;border-bottom:1px solid #eee;padding:5px 0;font-family:var(--csm-font-en);font-weight:700">' +
         '<span style="color:#666">Seq</span> ' + csmEscapeHtml(seq) +
         ' \u00b7 <span style="color:#666">Supplier</span> ' + sup +
         ' \u00b7 <span style="color:#666">Product</span> ' + pr +
@@ -5195,13 +5239,21 @@ function openFinCnReconDetailModal(el) {
   var m = gid('fin-cn-recon-detail-modal');
   var title = gid('fin-cn-recon-detail-title');
   var tbody = gid('tb-fin-cn-recon-detail');
+  var tfoot = gid('tf-fin-cn-recon-detail');
+  var feeBody = gid('tb-fin-cn-recon-fees');
+  var feeFoot = gid('tf-fin-cn-recon-fees');
   if (!m || !tbody) return;
   if (title) title.textContent = 'Container ' + cn + ' \u2014 All sales (this container)';
   var list = csmFinCnSalesOrdersForContainer(cn);
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#888;padding:16px;font-family:var(--csm-font-en);font-weight:700">No sales orders for this container.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#888;padding:16px;font-family:var(--csm-font-en);font-weight:700">No sales orders for this container.</td></tr>';
+    if (tfoot) tfoot.innerHTML = '';
   } else {
     var parts = [];
+    var totalQty = 0;
+    var totalInitialQty = 0;
+    var totalInitialAmount = 0;
+    var totalNetAmount = 0;
     list.forEach(function(item) {
       var o = item.order;
       var Ls = item.lines;
@@ -5209,6 +5261,10 @@ function openFinCnReconDetailModal(el) {
       Ls.forEach(function(L, idx) {
         var disp = csmFinCnReconDisplayState(L, o);
         var qStr = csmFinCnReconFmtQty(disp.qty);
+        totalQty += disp.qty;
+        totalInitialQty += disp.initialQty;
+        totalInitialAmount += disp.initialAmount;
+        totalNetAmount += disp.netAmount;
         var tr = '<tr>';
         if (idx === 0) {
           tr += '<td rowspan="' + n + '" style="font-family:var(--csm-font-en);font-weight:700;vertical-align:top;white-space:nowrap">' + csmEscapeHtml(String(o.orderNo || o.id)) + '</td>';
@@ -5220,6 +5276,7 @@ function openFinCnReconDetailModal(el) {
         tr += '<td style="text-align:right;font-variant-numeric:tabular-nums;vertical-align:top">' + qStr + '</td>';
         tr += csmFinCnReconDisplayCell(disp.initialNetUnit.toFixed(2), disp.changed);
         tr += csmFinCnReconDisplayCell(csmFinCnReconFmtQty(disp.initialQty), disp.changed);
+        tr += csmFinCnReconDisplayCell(disp.initialAmount.toFixed(2), disp.changed);
         tr += '<td style="text-align:right;font-variant-numeric:tabular-nums;vertical-align:top">' + disp.netAmount.toFixed(2) + '</td>';
         var _liR = csmFinCnReconResolveLineIndex(o, L);
         var _oid = o && o.id != null ? String(o.id) : '';
@@ -5233,7 +5290,36 @@ function openFinCnReconDetailModal(el) {
       });
     });
     tbody.innerHTML = parts.join('');
+    if (tfoot) {
+      tfoot.innerHTML = '<tr>' +
+        '<td colspan="5" style="text-align:right;font-family:var(--csm-font-en);font-weight:700;background:var(--bg2)">Total</td>' +
+        '<td style="text-align:right;font-variant-numeric:tabular-nums;background:var(--bg2)">' + csmFinCnReconFmtQty(totalQty) + '</td>' +
+        '<td style="background:var(--bg2)"></td>' +
+        '<td style="text-align:right;font-variant-numeric:tabular-nums;background:var(--bg2)">' + csmFinCnReconFmtQty(totalInitialQty) + '</td>' +
+        '<td style="text-align:right;font-variant-numeric:tabular-nums;background:var(--bg2)">' + csmSalesRound2(totalInitialAmount).toFixed(2) + '</td>' +
+        '<td style="text-align:right;font-variant-numeric:tabular-nums;background:var(--bg2)">' + csmSalesRound2(totalNetAmount).toFixed(2) + '</td>' +
+        '<td style="background:var(--bg2)"></td>' +
+      '</tr>';
+    }
     csmFinCnReconBindEditButtons(tbody);
+  }
+  if (feeBody) {
+    var feeRows = csmFinCnExpenseBreakdown(cn);
+    var feeTotal = 0;
+    feeBody.innerHTML = feeRows.map(function(r) {
+      feeTotal += parseFloat(r.amount) || 0;
+      return '<tr>' +
+        '<td>' + csmEscapeHtml(r.en) + '<br><span style="font-size:11px;color:#888;font-weight:700">' + csmEscapeHtml(r.cn) + '</span></td>' +
+        '<td style="color:#64748b">' + csmEscapeHtml(r.source) + '</td>' +
+        '<td style="text-align:right;font-variant-numeric:tabular-nums">' + csmSalesRound2(r.amount).toFixed(2) + '</td>' +
+      '</tr>';
+    }).join('');
+    if (feeFoot) {
+      feeFoot.innerHTML = '<tr>' +
+        '<td colspan="2" style="text-align:right;font-family:var(--csm-font-en);font-weight:700;background:var(--bg2)">Total</td>' +
+        '<td style="text-align:right;font-variant-numeric:tabular-nums;background:var(--bg2)">' + csmSalesRound2(feeTotal).toFixed(2) + '</td>' +
+      '</tr>';
+    }
   }
   m.classList.add('sh');
 }

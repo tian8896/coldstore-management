@@ -231,6 +231,10 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 }
 #fin-cn-recon-detail-modal .fin-cn-recon-detail-scroll{flex:1 1 auto;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
 #fin-cn-recon-detail-modal .fin-cn-recon-detail-actions{margin-top:12px;flex-shrink:0}
+#fin-cn-recon-detail-modal .fin-cn-recon-detail-stack{display:flex;flex-direction:column;gap:14px;min-height:0}
+#fin-cn-recon-detail-modal .fin-cn-recon-detail-block{border:1px solid #dbe6f3;border-radius:10px;background:#fff;padding:12px 12px 10px}
+#fin-cn-recon-detail-modal .fin-cn-recon-detail-block h4{margin:0 0 10px;font-family:var(--csm-font-en);font-weight:700;font-size:14px;color:#334155}
+#fin-cn-recon-detail-modal .fin-cn-recon-detail-note{margin:0 0 10px;font-size:12px;line-height:1.5;color:#64748b;font-family:var(--csm-font-en);font-weight:700}
 /* Action column: above rowspan cells in some engines (clicks on Edit were lost) */
 #fin-cn-recon-detail-modal .fin-cn-recon-detail-scroll table tbody tr td:last-child{position:relative;z-index:2}
 #fin-cn-recon-detail-modal .fin-cn-recon-detail-scroll table .csm-fin-cn-recon-edit-btn{position:relative;z-index:3;touch-action:manipulation}
@@ -461,7 +465,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260422recon-lineidx-zero-fix" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260422fin-recon-detail-fees-pane" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -1817,6 +1821,9 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   <div class="mdl fin-cn-recon-detail-mdl">
     <h3 id="fin-cn-recon-detail-title" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none;margin-top:0;margin-bottom:12px">Sales orders</h3>
     <div class="fin-cn-recon-detail-scroll">
+      <div class="fin-cn-recon-detail-stack">
+      <section class="fin-cn-recon-detail-block">
+      <h4>Sales reconciliation lines · 销售对账明细</h4>
       <div class="tw tw-sales-dense"><table style="width:100%"><thead><tr>
       <th>Order No.<br><span style="font-size:11px;color:#888;font-weight:700">订单号</span></th>
       <th>Time<br><span style="font-size:11px;color:#888;font-weight:700">时间</span></th>
@@ -1826,9 +1833,21 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <th style="text-align:right">Qty<br><span style="font-size:11px;color:#888;font-weight:700">数量</span></th>
       <th style="text-align:right">Initial unit (AED)<br><span style="font-size:11px;color:#888;font-weight:700">初始单价</span></th>
       <th style="text-align:right">Initial qty<br><span style="font-size:11px;color:#888;font-weight:700">初始数量</span></th>
+      <th style="text-align:right">Initial amount (AED)<br><span style="font-size:11px;color:#888;font-weight:700">初始金额</span></th>
       <th style="text-align:right">Net (AED)<br><span style="font-size:11px;color:#888;font-weight:700">净额</span></th>
       <th>Action</th>
-    </tr></thead><tbody id="tb-fin-cn-recon-detail"></tbody></table></div>
+    </tr></thead><tbody id="tb-fin-cn-recon-detail"></tbody><tfoot id="tf-fin-cn-recon-detail"></tfoot></table></div>
+      </section>
+      <section class="fin-cn-recon-detail-block">
+      <h4>Container expense breakdown · 集装箱费用明细</h4>
+      <p class="fin-cn-recon-detail-note">Purchase fees are summed from all purchase rows under this container. Worker / Truck equals the total unloading, delivery and return-related charges from all sales lines under the same container.</p>
+      <div class="tw tw-sales-dense"><table style="width:100%"><thead><tr>
+      <th>Fee item<br><span style="font-size:11px;color:#888;font-weight:700">费用项目</span></th>
+      <th>Source<br><span style="font-size:11px;color:#888;font-weight:700">来源</span></th>
+      <th style="text-align:right">Amount (AED)<br><span style="font-size:11px;color:#888;font-weight:700">金额</span></th>
+      </tr></thead><tbody id="tb-fin-cn-recon-fees"></tbody><tfoot id="tf-fin-cn-recon-fees"></tfoot></table></div>
+      </section>
+      </div>
     </div>
     <div class="brow fin-cn-recon-detail-actions" style="justify-content:flex-end">
       <button type="button" class="btn btn-g" onclick="clFinCnReconDetailModal()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Close</button>

@@ -1757,6 +1757,109 @@ function updateSettingsButton() {  var settingsBtn = document.querySelector('but
 // UTILS
 // ============================================================
 function gid(id) { return document.getElementById(id); }function pad2(n) { return String(n).padStart(2, '0'); }function nowFmt() {  var d = new Date();  return d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate());}function setDefTimes() {  var v = nowFmt();  if (gid('f-at')) gid('f-at').value = v;  if (gid('f-dt')) gid('f-dt').value = v;}function fdt(iso) {  if (!iso) return '-';  var d = new Date(iso);  return pad2(d.getDate()) + '/' + pad2(d.getMonth()+1) + '/' + d.getFullYear();}function fmtTitleCase(name) {  var s = String(name || '').trim();  if (!s) return '-';  return s.toLowerCase().replace(/\b([a-z])/g, function(_, c) { return c.toUpperCase(); });}function fmtSupplierName(name) {  return fmtTitleCase(name); }function toast(msg, type) {  var t = document.createElement('div');  t.className = 'tst' + (type === 'ok' ? ' tst-ok' : type === 'err' ? ' tst-err' : '');  t.textContent = msg;  document.body.appendChild(t);  setTimeout(function() { t.remove(); }, 3500);}
+var CSM_W1_PAGER_LS = 'csm_w1_table_pager_v1';
+var csmW1PagerState = { purchase: { page: 1, size: 20 }, records: { page: 1, size: 20 }, checkout: { page: 1, size: 20 } };
+function csmW1PagerLoad() {
+  try {
+    var raw = localStorage.getItem(CSM_W1_PAGER_LS);
+    if (!raw) return;
+    var o = JSON.parse(raw);
+    ['purchase', 'records', 'checkout'].forEach(function(k) {
+      if (!o[k]) return;
+      if (o[k].size != null) csmW1PagerState[k].size = parseInt(o[k].size, 10) || csmW1PagerState[k].size;
+      if (o[k].page != null) csmW1PagerState[k].page = parseInt(o[k].page, 10) || 1;
+    });
+  } catch (e) {}
+}
+function csmW1PagerSave() {
+  try { localStorage.setItem(CSM_W1_PAGER_LS, JSON.stringify(csmW1PagerState)); } catch (e) {}
+}
+function csmW1BuildPagesFromRowGroups(groups, pageSize) {
+  var pages = [];
+  var cur = [];
+  var curLen = 0;
+  function flush() {
+    if (cur.length) { pages.push(cur); cur = []; curLen = 0; }
+  }
+  groups.forEach(function(g) {
+    var glen = g.length;
+    if (!pageSize || pageSize <= 0) return;
+    if (glen > pageSize) {
+      flush();
+      for (var i = 0; i < glen; i += pageSize) {
+        pages.push(g.slice(i, i + pageSize));
+      }
+      return;
+    }
+    if (curLen + glen > pageSize && cur.length) flush();
+    cur = cur.concat(g);
+    curLen += glen;
+  });
+  flush();
+  if (!pages.length) pages.push([]);
+  return pages;
+}
+function csmW1BuildPagesSimple(rows, pageSize) {
+  if (!rows.length) return [[]];
+  if (!pageSize || pageSize <= 0) return [rows.slice()];
+  var pages = [];
+  for (var i = 0; i < rows.length; i += pageSize) {
+    pages.push(rows.slice(i, i + pageSize));
+  }
+  return pages;
+}
+function csmW1PagerSyncSelect(kind) {
+  var sel = gid('w1-pager-' + kind + '-size');
+  if (!sel) return;
+  var v = csmW1PagerState[kind].size;
+  var want = (!v || v <= 0) ? '0' : String(v);
+  var ok = false;
+  for (var i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value === want) { ok = true; break; }
+  }
+  sel.value = ok ? want : '20';
+}
+function csmW1UpdatePagerBar(kind, totalRows, rowStart, rowEnd, page, totalPages) {
+  var bar = gid('w1-pager-' + kind);
+  var info = gid('w1-pager-' + kind + '-info');
+  var prev = gid('w1-pager-' + kind + '-prev');
+  var next = gid('w1-pager-' + kind + '-next');
+  if (bar) bar.style.display = totalRows === 0 ? 'none' : 'flex';
+  if (info) {
+    info.textContent = totalRows === 0 ? '' : ('Rows ' + rowStart + '–' + rowEnd + ' of ' + totalRows + ' · Page ' + page + ' / ' + totalPages
+      + ' · 第 ' + page + ' / ' + totalPages + ' 页 · 行 ' + rowStart + '–' + rowEnd + ' / 共 ' + totalRows + ' 行');
+  }
+  if (prev) prev.disabled = page <= 1;
+  if (next) next.disabled = page >= totalPages;
+  csmW1PagerSyncSelect(kind);
+}
+function csmW1SetPageSize(kind, v) {
+  var n = parseInt(v, 10);
+  if (isNaN(n)) n = 20;
+  csmW1PagerState[kind].size = n;
+  csmW1PagerState[kind].page = 1;
+  csmW1PagerSave();
+  if (kind === 'records') renderRecords();
+  else if (kind === 'purchase') renderPurchase();
+  else if (kind === 'checkout') renderCheckout();
+}
+function csmW1PagePrev(kind) {
+  if (csmW1PagerState[kind].page > 1) {
+    csmW1PagerState[kind].page--;
+    csmW1PagerSave();
+    if (kind === 'records') renderRecords();
+    else if (kind === 'purchase') renderPurchase();
+    else if (kind === 'checkout') renderCheckout();
+  }
+}
+function csmW1PageNext(kind) {
+  csmW1PagerState[kind].page++;
+  csmW1PagerSave();
+  if (kind === 'records') renderRecords();
+  else if (kind === 'purchase') renderPurchase();
+  else if (kind === 'checkout') renderCheckout();
+}
+csmW1PagerLoad();
 // ============================================================
 // CHECK IN
 // ============================================================
@@ -1774,7 +1877,7 @@ gid('f-cn').value = '';          gid('f-supplier').value = '';          gid('f-p
 // ============================================================
 // CHECK OUT
 // ============================================================
-function checkOut() {  console.log('checkOut called');  var cn = (gid('f-cno').value || '').trim().toUpperCase();  var pallets_out = parseInt(gid('f-pallets-out').value) || 1;  var items_out = parseInt(gid('f-items-out').value) || 1;  var dt = gid('f-dt').value;  console.log('checkOut values:', {cn: cn, pallets_out: pallets_out, items_out: items_out, dt: dt});  if (!cn || cn.length < 2) { toast('请输入集装箱号码', 'err'); console.log('validation failed: cn'); return; }  if (!dt) { toast('请输入出库日期', 'err'); console.log('validation failed: dt'); return; }  
+function checkOut() {  console.log('checkOut called');  var cn = (gid('f-cno').value || '').trim().toUpperCase();  var palletsOutRaw = parseInt(gid('f-pallets-out').value, 10);  var itemsOutRaw = parseInt(gid('f-items-out').value, 10);  var pallets_out = isNaN(palletsOutRaw) ? 0 : Math.max(0, palletsOutRaw);  var items_out = isNaN(itemsOutRaw) ? 0 : Math.max(0, itemsOutRaw);  var dt = gid('f-dt').value;  console.log('checkOut values:', {cn: cn, pallets_out: pallets_out, items_out: items_out, dt: dt});  if (!cn || cn.length < 2) { toast('请输入集装箱号码', 'err'); console.log('validation failed: cn'); return; }  if (!dt) { toast('请输入出库日期', 'err'); console.log('validation failed: dt'); return; }  if (pallets_out === 0 && items_out === 0) { toast('出库托盘数和件数不能同时为0', 'err'); return; }  
 // 找到入库记录  
 console.log('Searching for:', cn, 'in store:', currentColdStore);  console.log('Available records:', recs.map(function(r){return {cn:r.cn, store:r.store, dep:r.dep, type:r.type}}));  var rec = recs.find(function(r) {    return r.cn === cn && !r.dep && !r.type && r.store === currentColdStore;  });  console.log('Found record:', rec);  if (!rec) {    toast('未找到在库记录: ' + cn + '（' + getStoreDisplayName(currentColdStore) + '）', 'err');    console.log('rec not found, recs:', recs.filter(function(r){return r.cn === cn}));    return;  }  var remaining_pallets = rec.pallets - (rec.pallets_out || 0);  var remaining_items = rec.items - (rec.items_out || 0);  if (pallets_out > remaining_pallets) {    toast('出库托盘数超过剩余数量', 'err');    return;  }  if (items_out > remaining_items) {    toast('出库件数超过剩余数量', 'err');    return;  }  
 // 创建新的出库记录  
@@ -1797,7 +1900,7 @@ function saveData() {
 // 找到最后添加的记录  
 var lastRec = recs[recs.length - 1];  if (lastRec && lastRec.id && dbRef) {    dbRef.child(lastRec.id).set(lastRec);  }}function saveRecord(rec) {  if (dbRef && rec.id) {    dbRef.child(rec.id).set(rec);  }}function removeRecordFromFirebase(id) {  if (!id) return;  if (dbRef) dbRef.child(id).remove();  if (legacyDbRef) legacyDbRef.child(id).remove();}function deleteRecord(id) {  removeRecordFromFirebase(id);}function renderAll() {  renderRecords();  renderCheckout();  updStats();  backfillCheckoutSeq();}function renderRecords() {  
 // 只显示入库记录  
-var inRecs = recs.filter(function(r) { return r.store === currentColdStore && !r.type; })    .sort(function(a, b) { return new Date(b.arr) - new Date(a.arr); });  var tb = gid('tb-all');  var es = gid('es-all');  if (!tb || !es) return;  if (inRecs.length === 0) {    tb.innerHTML = ''; es.style.display = 'block'; return;  }  es.style.display = 'none';  var html = inRecs.map(function(r) {    var remaining_pallets = r.pallets - (r.pallets_out || 0);    var remaining_items = r.items - (r.items_out || 0);    
+var inRecs = recs.filter(function(r) { return r.store === currentColdStore && !r.type; })    .sort(function(a, b) { return new Date(b.arr) - new Date(a.arr); });  var tb = gid('tb-all');  var es = gid('es-all');  if (!tb || !es) return;  if (inRecs.length === 0) {    tb.innerHTML = ''; es.style.display = 'block'; csmW1UpdatePagerBar('records', 0, 0, 0, 1, 1); csmW1PagerSave(); return;  }  es.style.display = 'none';  var html = inRecs.map(function(r) {    var remaining_pallets = r.pallets - (r.pallets_out || 0);    var remaining_items = r.items - (r.items_out || 0);    
 // 计算已产生的实际费用（从出库记录表）    
 var actualFee = calcActualFee(r);    
 // 判断是否已全部出库    
@@ -1816,7 +1919,20 @@ feeDisplay = '<strong style="color:#ff9900;background:#fff8e1;padding:2px 6px;bo
 else {      
 // 刚入库未出库，显示 "-"
 feeDisplay = '<span style="color:#999">-</span>';    }    
-return '<tr style="background:#fff">' +      '<td><strong>' + (r.seq || '-') + '</strong></td>' +      '<td><strong>' + r.cn + '</strong></td>' +      '<td style="font-family:Arial">' + fmtSupplierName(r.supplier) + '</td><td style="font-family:Arial;text-transform:capitalize">' + w1ProductHtml(r.product) + '</td>' +      '<td>' + getStoreDisplayName(r.store) + '</td>' +      '<td>' + r.pallets + ' / <span style="color:#ff9900">' + remaining_pallets + '</span></td>' +      '<td>' + r.items + ' / <span style="color:#ff9900">' + remaining_items + '</span></td>' +      '<td>' + fdt(r.arr) + '</td><td>' + fdt(r.dep) + '</td>' +      '<td>' + feeDisplay + '</td>' +      '<td>' + status + '</td>' +      '<td><button class="abtn" onclick="showDet(\'' + r.id + '\')">详情</button>' + editBtn + '</td></tr>';  });  tb.innerHTML = html.join('');}
+return '<tr style="background:#fff">' +      '<td><strong>' + (r.seq || '-') + '</strong></td>' +      '<td><strong>' + r.cn + '</strong></td>' +      '<td style="font-family:Arial">' + fmtSupplierName(r.supplier) + '</td><td style="font-family:Arial;text-transform:capitalize">' + w1ProductHtml(r.product) + '</td>' +      '<td>' + getStoreDisplayName(r.store) + '</td>' +      '<td>' + r.pallets + ' / <span style="color:#ff9900">' + remaining_pallets + '</span></td>' +      '<td>' + r.items + ' / <span style="color:#ff9900">' + remaining_items + '</span></td>' +      '<td>' + fdt(r.arr) + '</td><td>' + fdt(r.dep) + '</td>' +      '<td>' + feeDisplay + '</td>' +      '<td>' + status + '</td>' +      '<td><button class="abtn" onclick="showDet(\'' + r.id + '\')">详情</button>' + editBtn + '</td></tr>';  });
+  var stRec = csmW1PagerState.records;
+  var pagesR = csmW1BuildPagesSimple(html, stRec.size);
+  var totalPagesR = Math.max(1, pagesR.length);
+  var pageR = Math.min(Math.max(1, stRec.page), totalPagesR);
+  stRec.page = pageR;
+  var sliceR = pagesR[pageR - 1] || [];
+  tb.innerHTML = sliceR.join('');
+  var totalRowsR = html.length;
+  var rowStartR = totalRowsR === 0 ? 0 : (function() { var s = 0; for (var pi = 0; pi < pageR - 1; pi++) s += (pagesR[pi] || []).length; return s + 1; })();
+  var rowEndR = totalRowsR === 0 ? 0 : rowStartR + sliceR.length - 1;
+  csmW1UpdatePagerBar('records', totalRowsR, rowStartR, rowEndR, pageR, totalPagesR);
+  csmW1PagerSave();
+}
 // 计算已产生的实际费用（基于出库记录表的逻辑）
 function calcActualFee(inRec) {
   if (!inRec || !inRec.arr) return 0;
@@ -2105,7 +2221,7 @@ Object.keys(cnGroups).forEach(function(cn) {    var outs = cnGroups[cn].recs;   
 // 添加没有出库记录的入库集装箱（只显示当前冷库的）  
 var allInRecs = recs.filter(function(r) { return !r.type && r.store === currentColdStore; });  allInRecs.forEach(function(inRec) {    if (!cnGroups[inRec.cn]) {      cnGroups[inRec.cn] = {        recs: [],        inRec: inRec      };    } else if (!cnGroups[inRec.cn].inRec) {      cnGroups[inRec.cn].inRec = inRec;    }  });  var tb = gid('tb-checkout');  var es = gid('es-checkout');  if (!tb || !es) return;  
 // 检查是否有任何入库记录  
-if (allInRecs.length === 0) {    tb.innerHTML = '';    es.style.display = 'block';    return;  }  es.style.display = 'none';  var html = [];  
+if (allInRecs.length === 0) {    tb.innerHTML = '';    es.style.display = 'block';    csmW1UpdatePagerBar('checkout', 0, 0, 0, 1, 1);    csmW1PagerSave();    return;  }  es.style.display = 'none';  var html = [];  
 // 按集装箱号排序  
 Object.keys(cnGroups).sort().forEach(function(cn) {    var group = cnGroups[cn];    var inRec = group.inRec;    var outRecs = (group.recs || []).sort(function(a, b) { return new Date(a.dep) - new Date(b.dep); });    if (!inRec) return;    
 // 应用搜索筛选    
@@ -2148,11 +2264,11 @@ var weekTotal = amount + vat;
 // 合计显示逻辑：最后一周显示总金额，其他周显示本周合计      
 var weekTotalDisplay;      if (isLastWeek && totalFee > 0) {        
 // 最后一周显示总冷库费（累计），加大加粗蓝色
-weekTotalDisplay = '<strong style="color:#0066cc;font-size:18px">' + totalFee.toFixed(2) + '</strong>';      } 
+weekTotalDisplay = '<strong style="color:#0066cc;font-size:15px">' + totalFee.toFixed(2) + '</strong>';      } 
 else if (weekTotal > 0) {        
 // 其他周显示本周合计
 weekTotalDisplay = '<strong style="color:#0066cc">' + weekTotal.toFixed(2) + '</strong>';      } 
-else {        weekTotalDisplay = '-';      }      html.push('<tr style="' + rowBg + '">' +        '<td style="font-size:13px;color:#0066cc">' + (inRec.seq || '-') + '</td>' +        '<td><strong style="cursor:pointer;color:#0066cc;text-decoration:underline" onclick="showCheckoutDetail(\'' + cn + '\')">' + cn + '</strong></td>' +        '<td style="font-family:Arial">' + fmtSupplierName(inRec.supplier) + '</td>' +        '<td style="font-family:Arial;text-transform:capitalize">' + w1ProductHtml(inRec.product) + '</td>' +        '<td style="font-weight:bold;color:#0066cc">' + weekLabel + '</td>' +        '<td><strong>' + displayPallets + '</strong></td>' +        '<td><span style="color:#cc0000">' + displayOutPallets + '</span></td>' +        '<td><span style="color:#cc0000">' + displayOutItems + '</span></td>' +        '<td><strong style="color:#00aa00">' + displayRemItems + '</strong></td>' +        '<td>' + displayInItems + '</td>' +        '<td>' + (prevPallets > 0 ? rate.toFixed(2) : '-') + '</td>' +        '<td>' + (prevPallets > 0 ? amount.toFixed(2) : '-') + '</td>' +        '<td>' + (prevPallets > 0 ? vat.toFixed(2) : '-') + '</td>' +        '<td>' + weekTotalDisplay + '</td>' +        '</tr>');      
+else {        weekTotalDisplay = '-';      }      html.push('<tr style="' + rowBg + '">' +        '<td style="font-size:12px;color:#0066cc">' + (inRec.seq || '-') + '</td>' +        '<td><strong style="cursor:pointer;color:#0066cc;text-decoration:underline" onclick="showCheckoutDetail(\'' + cn + '\')">' + cn + '</strong></td>' +        '<td style="font-family:Arial">' + fmtSupplierName(inRec.supplier) + '</td>' +        '<td style="font-family:Arial;text-transform:capitalize">' + w1ProductHtml(inRec.product) + '</td>' +        '<td style="font-weight:bold;color:#0066cc">' + weekLabel + '</td>' +        '<td><strong>' + displayPallets + '</strong></td>' +        '<td><span style="color:#cc0000">' + displayOutPallets + '</span></td>' +        '<td><span style="color:#cc0000">' + displayOutItems + '</span></td>' +        '<td><strong style="color:#00aa00">' + displayRemItems + '</strong></td>' +        '<td>' + displayInItems + '</td>' +        '<td>' + (prevPallets > 0 ? rate.toFixed(2) : '-') + '</td>' +        '<td>' + (prevPallets > 0 ? amount.toFixed(2) : '-') + '</td>' +        '<td>' + (prevPallets > 0 ? vat.toFixed(2) : '-') + '</td>' +        '<td>' + weekTotalDisplay + '</td>' +        '</tr>');      
 // 该周的出库明细（绿色背景，显示在该周下面）      
 var weekOutRecs = outRecs.filter(function(or) {        var od = new Date(or.dep);        return od >= weekStart && od <= weekEnd;      });      weekOutRecs.forEach(function(or) {        
 // 累计到当前出库的总件数（包括之前周的）
@@ -2165,11 +2281,24 @@ var outRemPallets = inRec.pallets - palletsOutSoFar;
 // 如果剩余托盘为0，剩余件数也必须为0        
 if (outRemPallets === 0) {          outRemItems = 0;        }        
 // 管理员才显示修改按钮        
-var editOutBtn = (isAdmin || isStaff) ? '<button class="abtn" onclick="showEditOutRecord(\'' + or.id + '\')" style="margin-left:4px">✏️</button>' : '';        html.push('<tr style="background:#f0fff0">' +          '<td style="padding-left:20px;color:#0066cc;font-size:13px">' + (or.seq || '-') + '</td>' +          '<td style="padding-left:20px;color:#999">' + cn + '</td>' +          '<td style="color:#999;font-family:Arial">' + fmtSupplierName(or.supplier) + '</td>' +          '<td style="color:#999;font-family:Arial;text-transform:capitalize">' + w1ProductHtml(or.product) + '</td>' +          '<td style="color:#00aa00;font-weight:bold">' + fdt(or.dep) + '</td>' +          '<td>-</td>' +          '<td><span style="color:#cc0000;font-weight:bold">' + or.pallets_out + '</span> / <strong style="color:#00aa00">' + (outRemPallets >= 0 ? outRemPallets : '0') + '</strong></td>' +          '<td><span style="color:#cc0000;font-weight:bold">' + or.items_out + '</span></td>' +          '<td><strong style="color:#00aa00">' + (outRemItems >= 0 ? outRemItems : '0') + '</strong></td>' +          '<td>-</td>' +          '<td>-</td>' +          '<td>-</td>' +          '<td>-</td>' +          '<td>' + editOutBtn + '</td>' +          '</tr>');      });      currentDate = new Date(weekEnd);      currentDate.setDate(currentDate.getDate() + 1);      weekNum++;    }  });  tb.innerHTML = html.join('');}
+var editOutBtn = (isAdmin || isStaff) ? '<button class="abtn" onclick="showEditOutRecord(\'' + or.id + '\')" style="margin-left:4px">✏️</button>' : '';        html.push('<tr style="background:#f0fff0">' +          '<td style="padding-left:16px;color:#0066cc;font-size:12px">' + (or.seq || '-') + '</td>' +          '<td style="padding-left:16px;color:#999">' + cn + '</td>' +          '<td style="color:#999;font-family:Arial">' + fmtSupplierName(or.supplier) + '</td>' +          '<td style="color:#999;font-family:Arial;text-transform:capitalize">' + w1ProductHtml(or.product) + '</td>' +          '<td style="color:#00aa00;font-weight:bold">' + fdt(or.dep) + '</td>' +          '<td>-</td>' +          '<td><span style="color:#cc0000;font-weight:bold">' + or.pallets_out + '</span> / <strong style="color:#00aa00">' + (outRemPallets >= 0 ? outRemPallets : '0') + '</strong></td>' +          '<td><span style="color:#cc0000;font-weight:bold">' + or.items_out + '</span></td>' +          '<td><strong style="color:#00aa00">' + (outRemItems >= 0 ? outRemItems : '0') + '</strong></td>' +          '<td>-</td>' +          '<td>-</td>' +          '<td>-</td>' +          '<td>-</td>' +          '<td>' + editOutBtn + '</td>' +          '</tr>');      });      currentDate = new Date(weekEnd);      currentDate.setDate(currentDate.getDate() + 1);      weekNum++;    }  });
+  var stCo = csmW1PagerState.checkout;
+  var pagesCo = csmW1BuildPagesSimple(html, stCo.size);
+  var totalPagesCo = Math.max(1, pagesCo.length);
+  var pageCo = Math.min(Math.max(1, stCo.page), totalPagesCo);
+  stCo.page = pageCo;
+  var sliceCo = pagesCo[pageCo - 1] || [];
+  tb.innerHTML = sliceCo.join('');
+  var totalRowsCo = html.length;
+  var rowStartCo = totalRowsCo === 0 ? 0 : (function() { var s = 0; for (var pi = 0; pi < pageCo - 1; pi++) s += (pagesCo[pi] || []).length; return s + 1; })();
+  var rowEndCo = totalRowsCo === 0 ? 0 : rowStartCo + sliceCo.length - 1;
+  csmW1UpdatePagerBar('checkout', totalRowsCo, rowStartCo, rowEndCo, pageCo, totalPagesCo);
+  csmW1PagerSave();
+}
 // ============================================================
 // 搜索和导出功能
 // ============================================================
-var checkoutSearchFilters = {  cn: '',  supplier: '',  product: '',  dateStart: '',  dateEnd: ''};function applySearch() {  checkoutSearchFilters = {    cn: (gid('search-cn').value || '').trim().toLowerCase(),    supplier: (gid('search-supplier').value || '').trim().toLowerCase(),    product: (gid('search-product').value || '').trim().toLowerCase(),    dateStart: gid('search-date-start').value || '',    dateEnd: gid('search-date-end').value || ''  };  renderCheckout();  toast('Confirmed', 'ok');}function resetSearch() {  gid('search-cn').value = '';  gid('search-supplier').value = '';  gid('search-product').value = '';  gid('search-date-start').value = '';  gid('search-date-end').value = '';  checkoutSearchFilters = {    cn: '',    supplier: '',    product: '',    dateStart: '',    dateEnd: ''  };  renderCheckout();  toast('Filters reset', 'ok');}function matchSearchFilters(inRec) {  var f = checkoutSearchFilters;  
+var checkoutSearchFilters = {  cn: '',  supplier: '',  product: '',  dateStart: '',  dateEnd: ''};function applySearch() {  csmW1PagerState.checkout.page = 1;  checkoutSearchFilters = {    cn: (gid('search-cn').value || '').trim().toLowerCase(),    supplier: (gid('search-supplier').value || '').trim().toLowerCase(),    product: (gid('search-product').value || '').trim().toLowerCase(),    dateStart: gid('search-date-start').value || '',    dateEnd: gid('search-date-end').value || ''  };  renderCheckout();  toast('Confirmed', 'ok');}function resetSearch() {  gid('search-cn').value = '';  gid('search-supplier').value = '';  gid('search-product').value = '';  gid('search-date-start').value = '';  gid('search-date-end').value = '';  checkoutSearchFilters = {    cn: '',    supplier: '',    product: '',    dateStart: '',    dateEnd: ''  };  csmW1PagerState.checkout.page = 1;  renderCheckout();  toast('Filters reset', 'ok');}function matchSearchFilters(inRec) {  var f = checkoutSearchFilters;  
 // 集装箱号匹配  
 if (f.cn && (inRec.cn || '').toLowerCase().indexOf(f.cn) < 0) {    return false;  }  
 // 供应商匹配  
@@ -2485,6 +2614,10 @@ function saveEditOutRecord() {
   var oldItemsOut = r.items_out;
   var newPalletsOut = parseInt(gid('edit-out-pallets').value) || 0;
   var newItemsOut = parseInt(gid('edit-out-items').value) || 0;
+  if (newPalletsOut === 0 && newItemsOut === 0) {
+    toast('出库托盘数和件数不能同时为0', 'err');
+    return;
+  }
   var totalPalletsOut = (inRec.pallets_out || 0) - oldPalletsOut + newPalletsOut;
   var totalItemsOut = (inRec.items_out || 0) - oldItemsOut + newItemsOut;
   if (totalPalletsOut > inRec.pallets) {
@@ -2513,7 +2646,7 @@ function saveEditOutRecord() {
 // ============================================================
 // COLD STORE SWITCH
 // ============================================================
-function selectColdStore(n) {  currentColdStore = n;  document.querySelectorAll('.warehouse-btn').forEach(function(btn, i) {    btn.classList.toggle('active', i + 1 === n);  });  renderAll();}
+function selectColdStore(n) {  currentColdStore = n;  csmW1PagerState.records.page = 1;  csmW1PagerState.checkout.page = 1;  document.querySelectorAll('.warehouse-btn').forEach(function(btn, i) {    btn.classList.toggle('active', i + 1 === n);  });  renderAll();}
 // ============================================================
 // TAB SWITCH
 // ============================================================
@@ -2676,7 +2809,7 @@ function addPurchase() {
 // 添加品名行
 function addPurchaseItem() {  purchaseItemRowCounter++;  var rowId = purchaseItemRowCounter;  var newRow = document.createElement('tr');  newRow.className = 'purchase-item-row';  newRow.innerHTML =    '<td style="padding:4px;border:1px solid #ddd;vertical-align:middle">' + htmlPurchaseItemProductSelect(rowId, '') + '</td>' +    '<td style="padding:4px;border:1px solid #ddd;vertical-align:middle"><input type="number" class="item-qty csm-pi-qty" value="0" min="0" placeholder="实际装货数量" title="输入实际装货数量 / Enter actual loaded quantity"></td>' +    '<td style="padding:4px;border:1px solid #ddd;text-align:center"><button type="button" class="abtn x" onclick="removePurchaseItem(this)" style="color:#ff4444;font-size:16px">×</button></td>';  document.getElementById('purchaseItemsBody').appendChild(newRow);}
 // 删除品名行
-function removePurchaseItem(btn) {  var rows = document.querySelectorAll('.purchase-item-row');  if (rows.length > 1) {    btn.closest('tr').remove();  } else {    toast('至少保留一行品名', 'err');  }}function delPurchase(id) {  if (!confirm('确认删除这条采购记录？ / Confirm delete?')) return;  if (purchaseRef) {    purchaseRef.child(id).remove();  }}function filterPurchase() { renderPurchase(); }function resetPurchaseSearch() {  gid('search-purchase-date').value = '';  gid('search-purchase-cn').value = '';  gid('search-purchase-supplier').value = '';  renderPurchase();}
+function removePurchaseItem(btn) {  var rows = document.querySelectorAll('.purchase-item-row');  if (rows.length > 1) {    btn.closest('tr').remove();  } else {    toast('至少保留一行品名', 'err');  }}function delPurchase(id) {  if (!confirm('确认删除这条采购记录？ / Confirm delete?')) return;  if (purchaseRef) {    purchaseRef.child(id).remove();  }}function filterPurchase() { csmW1PagerState.purchase.page = 1; renderPurchase(); }function resetPurchaseSearch() {  gid('search-purchase-date').value = '';  gid('search-purchase-cn').value = '';  gid('search-purchase-supplier').value = '';  csmW1PagerState.purchase.page = 1;  renderPurchase();}
 function getPurchaseRemainingItems(pr) {  if (!pr || !recs || !recs.length) return { rem: 0, hasInbound: false };  var cn = String(pr.cn || '').trim().toUpperCase();  var p = canonicalProductName(pr.product || '');  var sum = 0;  var found = false;  recs.forEach(function(ir) {    if (ir.type) return;    if (String(ir.cn || '').trim().toUpperCase() !== cn) return;    if (canonicalProductName(ir.product || '') !== p) return;    found = true;    sum += Math.max(0, (ir.items || 0) - (ir.items_out || 0));  });  return { rem: sum, hasInbound: found };}function htmlPurchaseRemainingOne(pr) {  var x = getPurchaseRemainingItems(pr);  if (!x.hasInbound) return '<span style="color:#999">–</span>';  return '<span style="color:#ff9900;font-weight:bold">' + x.rem + '</span>';}function htmlPurchaseRemainingGroup(items) {  var parts = items.map(function(pr) { return getPurchaseRemainingItems(pr); });  var anyIn = parts.some(function(p) { return p.hasInbound; });  if (!anyIn) return '<span style="color:#999">–</span>';  var sum = parts.reduce(function(s, p) { return s + p.rem; }, 0);  return '<span style="color:#ff9900;font-weight:bold">' + sum + '</span>';}
 function renderPurchase() { console.log("purchaseRecs:", purchaseRecs);  var tb = gid('tb-purchase');  var es = gid('es-purchase');  if (!tb || !es) return;  
 // 获取搜索条件  
@@ -2686,19 +2819,19 @@ var filteredRecs = purchaseRecs.filter(function(r) {    var matchDate = !searchD
 // 合并供应商记录：只显示尚未在 warehouse1 采购列表中的记录  
 var adoptedSupplierIds = {};  purchaseRecs.forEach(function(r) { if (r.sourceSupplierRecId) adoptedSupplierIds[r.sourceSupplierRecId] = true; });  var supplierOnlyRecs = supplierRecs.filter(function(r) {    if (!r.id || !r.cn) return false;    if (adoptedSupplierIds[r.id]) return false;     if ((isAdmin || isStaff) && r.status !== 'submitted' && r.status !== 'confirmed') return false;
 // 已在 warehouse1 中，不再重复显示    
-var matchDate = !searchDate || (r.purchaseDate || '').indexOf(searchDate) !== -1;    var matchCn = !searchCn || (r.cn || '').indexOf(searchCn) !== -1;    var matchSupplier = !searchSupplier || (r.supplier || '').toUpperCase().indexOf(searchSupplier) !== -1;    return matchDate && matchCn && matchSupplier;  });  if (filteredRecs.length === 0 && supplierOnlyRecs.length === 0) { tb.innerHTML = ''; es.style.display = 'block'; return; }  es.style.display = 'none';  
+var matchDate = !searchDate || (r.purchaseDate || '').indexOf(searchDate) !== -1;    var matchCn = !searchCn || (r.cn || '').indexOf(searchCn) !== -1;    var matchSupplier = !searchSupplier || (r.supplier || '').toUpperCase().indexOf(searchSupplier) !== -1;    return matchDate && matchCn && matchSupplier;  });  if (filteredRecs.length === 0 && supplierOnlyRecs.length === 0) { tb.innerHTML = ''; es.style.display = 'block'; csmW1UpdatePagerBar('purchase', 0, 0, 0, 1, 1); csmW1PagerSave(); return; }  es.style.display = 'none';  
 // 按集装箱号分组；组内与箱组顺序均为时间新→旧  
-var cnGroups = {};  filteredRecs.forEach(function(r) {    var key = r.cn || '_empty_';    if (!cnGroups[key]) cnGroups[key] = [];    cnGroups[key].push(r);  });  Object.keys(cnGroups).forEach(function(k) { cnGroups[k].sort(csmPurchaseRowCompareDesc); });  var cnListSorted = Object.keys(cnGroups).sort(function(cnA, cnB) { return csmPurchaseRowCompareDesc(cnGroups[cnA][0], cnGroups[cnB][0]); });  var html = '';  cnListSorted.forEach(function(cn) {    var rawCn = cn;    var items = cnGroups[cn];    var groupId = 'group-' + cn.replace(/[^a-zA-Z0-9]/g, '');    var firstItem = items[0];    var totalItems = items.length;    var totalAmount = items.reduce(function(s, r) { return s + ((r.demurrage||0)+(r.customs||0)+(r.coldFee||0)+(r.attestation||0)+(r.repack||0)+(r.waste||0)+(r.other||0)); }, 0);    var purchaseDate = firstItem.purchaseDate ? fdt(firstItem.purchaseDate+'T00:00:00') : '-';    
+var cnGroups = {};  filteredRecs.forEach(function(r) {    var key = r.cn || '_empty_';    if (!cnGroups[key]) cnGroups[key] = [];    cnGroups[key].push(r);  });  Object.keys(cnGroups).forEach(function(k) { cnGroups[k].sort(csmPurchaseRowCompareDesc); });  var cnListSorted = Object.keys(cnGroups).sort(function(cnA, cnB) { return csmPurchaseRowCompareDesc(cnGroups[cnA][0], cnGroups[cnB][0]); });  var rowGroups = [];  cnListSorted.forEach(function(cn) {    var grpRows = [];    var rawCn = cn;    var items = cnGroups[cn];    var groupId = 'group-' + cn.replace(/[^a-zA-Z0-9]/g, '');    var firstItem = items[0];    var totalItems = items.length;    var totalAmount = items.reduce(function(s, r) { return s + ((r.demurrage||0)+(r.customs||0)+(r.coldFee||0)+(r.attestation||0)+(r.repack||0)+(r.waste||0)+(r.other||0)); }, 0);    var purchaseDate = firstItem.purchaseDate ? fdt(firstItem.purchaseDate+'T00:00:00') : '-';    
 // 按集装箱汇总所有冷库的冷库费；只有全部出库完成后才在采购页显示总和    
 var coldFeeSummary = getContainerColdFeeSummary(rawCn);    var coldFeeDisplay = '-';    if (coldFeeSummary.hasInRec && coldFeeSummary.allCheckedOut) {      coldFeeDisplay = '<strong style="color:#0066cc;background:#e8f4ff;padding:2px 6px;border-radius:3px;font-size:14px">' + coldFeeSummary.totalFee.toFixed(2) + '</strong>';    }    if (cn === '_empty_') cn = '-';    
 // 主行：集装箱号 + 展开按钮    
-var expandBtn = totalItems > 1 ?      '<button type="button" class="abtn" style="background:#f0f0f0;border:1px solid #ddd;padding:2px 6px;font-size:14px" onclick="togglePurchaseGroup(\'' + groupId + '\',this)">+</button>' : '';    var firstQty = firstItem.qty || '-';    var firstSeq = firstItem.seq || '-';    html += '<tr style="background:#f9f9f9;font-weight:bold" id="pur-main-' + groupId + '">' +      '<td style="color:#0066cc">' + firstSeq + '</td>' +      '<td>' + expandBtn + ' <button type="button" class="abtn" style="background:#e8f4ff;border-color:#00bfff;color:#00bfff;padding:2px 6px;font-size:11px" onclick="quickCheckIn(' + csmHtmlAttrJson(firstItem.id) + ')">📥</button> <a href="javascript:void(0)" onclick="showPurchaseCnDetail(' + csmHtmlAttrJson(rawCn) + ');return false;" style="color:#0066cc;font-weight:bold;text-decoration:underline;cursor:pointer">' + csmEscapeHtml(String(cn)) + '</a> <span style="color:#999;font-size:11px">(' + totalItems + '品名)</span></td>' +      '<td style="font-family:Arial">'+fmtSupplierName(firstItem.supplier)+'</td><td style="font-family:Arial;text-transform:capitalize">'+w1ProductHtml(firstItem.product)+'</td><td>'+purchaseDate+'</td><td style="font-family:Arial">'+firstQty+'</td><td style="font-family:Arial">'+htmlPurchaseRemainingGroup(items)+'</td><td style="font-family:Arial">'+(firstItem.demurrage||0)+'</td><td style="font-family:Arial">'+(firstItem.customs||0)+'</td><td style="font-family:Arial">'+(coldFeeDisplay||'-')+'</td><td style="font-family:Arial">'+(firstItem.attestation||0)+'</td><td style="font-family:Arial">'+(firstItem.repack||0)+'</td><td style="font-family:Arial">'+(firstItem.waste||0)+'</td><td style="font-family:Arial">'+(firstItem.other||0)+'</td>' +      '<td><strong style="color:#0066cc">'+totalAmount.toFixed(2)+'</strong></td>' +      '<td><button type="button" class="abtn" onclick="openEditPurchase(\''+firstItem.id+'\')">✏️</button><button type="button" class="abtn x" onclick="delPurchaseGroup(\'' + cn + '\')">🗑</button></td></tr>';    
+var expandBtn = totalItems > 1 ?      '<button type="button" class="abtn" style="background:#f0f0f0;border:1px solid #ddd;padding:2px 6px;font-size:14px" onclick="togglePurchaseGroup(\'' + groupId + '\',this)">+</button>' : '';    var firstQty = firstItem.qty || '-';    var firstSeq = firstItem.seq || '-';    grpRows.push('<tr style="background:#f9f9f9;font-weight:bold" id="pur-main-' + groupId + '">' +      '<td style="color:#0066cc">' + firstSeq + '</td>' +      '<td>' + expandBtn + ' <button type="button" class="abtn" style="background:#e8f4ff;border-color:#00bfff;color:#00bfff;padding:2px 6px;font-size:11px" onclick="quickCheckIn(' + csmHtmlAttrJson(firstItem.id) + ')">📥</button> <a href="javascript:void(0)" onclick="showPurchaseCnDetail(' + csmHtmlAttrJson(rawCn) + ');return false;" style="color:#0066cc;font-weight:bold;text-decoration:underline;cursor:pointer">' + csmEscapeHtml(String(cn)) + '</a> <span style="color:#999;font-size:11px">(' + totalItems + '品名)</span></td>' +      '<td style="font-family:Arial">'+fmtSupplierName(firstItem.supplier)+'</td><td style="font-family:Arial;text-transform:capitalize">'+w1ProductHtml(firstItem.product)+'</td><td>'+purchaseDate+'</td><td style="font-family:Arial">'+firstQty+'</td><td style="font-family:Arial">'+htmlPurchaseRemainingGroup(items)+'</td><td style="font-family:Arial">'+(firstItem.demurrage||0)+'</td><td style="font-family:Arial">'+(firstItem.customs||0)+'</td><td style="font-family:Arial">'+(coldFeeDisplay||'-')+'</td><td style="font-family:Arial">'+(firstItem.attestation||0)+'</td><td style="font-family:Arial">'+(firstItem.repack||0)+'</td><td style="font-family:Arial">'+(firstItem.waste||0)+'</td><td style="font-family:Arial">'+(firstItem.other||0)+'</td>' +      '<td><strong style="color:#0066cc">'+totalAmount.toFixed(2)+'</strong></td>' +      '<td><button type="button" class="abtn" onclick="openEditPurchase(\''+firstItem.id+'\')">✏️</button><button type="button" class="abtn x" onclick="delPurchaseGroup(\'' + cn + '\')">🗑</button></td></tr>');    
 // 子行：每个品名    
-items.forEach(function(r) {      var total = (r.demurrage||0)+(r.customs||0)+(r.coldFee||0)+(r.attestation||0)+(r.repack||0)+(r.waste||0)+(r.other||0);      html += '<tr class="purchase-sub-row ' + groupId + '" style="display:none;background:#fff">' +        '<td style="color:#0066cc">' + (r.seq || '-') + '</td>' +        '<td style="padding-left:40px;color:#666;font-family:Arial;text-transform:capitalize">└ '+w1ProductHtml(r.product)+'</td>' +        '<td style="font-family:Arial;color:#666">'+fmtSupplierName(r.supplier)+'</td><td style="font-family:Arial;text-transform:capitalize">'+w1ProductHtml(r.product)+'</td><td>-</td><td>'+(r.qty||0)+'</td><td style="font-family:Arial">'+htmlPurchaseRemainingOne(r)+'</td>' +        '<td>'+(r.demurrage||0)+'</td><td>'+(r.customs||0)+'</td><td>-</td>' +        '<td>'+(r.attestation||0)+'</td><td>'+(r.repack||0)+'</td><td>'+(r.waste||0)+'</td><td>'+(r.other||0)+'</td>' +        '<td><strong style="color:#0066cc">'+total.toFixed(2)+'</strong></td>' +        '<td><button type="button" class="abtn" onclick="openEditPurchase(\''+r.id+'\')">✏️</button><button type="button" class="abtn x" onclick="delPurchase(\''+r.id+'\')">🗑</button></td></tr>';    });  });  
+items.forEach(function(r) {      var total = (r.demurrage||0)+(r.customs||0)+(r.coldFee||0)+(r.attestation||0)+(r.repack||0)+(r.waste||0)+(r.other||0);      grpRows.push('<tr class="purchase-sub-row ' + groupId + '" style="display:none;background:#fff">' +        '<td style="color:#0066cc">' + (r.seq || '-') + '</td>' +        '<td style="padding-left:40px;color:#666;font-family:Arial;text-transform:capitalize">└ '+w1ProductHtml(r.product)+'</td>' +        '<td style="font-family:Arial;color:#666">'+fmtSupplierName(r.supplier)+'</td><td style="font-family:Arial;text-transform:capitalize">'+w1ProductHtml(r.product)+'</td><td>-</td><td>'+(r.qty||0)+'</td><td style="font-family:Arial">'+htmlPurchaseRemainingOne(r)+'</td>' +        '<td>'+(r.demurrage||0)+'</td><td>'+(r.customs||0)+'</td><td>-</td>' +        '<td>'+(r.attestation||0)+'</td><td>'+(r.repack||0)+'</td><td>'+(r.waste||0)+'</td><td>'+(r.other||0)+'</td>' +        '<td><strong style="color:#0066cc">'+total.toFixed(2)+'</strong></td>' +        '<td><button type="button" class="abtn" onclick="openEditPurchase(\''+r.id+'\')">✏️</button><button type="button" class="abtn x" onclick="delPurchase(\''+r.id+'\')">🗑</button></td></tr>');    }); rowGroups.push(grpRows);  });  
 // 显示供应商专属记录（在 warehouse1 采购列表中没有的）  
 if (supplierOnlyRecs.length > 0) {    
 // 按采购日期时间新→旧（与主表一致）    
-supplierOnlyRecs.sort(csmPurchaseRowCompareDesc);    supplierOnlyRecs.forEach(function(r) {      var status = r.status || 'draft';      var supplierLabel = '<span style="background:#fff3e0;color:#e65100;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">供应商</span>';      var statusBadge = status === 'submitted' ? '<span style="background:#fff8e1;color:#f57f17;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">已提交</span>' : '<span style="background:#e8f5e9;color:#2e7d32;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">已确认</span>';      var cnClickFn = "openSupplierCNDetail('" + r.id + "')";      var actionBtn = isAdmin ? (status === 'submitted' ? '<button type="button" class="abtn" style="background:#2e7d32;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">✅ 确认采用</button>' : '<button type="button" class="abtn" style="background:#0066cc;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">📥 采用</button>') : '<span style="color:#888;font-size:12px">' + (status === 'submitted' ? '待管理员确认' : '待管理员采用') + '</span>';      html += '<tr style="background:#fffbf5">' +        '<td style="color:#ff9900">' + (r.seq || '-') + '</td>' +        '<td><a href="javascript:void(0)" onclick="' + cnClickFn + '" style="color:#ff9900;font-weight:bold;text-decoration:underline">' + (r.cn || '-') + '</a>' + supplierLabel + statusBadge + '</td>' +        '<td style="font-family:Arial;color:#666">' + fmtSupplierName(r.supplier) + '</td>' +        '<td style="font-family:Arial;text-transform:capitalize">' + w1ProductHtml(r.product) + '</td>' +        '<td>' + (r.purchaseDate ? fdt(r.purchaseDate+'T00:00:00') : '-') + '</td>' +        '<td style="font-family:Arial">' + (r.qty || 0) + '</td><td style="font-family:Arial">' + htmlPurchaseRemainingOne(r) + '</td>' +        '<td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>' +        '<td style="color:#f57f17;font-weight:bold">' + (status === 'submitted' ? '待管理员确认' : '待采用') + '</td>' +        '<td>' + actionBtn + '</td>' +      '</tr>';    });  }  tb.innerHTML = html;}
+supplierOnlyRecs.sort(csmPurchaseRowCompareDesc);    supplierOnlyRecs.forEach(function(r) {      var status = r.status || 'draft';      var supplierLabel = '<span style="background:#fff3e0;color:#e65100;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">供应商</span>';      var statusBadge = status === 'submitted' ? '<span style="background:#fff8e1;color:#f57f17;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">已提交</span>' : '<span style="background:#e8f5e9;color:#2e7d32;font-size:10px;padding:1px 4px;border-radius:2px;margin-left:4px">已确认</span>';      var cnClickFn = "openSupplierCNDetail('" + r.id + "')";      var actionBtn = isAdmin ? (status === 'submitted' ? '<button type="button" class="abtn" style="background:#2e7d32;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">✅ 确认采用</button>' : '<button type="button" class="abtn" style="background:#0066cc;color:#fff" onclick="confirmSupplierRec(\'' + r.id + '\')">📥 采用</button>') : '<span style="color:#888;font-size:12px">' + (status === 'submitted' ? '待管理员确认' : '待管理员采用') + '</span>';      rowGroups.push(['<tr style="background:#fffbf5">' +        '<td style="color:#ff9900">' + (r.seq || '-') + '</td>' +        '<td><a href="javascript:void(0)" onclick="' + cnClickFn + '" style="color:#ff9900;font-weight:bold;text-decoration:underline">' + (r.cn || '-') + '</a>' + supplierLabel + statusBadge + '</td>' +        '<td style="font-family:Arial;color:#666">' + fmtSupplierName(r.supplier) + '</td>' +        '<td style="font-family:Arial;text-transform:capitalize">' + w1ProductHtml(r.product) + '</td>' +        '<td>' + (r.purchaseDate ? fdt(r.purchaseDate+'T00:00:00') : '-') + '</td>' +        '<td style="font-family:Arial">' + (r.qty || 0) + '</td><td style="font-family:Arial">' + htmlPurchaseRemainingOne(r) + '</td>' +        '<td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>' +        '<td style="color:#f57f17;font-weight:bold">' + (status === 'submitted' ? '待管理员确认' : '待采用') + '</td>' +        '<td>' + actionBtn + '</td>' +      '</tr>']);    });  }  var stPu = csmW1PagerState.purchase;  var allFlatPu = [];  rowGroups.forEach(function(g) { g.forEach(function(row) { allFlatPu.push(row); }); });  var pagesPu;  if (!stPu.size || stPu.size <= 0) pagesPu = [allFlatPu];  else pagesPu = csmW1BuildPagesFromRowGroups(rowGroups, stPu.size);  var totalPagesPu = Math.max(1, pagesPu.length);  var pagePu = Math.min(Math.max(1, stPu.page), totalPagesPu);  stPu.page = pagePu;  var slicePu = pagesPu[pagePu - 1] || [];  tb.innerHTML = slicePu.join('');  var totalRowsPu = allFlatPu.length;  var rowStartPu = totalRowsPu === 0 ? 0 : (function() { var s = 0; for (var pi = 0; pi < pagePu - 1; pi++) s += (pagesPu[pi] || []).length; return s + 1; })();  var rowEndPu = totalRowsPu === 0 ? 0 : rowStartPu + slicePu.length - 1;  csmW1UpdatePagerBar('purchase', totalRowsPu, rowStartPu, rowEndPu, pagePu, totalPagesPu);  csmW1PagerSave();}
 // 按集装箱号查找供应商记录并弹出详情
 function openSupplierCNDetailByCN(cn) {  var rec = supplierRecs.find(function(r) { return r.cn === cn; });  if (!rec) return;  openSupplierCNDetail(rec.id);}
 // 按集装箱号编辑供应商记录

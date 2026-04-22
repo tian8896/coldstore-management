@@ -77,6 +77,16 @@ body.csm-supplier-ui #suiteWarehouse1 > .main > #supplierView{grid-column:1 / -1
 #user-list table > tr:first-child > th,
 #userMgmtModal #userListContainer table > tr:first-child > th,
 #modal-mdl table > thead > tr > th{font-family:var(--csm-font-en);font-weight:700;text-transform:none;letter-spacing:.02em}
+/* Checkout records: tighter vertical spacing */
+#tc-checkout .tw > table{font-size:12px;line-height:1.1;font-family:var(--csm-font-en);font-weight:700}
+#tc-checkout .tw > table > thead > tr > th{padding:3px 8px 2px;font-size:12px;line-height:1.04;vertical-align:bottom}
+#tc-checkout .tw > table > tbody > tr > td{padding:2px 8px;font-size:12px;line-height:1.1;vertical-align:middle}
+#tc-checkout .tw .abtn{padding:1px 7px;font-size:11px}
+/* 库存记录 Records：减小表头/单元格内边距与行高 */
+#tc-records .tw > table{font-size:13px;line-height:1.15;font-family:var(--csm-font-en);font-weight:700}
+#tc-records .tw > table > thead > tr > th{padding:5px 10px 3px;font-size:13px;line-height:1.08;vertical-align:bottom}
+#tc-records .tw > table > tbody > tr > td{padding:3px 10px;font-size:13px;line-height:1.15;vertical-align:middle}
+#tc-records .tw .abtn{padding:2px 8px;font-size:12px}
 table{width:max-content;min-width:100%;border-collapse:collapse;font-size:14px}
 th{background:var(--bg2);padding:12px 14px;text-align:left;font-size:14px;font-family:var(--csm-font-en);font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--tx);border-bottom:2px solid var(--bd);white-space:nowrap}
 td{padding:11px 14px;border-bottom:1px solid rgba(48,54,61,.5);color:var(--tx);white-space:nowrap;font-size:14px;font-family:var(--csm-font-en);font-weight:700}
@@ -109,6 +119,12 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 .csm-sales-pager{display:none;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(48,54,61,.25);font-size:13px;color:var(--tx);font-family:var(--csm-font-en);font-weight:700}
 .csm-sales-pager-ps{display:inline-flex;align-items:center;gap:6px}
 .csm-sales-pager-nav{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+/* Warehouse1 purchase / records / checkout table pagination */
+.csm-w1-pager{display:none;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:10px;padding:8px 10px;background:var(--bg2);border:1px solid var(--bd);border-radius:6px;font-size:12px;font-family:var(--csm-font-en);font-weight:700;color:var(--tx)}
+.csm-w1-pager label{margin:0;white-space:nowrap}
+.csm-w1-pager select{padding:4px 8px;border-radius:4px;border:1px solid var(--bd);font-family:var(--csm-font-en);font-weight:700;font-size:12px;background:#fff;color:var(--tx)}
+.csm-w1-pager .btn{padding:4px 10px;font-size:12px;text-transform:none;letter-spacing:.02em}
+#w1-pager-purchase-info,#w1-pager-records-info,#w1-pager-checkout-info{flex:1;min-width:180px;color:#555;font-size:12px;line-height:1.35;font-family:var(--csm-font-en);font-weight:700}
 /* Sales > Orders: flex item min-width so wide table triggers horizontal scroll inside .tw */
 #tc-sales > #sales-panel-dash,
 #tc-sales > #sales-panel-customers,
@@ -416,7 +432,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260422fin-recon-modal-tweak" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260422w1-table-pager" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -1055,6 +1071,19 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <button class="btn btn-g" onclick="resetPurchaseSearch()">重置 Reset</button>
     </div>
     <div class="tw csm-purchase-list-wrap"><table class="csm-purchase-table"><thead><tr><th>Seq No<br><span>序列号</span></th><th>Container<br><span>集装箱号</span></th><th>Supplier<br><span>供应商</span></th><th>Product<br><span>品名</span></th><th>Date<br><span>采购日期</span></th><th>Quantity<br><span>数量</span></th><th>Rem. Items<br><span>剩余件数</span></th><th>Demurrage<br><span>停柜费</span></th><th>Logistics<br><span>清关费</span></th><th>Cold Fee<br><span>冷藏费</span></th><th>Attestation<br><span>单据认证</span></th><th>Repack<br><span>翻包费</span></th><th>Waste<br><span>垃圾费</span></th><th>Other<br><span>其他</span></th><th>Total<br><span>合计</span></th><th>Action<br><span>操作</span></th></tr></thead><tbody id="tb-purchase"></tbody></table></div>
+    <div class="csm-w1-pager" id="w1-pager-purchase" style="display:none">
+      <label for="w1-pager-purchase-size">Rows / page · 每页行数</label>
+      <select id="w1-pager-purchase-size" onchange="csmW1SetPageSize('purchase', this.value)" title="Same container group stays together when possible · 同一集装箱主行与子行尽量同页">
+        <option value="10">10</option>
+        <option value="20" selected>20</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+        <option value="0">All · 全部</option>
+      </select>
+      <span id="w1-pager-purchase-info"></span>
+      <button type="button" class="btn" id="w1-pager-purchase-prev" onclick="csmW1PagePrev('purchase')">Prev · 上一页</button>
+      <button type="button" class="btn" id="w1-pager-purchase-next" onclick="csmW1PageNext('purchase')">Next · 下一页</button>
+    </div>
     <div class="es" id="es-purchase" style="display:none"><div class="em">📭</div><div>暂无采购记录 / No Purchase Records</div></div>
   </div>
 
@@ -1062,7 +1091,20 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
       <button type="button" id="btn-clear-records" class="btn" style="background:#cc0000;color:#fff;border-color:#cc0000" onclick="showClearModal('records')">🗑️ 清空记录</button>
     </div>
-    <div class="tw"><table><thead><tr><th style="font-family:Arial;font-size:14px">序列号<br><span style="text-transform:capitalize">Seq No</span></th><th style="font-family:Arial;font-size:14px">集装箱<br><span style="text-transform:capitalize">Container</span></th><th style="font-family:Arial;font-size:14px">供应商<br><span style="text-transform:capitalize">Supplier</span></th><th style="font-family:Arial;font-size:14px">品名<br><span style="text-transform:capitalize">Product</span></th><th style="font-family:Arial;font-size:14px">门店<br><span style="text-transform:capitalize">Store</span></th><th style="font-family:Arial;font-size:14px">托盘 入库/剩余<br><span style="text-transform:capitalize">Pallets In/Rem</span></th><th style="font-family:Arial;font-size:14px">件数 入库/剩余<br><span style="text-transform:capitalize">Items In/Rem</span></th><th style="font-family:Arial;font-size:14px">入库时间<br><span style="text-transform:capitalize">In Date</span></th><th style="font-family:Arial;font-size:14px">出库时间<br><span style="text-transform:capitalize">Out Date</span></th><th style="font-family:Arial;font-size:14px">费用<br><span style="text-transform:capitalize">Fee</span></th><th style="font-family:Arial;font-size:14px">状态<br><span style="text-transform:capitalize">Status</span></th><th style="font-family:Arial;font-size:14px">操作<br><span style="text-transform:capitalize">Action</span></th></tr></thead><tbody id="tb-all"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th style="font-family:Arial;font-size:13px">序列号<br><span style="text-transform:capitalize">Seq No</span></th><th style="font-family:Arial;font-size:13px">集装箱<br><span style="text-transform:capitalize">Container</span></th><th style="font-family:Arial;font-size:13px">供应商<br><span style="text-transform:capitalize">Supplier</span></th><th style="font-family:Arial;font-size:13px">品名<br><span style="text-transform:capitalize">Product</span></th><th style="font-family:Arial;font-size:13px">门店<br><span style="text-transform:capitalize">Store</span></th><th style="font-family:Arial;font-size:13px">托盘 入库/剩余<br><span style="text-transform:capitalize">Pallets In/Rem</span></th><th style="font-family:Arial;font-size:13px">件数 入库/剩余<br><span style="text-transform:capitalize">Items In/Rem</span></th><th style="font-family:Arial;font-size:13px">入库时间<br><span style="text-transform:capitalize">In Date</span></th><th style="font-family:Arial;font-size:13px">出库时间<br><span style="text-transform:capitalize">Out Date</span></th><th style="font-family:Arial;font-size:13px">费用<br><span style="text-transform:capitalize">Fee</span></th><th style="font-family:Arial;font-size:13px">状态<br><span style="text-transform:capitalize">Status</span></th><th style="font-family:Arial;font-size:13px">操作<br><span style="text-transform:capitalize">Action</span></th></tr></thead><tbody id="tb-all"></tbody></table></div>
+    <div class="csm-w1-pager" id="w1-pager-records" style="display:none">
+      <label for="w1-pager-records-size">Rows / page · 每页行数</label>
+      <select id="w1-pager-records-size" onchange="csmW1SetPageSize('records', this.value)">
+        <option value="10">10</option>
+        <option value="20" selected>20</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+        <option value="0">All · 全部</option>
+      </select>
+      <span id="w1-pager-records-info"></span>
+      <button type="button" class="btn" id="w1-pager-records-prev" onclick="csmW1PagePrev('records')">Prev · 上一页</button>
+      <button type="button" class="btn" id="w1-pager-records-next" onclick="csmW1PageNext('records')">Next · 下一页</button>
+    </div>
     <div class="es" id="es-all" style="display:none"><div class="em">📭</div><div>暂无记录 / No Records Yet</div></div>
   </div>
 
@@ -1099,7 +1141,20 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
       <button type="button" id="btn-clear-checkout" class="btn" style="background:#cc0000;color:#fff;border-color:#cc0000" onclick="showClearModal('checkout')">🗑️ 清空记录</button>
     </div>
-    <div class="tw"><table><thead><tr><th style="font-family:Arial;font-size:14px">Seq No<br><span style="text-transform:capitalize;font-size:11px;color:#666">序列号</span></th><th style="font-family:Arial;font-size:14px">集装箱号<br><span style="text-transform:capitalize">Container</span></th><th style="font-family:Arial;font-size:14px">供应商<br><span style="text-transform:capitalize">Supplier</span></th><th style="font-family:Arial;font-size:14px">品名<br><span style="text-transform:capitalize">Product</span></th><th style="font-family:Arial;font-size:14px">周/日期<br><span style="text-transform:capitalize">Week/Date</span></th><th style="font-family:Arial;font-size:14px">托盘数<br><span style="text-transform:capitalize">Pallets</span></th><th style="font-family:Arial;font-size:14px">出库托盘<br><span style="text-transform:capitalize">Out Pallets</span></th><th style="font-family:Arial;font-size:14px">出库件数<br><span style="text-transform:capitalize">Out Items</span></th><th style="font-family:Arial;font-size:14px">剩余件数<br><span style="text-transform:capitalize">Rem. Items</span></th><th style="font-family:Arial;font-size:14px">入库件数<br><span style="text-transform:capitalize">In Items</span></th><th style="font-family:Arial;font-size:14px">单价<br><span style="text-transform:capitalize">Price</span></th><th style="font-family:Arial;font-size:14px">金额<br><span style="text-transform:capitalize">Amount</span></th><th style="font-family:Arial;font-size:14px">5% VAT</th><th style="font-family:Arial;font-size:14px">合计<br><span style="text-transform:capitalize">Total</span></th><th style="font-family:Arial;font-size:14px">操作<br><span style="text-transform:capitalize">Action</span></th></tr></thead><tbody id="tb-checkout"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th style="font-family:Arial;font-size:12px">Seq No<br><span style="text-transform:capitalize;font-size:10px;color:#666">序列号</span></th><th style="font-family:Arial;font-size:12px">集装箱号<br><span style="text-transform:capitalize">Container</span></th><th style="font-family:Arial;font-size:12px">供应商<br><span style="text-transform:capitalize">Supplier</span></th><th style="font-family:Arial;font-size:12px">品名<br><span style="text-transform:capitalize">Product</span></th><th style="font-family:Arial;font-size:12px">周/日期<br><span style="text-transform:capitalize">Week/Date</span></th><th style="font-family:Arial;font-size:12px">托盘数<br><span style="text-transform:capitalize">Pallets</span></th><th style="font-family:Arial;font-size:12px">出库托盘<br><span style="text-transform:capitalize">Out Pallets</span></th><th style="font-family:Arial;font-size:12px">出库件数<br><span style="text-transform:capitalize">Out Items</span></th><th style="font-family:Arial;font-size:12px">剩余件数<br><span style="text-transform:capitalize">Rem. Items</span></th><th style="font-family:Arial;font-size:12px">入库件数<br><span style="text-transform:capitalize">In Items</span></th><th style="font-family:Arial;font-size:12px">单价<br><span style="text-transform:capitalize">Price</span></th><th style="font-family:Arial;font-size:12px">金额<br><span style="text-transform:capitalize">Amount</span></th><th style="font-family:Arial;font-size:12px">5% VAT</th><th style="font-family:Arial;font-size:12px">合计<br><span style="text-transform:capitalize">Total</span></th><th style="font-family:Arial;font-size:12px">操作<br><span style="text-transform:capitalize">Action</span></th></tr></thead><tbody id="tb-checkout"></tbody></table></div>
+    <div class="csm-w1-pager" id="w1-pager-checkout" style="display:none">
+      <label for="w1-pager-checkout-size">Rows / page · 每页行数</label>
+      <select id="w1-pager-checkout-size" onchange="csmW1SetPageSize('checkout', this.value)">
+        <option value="10">10</option>
+        <option value="20" selected>20</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+        <option value="0">All · 全部</option>
+      </select>
+      <span id="w1-pager-checkout-info"></span>
+      <button type="button" class="btn" id="w1-pager-checkout-prev" onclick="csmW1PagePrev('checkout')">Prev · 上一页</button>
+      <button type="button" class="btn" id="w1-pager-checkout-next" onclick="csmW1PageNext('checkout')">Next · 下一页</button>
+    </div>
     <div class="es" id="es-checkout" style="display:none"><div class="em">📭</div><div>暂无出库记录 / No Checkout Records</div></div>
   </div>
 

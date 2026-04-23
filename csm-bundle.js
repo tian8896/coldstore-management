@@ -5258,22 +5258,16 @@ function csmFinCnReconPrintData(cn) {
 }
 function csmOpenPrintHtmlDocument(docHtml, printTitle) {
   var w = null;
-  var blobUrl = '';
   try {
-    var blob = new Blob([String(docHtml || '')], { type: 'text/html;charset=utf-8' });
-    blobUrl = URL.createObjectURL(blob);
-    w = window.open(blobUrl, '_blank');
+    w = window.open('', '_blank');
   } catch (e1) {
     w = null;
   }
-  if (!w) {
+  if (w && w.document) {
     try {
-      w = window.open('', '_blank');
-      if (w && w.document) {
-        w.document.open();
-        w.document.write(String(docHtml || ''));
-        w.document.close();
-      }
+      w.document.open();
+      w.document.write(String(docHtml || ''));
+      w.document.close();
     } catch (e2) {
       w = null;
     }
@@ -5291,11 +5285,6 @@ function csmOpenPrintHtmlDocument(docHtml, printTitle) {
       w.focus();
       w.print();
     } catch (e4) {}
-    if (blobUrl) {
-      setTimeout(function() {
-        try { URL.revokeObjectURL(blobUrl); } catch (e5) {}
-      }, 60000);
-    }
   }
   try {
     w.onload = function() {
@@ -5557,20 +5546,22 @@ function printFinCnReconDetailPdf() {
   });
   var parts = [];
   parts.push('<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Container Detail PDF</title><style>');
-  parts.push('body{font-family:Arial,Helvetica,sans-serif;font-weight:700;padding:24px;color:#111827;font-size:14px}');
-  parts.push('h1{font-size:20px;margin:0 0 6px}h2{font-size:14px;margin:0 0 18px;color:#475569;font-weight:700}');
-  parts.push('.meta{margin:0 0 18px}.meta div{margin:5px 0}');
-  parts.push('.sec{margin-top:18px}.sec h3{font-size:15px;margin:0 0 8px;color:#0f172a}');
-  parts.push('table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #cbd5e1;padding:7px 8px;text-align:left;vertical-align:top}');
+  parts.push('@page{size:A4 portrait;margin:8mm}');
+  parts.push('html,body{margin:0;padding:0;background:#fff}');
+  parts.push('body{font-family:Arial,Helvetica,sans-serif;font-weight:700;padding:8mm;color:#111827;font-size:12px;line-height:1.18;box-sizing:border-box}');
+  parts.push('h1{font-size:17px;line-height:1.15;margin:0 0 8px}');
+  parts.push('.meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 14px;margin:0 0 10px}.meta div{margin:0}');
+  parts.push('.sec{margin-top:10px}.sec h3{font-size:13px;line-height:1.15;margin:0 0 5px;color:#0f172a}');
+  parts.push('table{width:100%;border-collapse:collapse;font-size:11px;line-height:1.1}th,td{border:1px solid #cbd5e1;padding:4px 6px;text-align:left;vertical-align:top}');
   parts.push('th{background:#f8fafc}.num{text-align:right;font-variant-numeric:tabular-nums}');
-  parts.push('.balance{margin-top:16px;padding:10px 12px;border:1px solid #cbd5e1;background:#f8fafc;display:table;width:100%;table-layout:fixed;box-sizing:border-box}');
-  parts.push('.balance .lbl,.balance .val{display:table-cell;vertical-align:bottom}.balance .lbl{font-size:12px;color:#111827}.balance .val{font-size:18px;color:#111827;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;width:180px}');
-  parts.push('@media print{body{padding:10px}}</style></head><body>');
+  parts.push('tfoot td{background:#f8fafc}');
+  parts.push('.balance{margin-top:10px;padding:8px 10px;border:1px solid #cbd5e1;background:#f8fafc;display:table;width:100%;table-layout:fixed;box-sizing:border-box}');
+  parts.push('.balance .lbl,.balance .val{display:table-cell;vertical-align:bottom}.balance .lbl{font-size:11px;color:#111827}.balance .val{font-size:16px;color:#111827;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;width:170px}');
+  parts.push('@media print{html,body{width:210mm;height:auto}body{padding:6mm}.sec{break-inside:avoid}table{break-inside:auto}tr{break-inside:avoid}}</style></head><body>');
   parts.push('<h1>Container reconciliation detail / 集装箱对账明细</h1>');
-  parts.push('<h2>Print to PDF summary</h2>');
   parts.push('<div class="meta">');
-  parts.push('<div><strong>Supplier</strong> ' + csmEscapeHtml(data.supplierName || '—') + '</div>');
-  parts.push('<div><strong>Container</strong> ' + csmEscapeHtml(data.cn) + '</div>');
+  parts.push('<div><strong>Supplier name</strong> ' + csmEscapeHtml(data.supplierName || '—') + '</div>');
+  parts.push('<div><strong>Container number</strong> ' + csmEscapeHtml(data.cn) + '</div>');
   parts.push('</div>');
   parts.push('<div class="sec"><h3>Sales details / 销售明细</h3>');
   parts.push('<table><thead><tr><th>Product / 品名</th><th class="num">Net unit</th><th class="num">Qty</th><th class="num">Net amount</th></tr></thead><tbody>');
@@ -5593,9 +5584,8 @@ function printFinCnReconDetailPdf() {
   }
   parts.push('</tbody><tfoot><tr><td style="text-align:right"><strong>Total fees</strong></td><td class="num"><strong>' + csmSalesRound2(data.expenseTotal).toFixed(2) + '</strong></td></tr></tfoot></table></div>');
   parts.push('<div class="balance"><div class="lbl">Balance amount / 结余金额</div><div class="val">' + csmSalesRound2(data.balance).toFixed(2) + ' AED</div></div>');
-  parts.push('<p style="margin-top:18px;font-size:11px;color:#64748b">Printed ' + csmEscapeHtml(csmSalesFormatOrderCreated(data.printedAt)) + '</p>');
   parts.push('</body></html>');
-  csmOpenPrintHtmlDocument(parts.join(''), 'Container Detail PDF');
+  csmOpenPrintHtmlDocument(parts.join(''), '');
 }
 function clFinCnReconDetailModal() {
   var m = gid('fin-cn-recon-detail-modal');

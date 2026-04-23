@@ -6,7 +6,7 @@ const SK = 'csm_warehouse1';const LOCAL_STORAGE_KEY = 'csm_records_v3';
 var firebaseConfig = {  apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',  authDomain: 'superharves-cold-store.firebaseapp.com',  databaseURL: 'https://api.superharvest.com.cn?ns=superharves-cold-store-default-rtdb',  projectId: 'superharves-cold-store',  storageBucket: 'superharves-cold-store.firebasestorage.app',  messagingSenderId: '379038228954',  appId: '1:379038228954:web:e64fa3be3f2f49b3aae0e3'};try { window.firebaseConfig = firebaseConfig; } catch (eCfg) {}var dbRef = null;var legacyDbRef = null;var purchaseRef = null;var salesCustomersRef = null;var salesPaymentReceiversRef = null;var salesWorkersRef = null;var salesTrucksRef = null;var salesOrdersRef = null;var salesPaymentsRef = null;var settingsMetaRef = null;var finRootRef = null;var finInboxRef = null;var finJournalsRef = null;var finJournalLinesRef = null;var finArRef = null;var finApRef = null;var finCashRef = null;var finBankRef = null;var finVatRef = null;var finCorporateTaxRef = null;var auth = null;var primaryRecsVal = {};var legacyRecsVal = {};
 var salesCustomers = [];var salesPaymentReceivers = [];var salesWorkers = [];var salesTrucks = [];var salesOrders = [];var salesPayments = [];var salesSubView = 'dash';var salesOrdersPage = 1;var salesOrdersPageSize = 20;var salesFinancePage = 1;var salesFinancePageSize = 20;
 var salesWtSettlementsRef = null;var salesWtSettlements = [];var finSubView = 'orders';var companyFinView = 'dashboard';
-var customsFeePendingRef = null;var customsFeeRequests = [];
+var customsFeePendingRef = null;var customsFeeRequests = [];var finPendingSelectedCategoryKey = null;
 // 冷库费率（可配置，默认值）
 // HK Store (store 1): 38 AED/托盘/周 + 5% VAT
 // Primer / Super / Cold Store 4 (store 2–4): 60 AED/托盘/周 + 5% VAT
@@ -6884,21 +6884,17 @@ function csmFinCustomsFeeTypeDefs() {
     { key: 'other', cn: '其他费用', en: 'Other charge' }
   ];
 }
-function csmFinPendingCustomsBadgeDefs() {
+function csmFinPendingAllCategoryDefs() {
   return [
-    { key: 'logistics', cn: '停柜费', en: 'Logistics' },
-    { key: 'coldFee', cn: '清关费', en: 'Cold Fee' },
-    { key: 'attestation', cn: '冷藏费', en: 'Attestation' },
-    { key: 'repack', cn: '单据认证', en: 'Repack' },
-    { key: 'waste', cn: '翻包费', en: 'Waste' },
-    { key: 'wasteCharge', cn: '垃圾处理费', en: 'Waste charge' },
-    { key: 'other', cn: '其他费用', en: 'Other charge' }
-  ];
-}
-function csmFinPendingWtPairBadgeDefs() {
-  return [
-    { key: 'wtWorker', cn: '卸货费', en: 'Worker' },
-    { key: 'wtTruck', cn: '送货费', en: 'Truck' }
+    { key: 'logistics', kind: 'customs', tag: 'Parking', cn: '停柜费', en: 'Logistics' },
+    { key: 'coldFee', kind: 'customs', cn: '清关费', en: 'Cold Fee' },
+    { key: 'attestation', kind: 'customs', cn: '冷藏费', en: 'Attestation' },
+    { key: 'repack', kind: 'customs', cn: '单据认证', en: 'Repack' },
+    { key: 'waste', kind: 'customs', cn: '翻包费', en: 'Waste' },
+    { key: 'wtWorker', kind: 'wt', cn: '卸货费', en: 'Worker' },
+    { key: 'wtTruck', kind: 'wt', cn: '送货费', en: 'Truck' },
+    { key: 'wasteCharge', kind: 'customs', cn: '垃圾处理费', en: 'Waste charge' },
+    { key: 'other', kind: 'customs', cn: '其他费用', en: 'Other charge' }
   ];
 }
 function csmFinWtBatchWorkerTruckSums(b) {
@@ -6910,12 +6906,11 @@ function csmFinWtBatchWorkerTruckSums(b) {
   });
   return { worker: csmSalesRound2(w), truck: csmSalesRound2(t) };
 }
-function renderFinPendingModuleBadges() {
-  var wrap = gid('fin-pending-module-badges');
+function csmFinPendingComputeCategoryCounts() {
   var cPend = (customsFeeRequests || []).filter(function(r) { return String(r && r.status || 'pending') === 'pending'; });
   var wPend = (salesWtSettlements || []).filter(function(b) { return String(b && b.status || '') === 'pending'; });
   var counts = {};
-  csmFinPendingCustomsBadgeDefs().concat(csmFinPendingWtPairBadgeDefs()).forEach(function(m) { counts[m.key] = 0; });
+  csmFinPendingAllCategoryDefs().forEach(function(m) { counts[m.key] = 0; });
   cPend.forEach(function(r) {
     var lines = (r && r.lines) || {};
     csmFinCustomsFeeTypeDefs().forEach(function(d) {
@@ -6927,57 +6922,163 @@ function renderFinPendingModuleBadges() {
     if (s.worker > 0) counts.wtWorker += 1;
     if (s.truck > 0) counts.wtTruck += 1;
   });
+  return counts;
+}
+function csmFinPendingBuildWtRowsHtml(pending) {
+  return pending.map(function(b) {
+    var wN = (salesWorkers || []).find(function(x) { return x.id === b.filterWorkerId; });
+    var tN = (salesTrucks || []).find(function(x) { return x.id === b.filterTruckId; });
+    var wLab = wN ? String(wN.name || '').trim() : (b.filterWorkerId ? '—' : 'All');
+    var tLab = tN ? String(tN.name || '').trim() : (b.filterTruckId ? '—' : 'All');
+    var period = (b.dateStart || '—') + ' → ' + (b.dateEnd || '—');
+    var gross = b.grossAed != null ? Number(b.grossAed) : 0;
+    var nLines = (b.lineKeys || []).length;
+    var by = csmEscapeHtml(String(b.createdBy || '—'));
+    var detailId = csmFinPendingDetailDomId(b.id);
+    var canApr = csmFinWtCanConfirmPaid();
+    var btnApr = canApr
+      ? '<button type="button" class="abtn" style="background:#2e7d32;color:#fff;border:none;font-family:var(--csm-font-en);font-weight:700" onclick="csmFinWtQuickApprove(' + JSON.stringify(b.id) + ')">Approve · 批准</button>'
+      : '<span style="color:#888;font-size:12px;font-family:var(--csm-font-en);font-weight:700">Admin only · 仅管理员</span>';
+    var btnCustom = canApr
+      ? ' <button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="csmFinWtOpenConfirm(' + JSON.stringify(b.id) + ')">Set amount · 金额…</button>'
+      : '';
+    var btnDetail = '<button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="csmFinPendingToggle(' + JSON.stringify(b.id) + ')">Detail · 明细</button>';
+    return '<tr><td style="padding:10px 12px;font-size:12px">' + csmEscapeHtml(csmSalesFormatOrderCreated(b.createdAt)) + '</td>' +
+      '<td style="padding:10px 12px;font-size:12px;max-width:160px;white-space:normal;word-break:break-all">' + by + '</td>' +
+      '<td style="padding:10px 12px;font-size:11px;max-width:200px;white-space:normal">' + csmEscapeHtml(period) + '</td>' +
+      '<td style="padding:10px 12px">' + csmEscapeHtml(wLab) + '</td><td style="padding:10px 12px">' + csmEscapeHtml(tLab) + '</td>' +
+      '<td style="padding:10px 12px;text-align:center">' + csmEscapeHtml(String(nLines)) + '</td>' +
+      '<td style="padding:10px 12px;text-align:right">' + gross.toFixed(2) + '</td>' +
+      '<td style="padding:10px 12px;white-space:normal">' + btnDetail + ' ' + btnApr + btnCustom + '</td></tr>' +
+      '<tr id="' + detailId + '" class="fin-pending-detail" style="display:none"><td colspan="8" style="padding:12px 14px;border-bottom:1px solid #ffe0b2">' + csmFinWtPendingDetailInnerHtml(b) + '</td></tr>';
+  }).join('');
+}
+function csmFinPendingBuildCustomsRowsHtml(pending, lineKey) {
+  var canApr = !!(isAdmin && customsFeePendingRef);
+  return pending.map(function(r) {
+    var lineAmt = csmFinNum((r.lines || {})[lineKey]);
+    var sumTxt = csmEscapeHtml(csmFinCustomsSummaryText(r));
+    var refNo = csmEscapeHtml(String(r.refNo || r.reference || '—'));
+    var bl = csmEscapeHtml(String(r.bl || r.billOfLading || '—'));
+    var cn = csmEscapeHtml(String(r.containerNo || r.cn || '—'));
+    var by = csmEscapeHtml(String(r.submittedBy || r.createdBy || '—'));
+    var rid = r.id;
+    var btnApr = canApr
+      ? '<button type="button" class="abtn" style="background:#5b21b6;color:#fff;border:none;font-family:var(--csm-font-en);font-weight:700" onclick="csmFinCustomsApprove(' + JSON.stringify(rid) + ')">Approve · 批准</button>'
+      : '<span style="color:#888;font-size:12px;font-family:var(--csm-font-en);font-weight:700">Admin only · 仅管理员</span>';
+    return '<tr><td style="padding:10px 12px;font-size:12px">' + csmEscapeHtml(csmSalesFormatOrderCreated(r.createdAt)) + '</td>' +
+      '<td style="padding:10px 12px;font-size:12px;max-width:140px;word-break:break-all">' + by + '</td>' +
+      '<td style="padding:10px 12px;font-family:var(--csm-font-en);font-weight:700">' + refNo + '</td>' +
+      '<td style="padding:10px 12px;font-size:12px"><div>BL: ' + bl + '</div><div>CN: ' + cn + '</div></td>' +
+      '<td style="padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums">' + csmSalesRound2(lineAmt).toFixed(2) + '</td>' +
+      '<td style="padding:10px 12px;font-size:11px;color:#334155;max-width:260px;line-height:1.35">' + sumTxt + '</td>' +
+      '<td style="padding:10px 12px;white-space:normal">' + btnApr + '</td></tr>';
+  }).join('');
+}
+function csmFinPendingSelectCategory(key) {
+  key = String(key == null ? '' : key).trim();
+  if (!key) {
+    finPendingSelectedCategoryKey = null;
+  } else if (finPendingSelectedCategoryKey === key) {
+    finPendingSelectedCategoryKey = null;
+  } else {
+    finPendingSelectedCategoryKey = key;
+  }
+  try { renderFinPendingModuleBadges(); } catch (e0) {}
+  try { renderFinPendingCategoryPanel(); } catch (e1) {}
+}
+function renderFinPendingCategoryPanel() {
+  var panel = gid('fin-pending-category-panel');
+  var wWrap = gid('fin-pending-wt-wrap');
+  var cWrap = gid('fin-pending-customs-wrap');
+  var titleEl = gid('fin-pending-category-title');
+  var subEl = gid('fin-pending-category-subtitle');
+  var emptyEl = gid('fin-pending-panel-empty');
+  var twTb = gid('tb-fin-pending-cat-wt');
+  var cuTb = gid('tb-fin-pending-cat-customs');
+  if (!panel) return;
+  var k = finPendingSelectedCategoryKey;
+  if (!k) {
+    panel.style.display = 'none';
+    if (wWrap) wWrap.style.display = 'none';
+    if (cWrap) cWrap.style.display = 'none';
+    if (emptyEl) emptyEl.style.display = 'none';
+    return;
+  }
+  var def = csmFinPendingAllCategoryDefs().find(function(d) { return d.key === k; });
+  if (!def) {
+    finPendingSelectedCategoryKey = null;
+    panel.style.display = 'none';
+    return;
+  }
+  var titleParts = def.tag
+    ? '<span style="font-size:12px;font-family:var(--csm-font-en);font-weight:700;color:#64748b">' + csmEscapeHtml(def.tag) + '</span> ' + csmEscapeHtml(def.cn) + ' · ' + csmEscapeHtml(def.en)
+    : csmEscapeHtml(def.cn) + ' · ' + csmEscapeHtml(def.en);
+  if (titleEl) titleEl.innerHTML = titleParts;
+  if (subEl) subEl.textContent = (def.kind === 'wt' ? 'Worker / Truck settlement' : 'Customs fee request') + ' / ' + (def.kind === 'wt' ? '装卸结算待审批' : '清关费用待审批');
+  if (def.kind === 'wt') {
+    if (cWrap) cWrap.style.display = 'none';
+    if (wWrap) wWrap.style.display = 'block';
+    if (emptyEl) emptyEl.style.display = 'none';
+    panel.style.display = 'block';
+    var wPend = (salesWtSettlements || []).filter(function(b) { return String(b && b.status || '') === 'pending'; });
+    wPend = wPend.filter(function(b) {
+      var s = csmFinWtBatchWorkerTruckSums(b);
+      return k === 'wtWorker' ? s.worker > 0 : s.truck > 0;
+    });
+    if (twTb) {
+      if (!wPend.length) {
+        twTb.innerHTML = '';
+        if (emptyEl) { emptyEl.style.display = 'block'; emptyEl.textContent = 'No items in this category. · 该分类下暂无待审批。'; }
+      } else {
+        if (emptyEl) emptyEl.style.display = 'none';
+        twTb.innerHTML = csmFinPendingBuildWtRowsHtml(wPend);
+      }
+    }
+  } else {
+    if (wWrap) wWrap.style.display = 'none';
+    if (cWrap) cWrap.style.display = 'block';
+    panel.style.display = 'block';
+    var cPend = (customsFeeRequests || []).filter(function(r) { return String(r && r.status || 'pending') === 'pending'; });
+    cPend = cPend.filter(function(r) { return csmFinNum((r.lines || {})[k]) > 0; });
+    if (cuTb) {
+      if (!cPend.length) {
+        cuTb.innerHTML = '';
+        if (emptyEl) { emptyEl.style.display = 'block'; emptyEl.textContent = 'No items in this category. · 该分类下暂无待审批。'; }
+      } else {
+        if (emptyEl) emptyEl.style.display = 'none';
+        cuTb.innerHTML = csmFinPendingBuildCustomsRowsHtml(cPend, k);
+      }
+    }
+  }
+}
+function renderFinPendingModuleBadges() {
+  var wrap = gid('fin-pending-module-badges');
+  var counts = csmFinPendingComputeCategoryCounts();
   if (wrap) {
-    wrap.innerHTML = csmFinPendingCustomsBadgeDefs().map(function(m) {
+    wrap.innerHTML = csmFinPendingAllCategoryDefs().map(function(m) {
       var n = csmFinNum(counts[m.key]);
       var nStyle = n > 0
         ? 'background:#0f172a;color:#fff;min-width:28px;padding:2px 9px;border-radius:999px;text-align:center;font-size:12px'
         : 'background:#e2e8f0;color:#94a3b8;min-width:28px;padding:2px 9px;border-radius:999px;text-align:center;font-size:12px';
+      var sel = finPendingSelectedCategoryKey === m.key;
+      var bd = sel ? '2px solid #5b21b6' : '1px solid #c4b5fd';
+      var bg = sel ? 'linear-gradient(135deg,#eef2ff,#fff7ed)' : '#fff';
+      var line1 = m.tag
+        ? '<div style="font-size:10px;font-family:var(--csm-font-en);font-weight:700;color:#64748b;margin-bottom:2px">' + csmEscapeHtml(m.tag) + '</div><div><span style="color:#334155">' + csmEscapeHtml(m.cn) + '</span> · <span style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(m.en) + '</span></div>'
+        : '<div><span style="color:#334155">' + csmEscapeHtml(m.cn) + '</span> · <span style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(m.en) + '</span></div>';
       return (
-        '<div style="background:#fff;border:1px solid #c4b5fd;border-radius:8px;padding:8px 10px;line-height:1.45;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;box-shadow:0 1px 2px rgba(0,0,0,.04)">' +
-          '<div style="flex:1;min-width:0;font-size:12px"><span style="color:#334155">' + csmEscapeHtml(m.cn) + '</span> · ' +
-          '<span style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(m.en) + '</span></div>' +
+        '<button type="button" class="csm-pending-cat-tile" onclick="csmFinPendingSelectCategory(' + JSON.stringify(m.key) + ')" ' +
+        'style="font-family:var(--csm-font-en);font-weight:700;cursor:pointer;text-align:left;width:100%;box-sizing:border-box;margin:0;background:' + bg + ';border:' + bd + ';border-radius:8px;padding:8px 10px;line-height:1.4;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;box-shadow:0 1px 2px rgba(0,0,0,.04)">' +
+          '<div style="flex:1;min-width:0;font-size:12px">' + line1 + '</div>' +
           '<span style="font-family:var(--csm-font-en);font-weight:700;flex-shrink:0;' + nStyle + '">' + String(n) + '</span>' +
-          '</div>'
+        '</button>'
       );
     }).join('');
-  }
-  var wInline = gid('fin-pending-worker-inline-badges');
-  if (wInline) {
-    wInline.innerHTML = csmFinPendingWtPairBadgeDefs().map(function(m) {
-      var n = csmFinNum(counts[m.key]);
-      var nStyle = n > 0
-        ? 'background:#e65100;color:#fff;min-width:26px;padding:2px 8px;border-radius:999px;text-align:center;font-size:11px'
-        : 'background:#f1f5f9;color:#94a3b8;min-width:26px;padding:2px 8px;border-radius:999px;text-align:center;font-size:11px';
-      return (
-        '<div style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #ffe0b2;border-radius:8px;padding:4px 10px;font-size:12px;box-shadow:0 1px 2px rgba(0,0,0,.04)">' +
-          '<span style="color:#5d4037">' + csmEscapeHtml(m.cn) + '</span> · ' +
-          '<span style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(m.en) + '</span>' +
-          '<span style="font-family:var(--csm-font-en);font-weight:700;' + nStyle + '">' + String(n) + '</span></div>'
-      );
-    }).join('');
-  }
-}
-function csmFinPendingToggleWTPanel() {
-  var panel = gid('fin-pending-wt-panel');
-  var btn = gid('fin-pending-worker-btn');
-  if (!panel) return;
-  var cur = 'block';
-  try { cur = window.getComputedStyle(panel).display; } catch (e0) { cur = (panel.style.display && panel.style.display !== 'none') ? panel.style.display : 'none'; }
-  var willShow = cur === 'none';
-  panel.style.display = willShow ? 'block' : 'none';
-  if (btn) {
-    if (willShow) {
-      btn.setAttribute('aria-expanded', 'true');
-      btn.classList.add('csm-pending-wt-open');
-    } else {
-      btn.setAttribute('aria-expanded', 'false');
-      btn.classList.remove('csm-pending-wt-open');
-    }
   }
 }
 try { window.renderFinPendingModuleBadges = renderFinPendingModuleBadges; } catch (eFpb) {}
-try { window.csmFinPendingToggleWTPanel = csmFinPendingToggleWTPanel; } catch (eWtTgl) {}
+try { window.csmFinPendingSelectCategory = csmFinPendingSelectCategory; } catch (eFpb2) {}
 function csmFinCustomsLinesTotal(lines) {
   lines = lines || {};
   var t = 0;
@@ -6996,45 +7097,13 @@ function csmFinCustomsSummaryText(r) {
   return parts.length ? parts.join(' · ') : '—';
 }
 function renderCompanyFinancialPendingCustoms() {
-  var tb = gid('tb-fin-pending-customs');
-  var empty = gid('fin-pending-customs-empty');
   var countEl = gid('fin-pending-customs-count');
-  if (!tb) {
-    try { renderFinPendingModuleBadges(); } catch (eBdgC) {}
-    return;
-  }
   var pending = (customsFeeRequests || []).filter(function(r) {
     return String(r.status || 'pending') === 'pending';
   });
   if (countEl) countEl.textContent = String(pending.length);
-  if (!pending.length) {
-    tb.innerHTML = '';
-    if (empty) empty.style.display = 'block';
-    try { renderFinPendingModuleBadges(); } catch (eBdg2) {}
-    return;
-  }
-  if (empty) empty.style.display = 'none';
-  var canApr = !!(isAdmin && customsFeePendingRef);
-  tb.innerHTML = pending.map(function(r) {
-    var total = csmFinCustomsLinesTotal(r.lines);
-    var sumTxt = csmEscapeHtml(csmFinCustomsSummaryText(r));
-    var refNo = csmEscapeHtml(String(r.refNo || r.reference || '—'));
-    var bl = csmEscapeHtml(String(r.bl || r.billOfLading || '—'));
-    var cn = csmEscapeHtml(String(r.containerNo || r.cn || '—'));
-    var by = csmEscapeHtml(String(r.submittedBy || r.createdBy || '—'));
-    var rid = r.id;
-    var btnApr = canApr
-      ? '<button type="button" class="abtn" style="background:#5b21b6;color:#fff;border:none;font-family:var(--csm-font-en);font-weight:700" onclick="csmFinCustomsApprove(' + JSON.stringify(rid) + ')">Approve · 批准</button>'
-      : '<span style="color:#888;font-size:12px;font-family:var(--csm-font-en);font-weight:700">Admin only · 仅管理员</span>';
-    return '<tr><td style="padding:10px 12px;font-size:12px">' + csmEscapeHtml(csmSalesFormatOrderCreated(r.createdAt)) + '</td>' +
-      '<td style="padding:10px 12px;font-size:12px;max-width:140px;word-break:break-all">' + by + '</td>' +
-      '<td style="padding:10px 12px;font-family:var(--csm-font-en);font-weight:700">' + refNo + '</td>' +
-      '<td style="padding:10px 12px;font-size:12px"><div>BL: ' + bl + '</div><div>CN: ' + cn + '</div></td>' +
-      '<td style="padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums">' + total.toFixed(2) + '</td>' +
-      '<td style="padding:10px 12px;font-size:11px;color:#334155;max-width:260px;line-height:1.35">' + sumTxt + '</td>' +
-      '<td style="padding:10px 12px;white-space:normal">' + btnApr + '</td></tr>';
-  }).join('');
-  try { renderFinPendingModuleBadges(); } catch (eBdg3) {}
+  try { renderFinPendingModuleBadges(); } catch (eBdg2) {}
+  try { renderFinPendingCategoryPanel(); } catch (eBdg3) {}
 }
 function csmFinCustomsApprove(requestId) {
   if (!isAdmin || !customsFeePendingRef || !requestId) {
@@ -7062,50 +7131,11 @@ function csmFinCustomsApprove(requestId) {
 try { window.csmFinCustomsApprove = csmFinCustomsApprove; } catch (eCfa) {}
 try { window.renderCompanyFinancialPendingCustoms = renderCompanyFinancialPendingCustoms; } catch (eCfr) {}
 function renderCompanyFinancialPending() {
-  var tb = gid('tb-fin-pending');
-  var empty = gid('fin-pending-empty');
   var countEl = gid('fin-pending-count');
-  if (!tb) {
-    try { renderFinPendingModuleBadges(); } catch (eBdgT) {}
-    return;
-  }
   var pending = (salesWtSettlements || []).filter(function(b) { return String(b.status || '') === 'pending'; });
   if (countEl) countEl.textContent = String(pending.length);
-  if (!pending.length) {
-    tb.innerHTML = '';
-    if (empty) empty.style.display = 'block';
-    try { renderFinPendingModuleBadges(); } catch (eBdg0) {}
-    return;
-  }
-  if (empty) empty.style.display = 'none';
-  tb.innerHTML = pending.map(function(b) {
-    var wN = (salesWorkers || []).find(function(x) { return x.id === b.filterWorkerId; });
-    var tN = (salesTrucks || []).find(function(x) { return x.id === b.filterTruckId; });
-    var wLab = wN ? String(wN.name || '').trim() : (b.filterWorkerId ? '—' : 'All');
-    var tLab = tN ? String(tN.name || '').trim() : (b.filterTruckId ? '—' : 'All');
-    var period = (b.dateStart || '—') + ' → ' + (b.dateEnd || '—');
-    var gross = b.grossAed != null ? Number(b.grossAed) : 0;
-    var nLines = (b.lineKeys || []).length;
-    var by = csmEscapeHtml(String(b.createdBy || '—'));
-    var detailId = csmFinPendingDetailDomId(b.id);
-    var canApr = csmFinWtCanConfirmPaid();
-    var btnApr = canApr
-      ? '<button type="button" class="abtn" style="background:#2e7d32;color:#fff;border:none;font-family:var(--csm-font-en);font-weight:700" onclick="csmFinWtQuickApprove(' + JSON.stringify(b.id) + ')">Approve · 批准</button>'
-      : '<span style="color:#888;font-size:12px;font-family:var(--csm-font-en);font-weight:700">Admin only · 仅管理员</span>';
-    var btnCustom = canApr
-      ? ' <button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="csmFinWtOpenConfirm(' + JSON.stringify(b.id) + ')">Set amount · 金额…</button>'
-      : '';
-    var btnDetail = '<button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="csmFinPendingToggle(' + JSON.stringify(b.id) + ')">Detail · 明细</button>';
-    return '<tr><td style="padding:10px 12px;font-size:12px">' + csmEscapeHtml(csmSalesFormatOrderCreated(b.createdAt)) + '</td>' +
-      '<td style="padding:10px 12px;font-size:12px;max-width:160px;white-space:normal;word-break:break-all">' + by + '</td>' +
-      '<td style="padding:10px 12px;font-size:11px;max-width:200px;white-space:normal">' + csmEscapeHtml(period) + '</td>' +
-      '<td style="padding:10px 12px">' + csmEscapeHtml(wLab) + '</td><td style="padding:10px 12px">' + csmEscapeHtml(tLab) + '</td>' +
-      '<td style="padding:10px 12px;text-align:center">' + csmEscapeHtml(String(nLines)) + '</td>' +
-      '<td style="padding:10px 12px;text-align:right">' + gross.toFixed(2) + '</td>' +
-      '<td style="padding:10px 12px;white-space:normal">' + btnDetail + ' ' + btnApr + btnCustom + '</td></tr>' +
-      '<tr id="' + detailId + '" class="fin-pending-detail" style="display:none"><td colspan="8" style="padding:12px 14px;border-bottom:1px solid #ffe0b2">' + csmFinWtPendingDetailInnerHtml(b) + '</td></tr>';
-  }).join('');
-  try { renderFinPendingModuleBadges(); } catch (eBdg1) {}
+  try { renderFinPendingModuleBadges(); } catch (eBdg0) {}
+  try { renderFinPendingCategoryPanel(); } catch (eBdg1) {}
 }
 function csmFinWtQuickApprove(batchId) {
   if (!csmFinWtCanConfirmPaid() || !salesWtSettlementsRef) {
@@ -7130,6 +7160,7 @@ function csmFinWtQuickApprove(batchId) {
     toast('Approved — payment recorded', 'ok');
     try { renderCompanyFinancialPending(); } catch (e1) {}
     try { renderFinWtPanel(); } catch (e2) {}
+    try { renderFinPendingCategoryPanel(); } catch (e3) {}
   }).catch(function(e) {
     toast(e.message || String(e), 'err');
   });

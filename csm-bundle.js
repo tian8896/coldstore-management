@@ -7021,10 +7021,10 @@ function csmFinPendingToggle(batchId) {
 function csmFinCustomsFeeTypeDefs() {
   return [
     { key: 'logistics', cn: '停柜费', en: 'Logistics' },
-    { key: 'coldFee', cn: '清关费', en: 'Cold Fee' },
-    { key: 'attestation', cn: '冷藏费', en: 'Attestation' },
-    { key: 'repack', cn: '单据认证', en: 'Repack' },
-    { key: 'waste', cn: '翻包费', en: 'Waste' },
+    { key: 'coldFee', cn: '清关费', en: 'Customs clearance' },
+    { key: 'attestation', cn: '冷藏费', en: 'Cold storage' },
+    { key: 'repack', cn: '单据认证', en: 'Attestation' },
+    { key: 'waste', cn: '翻包费', en: 'Repack' },
     { key: 'wasteCharge', cn: '垃圾处理费', en: 'Waste charge' },
     { key: 'other', cn: '其他费用', en: 'Other charge' }
   ];
@@ -7032,10 +7032,10 @@ function csmFinCustomsFeeTypeDefs() {
 function csmFinPendingAllCategoryDefs() {
   return [
     { key: 'logistics', kind: 'customs', cn: '停柜费', en: 'Parking' },
-    { key: 'coldFee', kind: 'customs', cn: '清关费', en: 'Cold Fee' },
-    { key: 'attestation', kind: 'customs', cn: '冷藏费', en: 'Attestation' },
-    { key: 'repack', kind: 'customs', cn: '单据认证', en: 'Repack' },
-    { key: 'waste', kind: 'customs', cn: '翻包费', en: 'Waste' },
+    { key: 'coldFee', kind: 'customs', cn: '清关费', en: 'Customs clearance' },
+    { key: 'attestation', kind: 'customs', cn: '冷藏费', en: 'Cold storage' },
+    { key: 'repack', kind: 'customs', cn: '单据认证', en: 'Attestation' },
+    { key: 'waste', kind: 'customs', cn: '翻包费', en: 'Repack' },
     { key: 'wtAll', kind: 'wt', section: 'worker', cn: 'Worker 待审批', en: 'All · 全部' },
     { key: 'wtWorker', kind: 'wt', section: 'worker', cn: '卸货费', en: 'Worker' },
     { key: 'wtTruck', kind: 'wt', section: 'worker', cn: '送货费', en: 'Truck' },

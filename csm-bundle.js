@@ -7,6 +7,8 @@ var firebaseConfig = {  apiKey: 'AIzaSyDOdn2Vzv3EvW_EbtGFp8mzhXLfjlVsN24',  auth
 var salesCustomers = [];var salesPaymentReceivers = [];var salesWorkers = [];var salesTrucks = [];var salesOrders = [];var salesPayments = [];var salesSubView = 'dash';var salesOrdersPage = 1;var salesOrdersPageSize = 20;var salesFinancePage = 1;var salesFinancePageSize = 20;
 var salesWtSettlementsRef = null;var salesWtSettlements = [];var finSubView = 'orders';var companyFinView = 'dashboard';
 var customsFeePendingRef = null;var customsFeeRequests = [];var finPendingSelectedCategoryKey = null;
+/** User closed the W/T detail panel; do not auto-open wtAll until they leave 公司财务. */
+var finPendingWtPanelDismissed = false;
 // 冷库费率（可配置，默认值）
 // HK Store (store 1): 38 AED/托盘/周 + 5% VAT
 // Primer / Super / Cold Store 4 (store 2–4): 60 AED/托盘/周 + 5% VAT
@@ -36,12 +38,41 @@ function loadRatesToSettings() {  gid('rate-store1').value = warehouseRates[1]; 
 // STATE
 // ============================================================
 var recs = [];var currentColdStore = 1;var currentUser = null;var currentUserEmail = null;var isAdmin = false;var isStaff = false;var isLogistics = false;var isSupplier = false;var currentSupplierName = null;
+/**
+ * index.html fallback 只设 window.isAdmin；主程序用模块内 isAdmin。
+ * 未同步时：无法切公司财务、refreshSalesUi 不跑、wt 监听未挂 → 待审批为空。
+ */
+function csmSyncRoleFromWindow() {
+  try {
+    var wa = window.isAdmin === true;
+    var ws = window.isStaff === true;
+    if (!wa && !ws) return;
+    var changed = false;
+    if (wa && !isAdmin) { isAdmin = true; changed = true; }
+    if (ws && !isStaff) { isStaff = true; changed = true; }
+    if (changed && (isAdmin || isStaff) && typeof attachDataListenersForRole === 'function') {
+      attachDataListenersForRole();
+    }
+  } catch (e) {}
+}
+try { window.csmSyncRoleFromWindow = csmSyncRoleFromWindow; } catch (eSync) {}
 function canManageAccounts() { return isAdmin === true; }
 function updatePortalNavForStaff() {
   var w2 = gid('portalBtnW2');
   var fin = gid('portalBtnFin');
   if (w2) w2.style.display = isStaff ? 'none' : '';
-  if (fin) fin.style.display = isStaff ? 'none' : '';
+  /** Staff 可进「公司财务」但仅看「待审批」（与 W1 装卸为同一数据）。 */
+  if (fin) fin.style.display = '';
+}
+function csmSetStaffFinPendingOnlyClass(active) {
+  try {
+    if (isStaff) {
+      if (active) document.body.classList.add('csm-staff-fin-pending-only');
+      else document.body.classList.remove('csm-staff-fin-pending-only');
+    } else {
+      document.body.classList.remove('csm-staff-fin-pending-only');
+    }
+  } catch (e) {}
 }
 function updateStaffRestrictedVisibility() {
   var br = gid('btn-clear-records');
@@ -891,12 +922,13 @@ function resetMainSuiteForNonAdmin() {
   applyPortalHeaderTitles('w1');
 }
 function switchMainSuite(mode) {
+  csmSyncRoleFromWindow();
   if (!isAdmin && !isStaff) {
     toast('仅主界面账号可使用顶部模块切换', 'err');
     return;
   }
-  if (isStaff && mode !== 'w1') {
-    toast('大丰收员工仅可使用 Warehouse 1', 'err');
+  if (isStaff && mode === 'w2') {
+    toast('大丰收员工不可使用 Warehouse 2 / Staff cannot use Warehouse 2', 'err');
     return;
   }
   if (mode !== 'w1' && mode !== 'w2' && mode !== 'fin') mode = 'w1';
@@ -908,9 +940,19 @@ function switchMainSuite(mode) {
   if (s1) s1.style.display = mode === 'w1' ? 'block' : 'none';
   if (s2) s2.style.display = mode === 'w2' ? 'block' : 'none';
   if (sf) sf.style.display = mode === 'fin' ? 'block' : 'none';
+  if (mode !== 'fin') {
+    try { finPendingWtPanelDismissed = false; } catch (eDis) {}
+  }
+  csmSetStaffFinPendingOnlyClass(mode === 'fin');
   syncAdminPortalButtons();
   applyPortalHeaderTitles(mode);
   if (mode === 'fin') {
+    if (isAdmin && !isStaff) {
+      try {
+        companyFinView = 'pending';
+        sessionStorage.setItem('csm_company_fin_view', 'pending');
+      } catch (ePend) {}
+    }
     if (typeof renderCompanyFinancialPending === 'function') renderCompanyFinancialPending();
     if (typeof renderCompanyFinancialPendingCustoms === 'function') renderCompanyFinancialPendingCustoms();
     if (typeof renderCompanyFinancialWorkspace === 'function') renderCompanyFinancialWorkspace();
@@ -932,7 +974,7 @@ function setLogisticsLayout(active) {
 }
 try { window.setLogisticsLayout = setLogisticsLayout; } catch (eLg) {}
 // 显示管理员视图
-function showAdminView() {  setSupplierPortalLayout(false);  try { setLogisticsLayout(false); } catch (eLg2) {}  var lv = gid('logisticsView');  var sv = gid('supplierView');  if (lv) lv.style.display = 'none';  if (sv) sv.style.display = 'none';  var rights = document.querySelectorAll('.right');  if (rights[2]) rights[2].style.display = 'block';  var ui = gid('userInfo');  if (ui) ui.style.display = 'flex';  updateAdminPortalShellVisibility();  try { currentMainSuite = sessionStorage.getItem('csm_main_suite') || 'w1'; } catch (e1) { currentMainSuite = 'w1'; }  if (currentMainSuite !== 'w1' && currentMainSuite !== 'w2' && currentMainSuite !== 'fin') currentMainSuite = 'w1';  if (isStaff) { currentMainSuite = 'w1'; try { sessionStorage.setItem('csm_main_suite', 'w1'); } catch (eSt) {} }  switchMainSuite(currentMainSuite);  updatePortalNavForStaff();  updateStaffRestrictedVisibility();  updateSettingsButton();  renderPurchase();}
+function showAdminView() {  csmSyncRoleFromWindow();  setSupplierPortalLayout(false);  try { setLogisticsLayout(false); } catch (eLg2) {}  var lv = gid('logisticsView');  var sv = gid('supplierView');  if (lv) lv.style.display = 'none';  if (sv) sv.style.display = 'none';  var rights = document.querySelectorAll('.right');  if (rights[2]) rights[2].style.display = 'block';  var ui = gid('userInfo');  if (ui) ui.style.display = 'flex';  updateAdminPortalShellVisibility();  try { currentMainSuite = sessionStorage.getItem('csm_main_suite') || 'w1'; } catch (e1) { currentMainSuite = 'w1'; }  if (currentMainSuite !== 'w1' && currentMainSuite !== 'w2' && currentMainSuite !== 'fin') currentMainSuite = 'w1';  if (isStaff) { currentMainSuite = 'w1'; try { sessionStorage.setItem('csm_main_suite', 'w1'); } catch (eSt) {} }  switchMainSuite(currentMainSuite);  updatePortalNavForStaff();  updateStaffRestrictedVisibility();  updateSettingsButton();  renderPurchase();}
 // 显示清关公司视图
 function showLogisticsView() {  setSupplierPortalLayout(false);  try { setLogisticsLayout(true); } catch (eLg3) {}  var shell = gid('adminPortalShell');  if (shell) { shell.style.display = 'none'; shell.setAttribute('aria-hidden', 'true'); }  resetMainSuiteForNonAdmin();  var sv = gid('supplierView');  if (sv) sv.style.display = 'none';  var rights = document.querySelectorAll('.right');  if (rights[2]) rights[2].style.display = 'none';  var lv2 = gid('logisticsView');  if (lv2) lv2.style.display = 'block';  var ui2 = gid('userInfo');  if (ui2) ui2.style.display = 'none';  var h1a = gid('headerTitle') || document.querySelector('header h1');  if (h1a) h1a.textContent = '物流公司系统 / Logistics System';  var hs = gid('headerSubtitle');  if (hs) hs.textContent = 'Logistics fee tracking';  var lname = gid('logisticsUserName');  if (lname) lname.textContent = currentUserEmail || currentUser;  updateSettingsButton();  renderLogisticsTable();}
 // 显示供应商视图
@@ -4450,6 +4492,7 @@ function csmSalesCustomerOrderSnapshotName(c) {
   return f || s || '';
 }
 function refreshSalesUi() {
+  csmSyncRoleFromWindow();
   if (!isAdmin && !isStaff) return;
   renderSalesDashCustomerAr();
   renderSalesCustomersTable();
@@ -4687,7 +4730,7 @@ function csmFinBuildJournals() {
     journals.push(j);
   });
   (salesWtSettlements || []).forEach(function(b) {
-    if (!b || String(b.status || '') !== 'paid') return;
+    if (!b || !csmFinWtIsPaid(b)) return;
     var workerAmt = 0;
     var truckAmt = 0;
     (b.linesSnapshot || []).forEach(function(L) {
@@ -4823,8 +4866,12 @@ function csmFinBuildWorkspaceState() {
 }
 function swCompanyFinView(view) {
   var views = ['dashboard', 'gl', 'detail', 'cashbank', 'tax', 'pending'];
-  companyFinView = view || 'dashboard';
-  if (views.indexOf(companyFinView) === -1) companyFinView = 'dashboard';
+  if (isStaff) {
+    companyFinView = 'pending';
+  } else {
+    companyFinView = view || 'dashboard';
+    if (views.indexOf(companyFinView) === -1) companyFinView = 'dashboard';
+  }
   try { sessionStorage.setItem('csm_company_fin_view', companyFinView); } catch (e0) {}
   views.forEach(function(key) {
     var panel = gid('company-fin-panel-' + key);
@@ -4990,8 +5037,13 @@ function renderCompanyFinTaxPanels(state) {
   }
 }
 function renderCompanyFinancialWorkspace() {
+  csmSyncRoleFromWindow();
   var root = gid('suiteCompanyFinancial');
   if (!root) return;
+  if (isStaff) {
+    companyFinView = 'pending';
+    try { sessionStorage.setItem('csm_company_fin_view', 'pending'); } catch (eStf) {}
+  }
   var state = csmFinBuildWorkspaceState();
   renderCompanyFinPendingBadge(state);
   renderCompanyFinSnapshotCards(state);
@@ -5002,8 +5054,10 @@ function renderCompanyFinancialWorkspace() {
   renderCompanyFinTaxPanels(state);
   renderCompanyFinancialPending();
   renderCompanyFinancialPendingCustoms();
-  try { companyFinView = sessionStorage.getItem('csm_company_fin_view') || companyFinView || 'dashboard'; } catch (eVw) {}
-  swCompanyFinView(companyFinView || 'dashboard');
+  if (!isStaff) {
+    try { companyFinView = sessionStorage.getItem('csm_company_fin_view') || companyFinView || 'pending'; } catch (eVw) {}
+  }
+  swCompanyFinView(companyFinView || 'pending');
 }
 function csmFinCnNormalize(cn) {
   return String(cn || '').trim().toUpperCase();
@@ -6517,6 +6571,10 @@ function csmFinWtIsAwaitingPayment(b) {
   var s = csmFinWtStatusNorm(b);
   return s !== 'paid' && s !== 'void' && s !== 'cancelled';
 }
+/** True when batch is fully paid (case-insensitive; matches 待审批 vs Payment records). */
+function csmFinWtIsPaid(b) {
+  return csmFinWtStatusNorm(b) === 'paid';
+}
 function csmSalesOrderFinTimeMs(o) {
   var s = String(o && (o.confirmedAt || o.createdAt) || '').trim();
   if (!s) return 0;
@@ -6526,15 +6584,42 @@ function csmSalesOrderFinTimeMs(o) {
 function csmFinWtLineKey(orderId, lineIndex) {
   return String(orderId || '') + ':' + String(lineIndex);
 }
-function csmFinWtLineSettlementStatus(lineKey) {
-  var st = '';
-  (salesWtSettlements || []).forEach(function(b) {
+/** Suffix #w / #t so worker and truck can be paid in separate batches on the same line. */
+function csmFinWtLineKeyForFee(orderId, lineIndex, feeKind) {
+  var base = csmFinWtLineKey(orderId, lineIndex);
+  if (feeKind === 'worker') return base + '#w';
+  if (feeKind === 'truck') return base + '#t';
+  return base;
+}
+function csmFinWtKeysConflict(s, b) {
+  if (!s || !b) return false;
+  if (s === b) return true;
+  s = String(s);
+  b = String(b);
+  var sb = s.replace(/#w$|#t$/, '');
+  var bb = b.replace(/#w$|#t$/, '');
+  if (sb !== bb) return false;
+  if (b === sb) return s === sb || s === sb + '#w' || s === sb + '#t' || s === b;
+  if (s === sb) return b === sb || b === sb + '#w' || b === sb + '#t' || b === s;
+  return (s === sb + '#w' && (b === sb + '#w' || b === sb)) || (s === sb + '#t' && (b === sb + '#t' || b === sb));
+}
+function csmFinWtLineSettlementStatus(searchKey) {
+  var hasPaid = false;
+  var hasPend = false;
+  var list = salesWtSettlements || [];
+  for (var bi = 0; bi < list.length; bi++) {
+    var b = list[bi];
     var keys = b.lineKeys || [];
-    if (keys.indexOf(lineKey) === -1) return;
-    if (b.status === 'paid') st = 'paid';
-    else if (csmFinWtIsAwaitingPayment(b) && st !== 'paid') st = 'pending';
-  });
-  return st;
+    for (var i = 0; i < keys.length; i++) {
+      if (!csmFinWtKeysConflict(searchKey, keys[i])) continue;
+      if (csmFinWtIsPaid(b)) { hasPaid = true; break; }
+      if (csmFinWtIsAwaitingPayment(b)) hasPend = true;
+    }
+    if (hasPaid) break;
+  }
+  if (hasPaid) return 'paid';
+  if (hasPend) return 'pending';
+  return '';
 }
 function csmFinWtReservedLineKeySet() {
   var set = {};
@@ -6543,11 +6628,36 @@ function csmFinWtReservedLineKeySet() {
     var sn = csmFinWtStatusNorm(b);
     if (sn === 'void' || sn === 'cancelled') return;
     if (sn !== 'pending' && sn !== 'paid' && String(b.status != null ? b.status : '').trim() !== '') return;
-    (b.lineKeys || []).forEach(function(k) { set[k] = true; });
+    (b.lineKeys || []).forEach(function(k) {
+      set[k] = true;
+      if (k.indexOf('#') === -1) {
+        set[k + '#w'] = true;
+        set[k + '#t'] = true;
+      }
+    });
   });
   return set;
 }
-function csmFinWtEnumerateLines(workerId, truckId, tStart, tEnd) {
+function csmFinWtGetCurrentFeeType() {
+  var el = gid('fin-wt-fee-type');
+  var v = el ? String(el.value || '').toLowerCase() : '';
+  return v === 'truck' ? 'truck' : 'worker';
+}
+function csmFinWtOnFeeTypeChange() {
+  var ft = csmFinWtGetCurrentFeeType();
+  var ww = gid('fin-wt-worker-wrap');
+  var tw = gid('fin-wt-truck-wrap');
+  if (ww) ww.style.display = ft === 'worker' ? '' : 'none';
+  if (tw) tw.style.display = ft === 'truck' ? '' : 'none';
+  var tbl = gid('fin-wt-results-table');
+  if (tbl) {
+    tbl.classList.remove('csm-wt-fee-worker', 'csm-wt-fee-truck');
+    tbl.classList.add(ft === 'truck' ? 'csm-wt-fee-truck' : 'csm-wt-fee-worker');
+  }
+}
+try { window.csmFinWtOnFeeTypeChange = csmFinWtOnFeeTypeChange; } catch (eFE) {}
+function csmFinWtEnumerateLines(workerId, truckId, tStart, tEnd, feeKind) {
+  feeKind = feeKind === 'truck' ? 'truck' : 'worker';
   var rows = [];
   (salesOrders || []).forEach(function(o) {
     if (o.voided || String(o.orderStatus || '').toLowerCase() !== 'confirmed') return;
@@ -6560,11 +6670,22 @@ function csmFinWtEnumerateLines(workerId, truckId, tStart, tEnd) {
       if (truckId && String(L.truckId || '').trim() !== truckId) return;
       var wq = parseFloat(L.workerQty) || 0;
       var tq = parseFloat(L.truckQty) || 0;
-      if (!workerId && !truckId && wq <= 0 && tq <= 0) return;
       var wa = csmSalesRound2(parseFloat(L.workerAmount) || 0);
       var ta = csmSalesRound2(parseFloat(L.truckAmount) || 0);
+      if (feeKind === 'worker') {
+        if (wa <= 0 && wq <= 0) return;
+        tq = 0;
+        ta = 0;
+      } else {
+        if (ta <= 0 && tq <= 0) return;
+        wq = 0;
+        wa = 0;
+      }
+      if (!workerId && !truckId && wq <= 0 && tq <= 0 && wa <= 0 && ta <= 0) return;
+      var lineKey = csmFinWtLineKeyForFee(o.id, idx, feeKind);
+      var lineTotal = csmSalesRound2(feeKind === 'worker' ? wa : ta);
       rows.push({
-        lineKey: csmFinWtLineKey(o.id, idx),
+        lineKey: lineKey,
         orderId: o.id,
         lineIndex: idx,
         orderNo: o.orderNo || '',
@@ -6578,14 +6699,15 @@ function csmFinWtEnumerateLines(workerId, truckId, tStart, tEnd) {
         truckName: String(L.truckName || '').trim(),
         truckQty: tq,
         truckAmount: ta,
-        lineTotal: csmSalesRound2(wa + ta)
+        lineTotal: lineTotal,
+        feeKind: feeKind
       });
     });
   });
   rows.sort(function(a, b) {
     var tb = new Date(b.orderTime || 0).getTime();
-    var ta = new Date(a.orderTime || 0).getTime();
-    if (tb !== ta) return tb - ta;
+    var ta2 = new Date(a.orderTime || 0).getTime();
+    if (tb !== ta2) return tb - ta2;
     return String(b.orderNo || '').localeCompare(String(a.orderNo || ''), undefined, { numeric: true });
   });
   return rows;
@@ -6640,12 +6762,13 @@ function renderFinWtPanel() {
     }
   }
   csmFinWtFillFilterSelects();
+  try { csmFinWtOnFeeTypeChange(); } catch (eFT) {}
   var tb = gid('fin-wt-results-tbody');
   var ts = gid('fin-wt-settlements-tbody');
   if (tb) tb.innerHTML = '';
   if (ts) {
     if (!(salesWtSettlements || []).length) {
-      ts.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#888;font-family:var(--csm-font-en);font-weight:700">No payment records yet</td></tr>';
+      ts.innerHTML = '<tr><td colspan="12" style="text-align:center;color:#888;font-family:var(--csm-font-en);font-weight:700">No payment records yet</td></tr>';
     } else {
       ts.innerHTML = (salesWtSettlements || []).map(function(b) {
         var wN = (salesWorkers || []).find(function(x) { return x.id === b.filterWorkerId; });
@@ -6656,10 +6779,12 @@ function renderFinWtPanel() {
         var gross = b.grossAed != null ? Number(b.grossAed) : 0;
         var disc = b.discountAmount != null ? Number(b.discountAmount) : '';
         var pay = b.paymentAmount != null ? Number(b.paymentAmount) : '';
-        var st = String(b.status || '');
-        var stHtml = st === 'paid'
+        var stN = csmFinWtStatusNorm(b);
+        var stHtml = csmFinWtIsPaid(b)
           ? '<span style="color:#2e7d32;font-family:var(--csm-font-en);font-weight:700">Paid</span>'
-          : '<span style="color:#f57f17;font-family:var(--csm-font-en);font-weight:700">Pending</span>';
+          : (stN === 'void' || stN === 'cancelled'
+            ? '<span style="color:#90a4ae;font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(stN) + '</span>'
+            : '<span style="color:#f57f17;font-family:var(--csm-font-en);font-weight:700">Pending</span>');
         var paidAt = b.paidAt ? csmSalesFormatOrderCreated(b.paidAt) : '—';
         var actions = '';
         var openForPay = csmFinWtIsAwaitingPayment(b);
@@ -6670,8 +6795,10 @@ function renderFinWtPanel() {
         } else {
           actions = '—';
         }
+        var sc = b.feeScope === 'truck' ? 'Truck' : (b.feeScope === 'worker' ? 'Worker' : 'Both');
         return '<tr><td style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(csmSalesFormatOrderCreated(b.createdAt)) + '</td>' +
           '<td style="font-size:12px;max-width:200px;white-space:normal">' + csmEscapeHtml(period) + '</td>' +
+          '<td style="font-size:12px">' + csmEscapeHtml(sc) + '</td>' +
           '<td>' + csmEscapeHtml(wLab) + '</td><td>' + csmEscapeHtml(tLab) + '</td>' +
           '<td style="text-align:center">' + csmEscapeHtml(String((b.lineKeys || []).length)) + '</td>' +
           '<td style="text-align:right">' + gross.toFixed(2) + '</td>' +
@@ -6684,8 +6811,9 @@ function renderFinWtPanel() {
 }
 function csmFinWtRunSearch() {
   if (!salesOrdersRef) { toast('Database not connected', 'err'); return; }
-  var wId = gid('fin-wt-worker') ? String(gid('fin-wt-worker').value || '').trim() : '';
-  var tId = gid('fin-wt-truck') ? String(gid('fin-wt-truck').value || '').trim() : '';
+  var feeK = csmFinWtGetCurrentFeeType();
+  var wId = feeK === 'truck' ? '' : (gid('fin-wt-worker') ? String(gid('fin-wt-worker').value || '').trim() : '');
+  var tId = feeK === 'worker' ? '' : (gid('fin-wt-truck') ? String(gid('fin-wt-truck').value || '').trim() : '');
   var ds = gid('fin-wt-start') ? String(gid('fin-wt-start').value || '').trim() : '';
   var de = gid('fin-wt-end') ? String(gid('fin-wt-end').value || '').trim() : '';
   if (!ds || !de) { toast('Set start time and end time', 'err'); return; }
@@ -6694,13 +6822,14 @@ function csmFinWtRunSearch() {
   if (ds && isNaN(tStart)) { toast('Invalid start time', 'err'); return; }
   if (de && isNaN(tEnd)) { toast('Invalid end time', 'err'); return; }
   if (tStart > 0 && tEnd > 0 && tEnd < tStart) { toast('End must be after start', 'err'); return; }
-  var rows = csmFinWtEnumerateLines(wId, tId, tStart, tEnd);
+  try { csmFinWtOnFeeTypeChange(); } catch (e0) {}
+  var rows = csmFinWtEnumerateLines(wId, tId, tStart, tEnd, feeK);
   var reserved = csmFinWtReservedLineKeySet();
   var tb = gid('fin-wt-results-tbody');
   var hint = gid('fin-wt-selection-hint');
   if (!tb) return;
   if (!rows.length) {
-    tb.innerHTML = '<tr><td colspan="12" style="text-align:center;color:#888;font-family:var(--csm-font-en);font-weight:700">No matching lines</td></tr>';
+    tb.innerHTML = '<tr><td colspan="12" style="text-align:center;color:#888;font-family:var(--csm-font-en);font-weight:700">No matching lines for this fee type / 当前费用类型无行</td></tr>';
     if (hint) hint.textContent = '';
     return;
   }
@@ -6720,8 +6849,8 @@ function csmFinWtRunSearch() {
     return '<tr><td>' + cb + '</td><td>' + stCell + '</td><td style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(r.orderNo || '—') + '</td>' +
       '<td style="font-size:12px">' + csmEscapeHtml(csmSalesFormatOrderCreated(r.orderTime)) + '</td>' +
       '<td>' + csmEscapeHtml(r.customerName) + '</td><td>' + csmEscapeHtml(r.containerNo) + '</td><td>' + w1ProductHtml(r.productName) + '</td>' +
-      '<td style="text-align:right">' + r.workerQty + '</td><td style="text-align:right">' + r.workerAmount.toFixed(2) + '</td>' +
-      '<td style="text-align:right">' + r.truckQty + '</td><td style="text-align:right">' + r.truckAmount.toFixed(2) + '</td>' +
+      '<td class="fin-wt-col-w" style="text-align:right">' + r.workerQty + '</td><td class="fin-wt-col-w" style="text-align:right">' + r.workerAmount.toFixed(2) + '</td>' +
+      '<td class="fin-wt-col-t" style="text-align:right">' + r.truckQty + '</td><td class="fin-wt-col-t" style="text-align:right">' + r.truckAmount.toFixed(2) + '</td>' +
       '<td style="text-align:right">' + r.lineTotal.toFixed(2) + '</td></tr>';
   }).join('');
   if (hint) hint.textContent = rows.length + ' line(s). Select rows, then Submit payment request.';
@@ -6737,11 +6866,12 @@ function csmFinWtSubmitPending() {
     if (k) keys.push(k);
   });
   if (!keys.length) { toast('Select at least one line', 'err'); return; }
-  var wId = gid('fin-wt-worker') ? String(gid('fin-wt-worker').value || '').trim() : '';
-  var tId = gid('fin-wt-truck') ? String(gid('fin-wt-truck').value || '').trim() : '';
+  var feeK = csmFinWtGetCurrentFeeType();
+  var wId = feeK === 'truck' ? '' : (gid('fin-wt-worker') ? String(gid('fin-wt-worker').value || '').trim() : '');
+  var tId = feeK === 'worker' ? '' : (gid('fin-wt-truck') ? String(gid('fin-wt-truck').value || '').trim() : '');
   var tStart = ds ? new Date(ds).getTime() : 0;
   var tEnd = de ? new Date(de).getTime() : 0;
-  var allRows = csmFinWtEnumerateLines(wId, tId, tStart, tEnd);
+  var allRows = csmFinWtEnumerateLines(wId, tId, tStart, tEnd, feeK);
   var byKey = {};
   allRows.forEach(function(r) { byKey[r.lineKey] = r; });
   var snapshot = [];
@@ -6776,6 +6906,7 @@ function csmFinWtSubmitPending() {
   var id = 'wt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   var nowIso = new Date().toISOString();
   var rec = {
+    feeScope: feeK,
     filterWorkerId: wId,
     filterTruckId: tId,
     dateStart: ds || '',
@@ -6876,6 +7007,7 @@ function csmFinWtPendingDetailInnerHtml(b) {
   var gross = b.grossAed != null ? Number(b.grossAed) : 0;
   var meta = '<div style="margin-bottom:10px;font-size:13px;line-height:1.5;color:#333;font-family:var(--csm-font-en);font-weight:700">';
   meta += '<div><span style="color:#666">Batch ID:</span> ' + csmEscapeHtml(String(b.id || '—')) + '</div>';
+  meta += '<div><span style="color:#666">Fee scope / 费用范围:</span> ' + csmEscapeHtml(b.feeScope === 'truck' ? 'Truck · 送货' : (b.feeScope === 'worker' ? 'Worker · 卸货' : 'Legacy / 历史')) + '</div>';
   meta += '<div><span style="color:#666">Gross (AED):</span> ' + gross.toFixed(2) + '</div>';
   meta += '<div><span style="color:#666">Submitted at:</span> ' + csmEscapeHtml(csmSalesFormatOrderCreated(b.submittedAt || b.createdAt)) + '</div>';
   meta += '</div>';
@@ -7000,10 +7132,13 @@ function csmFinPendingSelectCategory(key) {
   key = String(key == null ? '' : key).trim();
   if (!key) {
     finPendingSelectedCategoryKey = null;
+    finPendingWtPanelDismissed = true;
   } else if (finPendingSelectedCategoryKey === key) {
     finPendingSelectedCategoryKey = null;
+    finPendingWtPanelDismissed = true;
   } else {
     finPendingSelectedCategoryKey = key;
+    finPendingWtPanelDismissed = false;
   }
   try { renderFinPendingModuleBadges(); } catch (e0) {}
   try { renderFinPendingCategoryPanel(); } catch (e1) {}
@@ -7183,9 +7318,15 @@ function csmFinCustomsApprove(requestId) {
 try { window.csmFinCustomsApprove = csmFinCustomsApprove; } catch (eCfa) {}
 try { window.renderCompanyFinancialPendingCustoms = renderCompanyFinancialPendingCustoms; } catch (eCfr) {}
 function renderCompanyFinancialPending() {
+  if (finPendingSelectedCategoryKey == null && !finPendingWtPanelDismissed) {
+    var wq0 = (salesWtSettlements || []).filter(function(b) { return csmFinWtIsAwaitingPayment(b); });
+    if (wq0.length) finPendingSelectedCategoryKey = 'wtAll';
+  }
   var countEl = gid('fin-pending-count');
   var pending = (salesWtSettlements || []).filter(function(b) { return csmFinWtIsAwaitingPayment(b); });
   if (countEl) countEl.textContent = String(pending.length);
+  var hStaff = gid('fin-pending-staff-only-hint');
+  if (hStaff) hStaff.style.display = isStaff ? 'block' : 'none';
   try { renderFinPendingModuleBadges(); } catch (eBdg0) {}
   try { renderFinPendingCategoryPanel(); } catch (eBdg1) {}
 }

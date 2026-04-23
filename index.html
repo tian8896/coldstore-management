@@ -352,6 +352,9 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 .csm-sales-cust-dd .csm-sales-cust-item{display:block;width:100%;text-align:left;padding:8px 10px;border:none;border-bottom:1px solid #eee;background:#fff;cursor:pointer;font-family:var(--csm-font-en);font-weight:700;font-size:13px;color:var(--tx)}
 .csm-sales-cust-dd .csm-sales-cust-item:hover{background:#e8f4ff}
 .csm-sales-cust-dd .csm-sales-cust-item:last-child{border-bottom:none}
+/* W/T fee search: worker mode hides truck columns; truck mode hides worker columns */
+#fin-wt-results-table.csm-wt-fee-worker .fin-wt-col-t{display:none}
+#fin-wt-results-table.csm-wt-fee-truck .fin-wt-col-w{display:none}
 </style>
 </head>
 <body>
@@ -479,7 +482,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260427pending-type-scale" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260423wt-fee-split" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -532,6 +535,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
             window.isLogistics = r === 'logistics';
             window.isSupplier = r === 'supplier';
             window.currentSupplierName = userData.supplierName || null;
+            if (typeof window.csmSyncRoleFromWindow === 'function') window.csmSyncRoleFromWindow();
             var roleText = window.isLogistics ? '物流公司' : (window.isSupplier ? '供应商' : (window.isStaff ? '大丰收员工' : '管理员'));
             var ud = gid('currentUserDisplay');
             if (ud) ud.textContent = (user.email || 'User') + ' (' + roleText + ')';
@@ -567,6 +571,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
                     rootRef.update(upd).then(function() {
                       window.isAdmin = true;
                       window.isStaff = false;
+                      if (typeof window.csmSyncRoleFromWindow === 'function') window.csmSyncRoleFromWindow();
                       var ud2 = gid('currentUserDisplay');
                       if (ud2) ud2.textContent = (user.email || 'User') + ' (管理员)';
                       var lm2 = gid('loginModal');
@@ -1337,11 +1342,17 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     </div>
         </div>
         <div id="fin-panel-wt" style="display:none">
-      <p style="font-size:13px;color:#555;margin:0 0 12px;font-family:var(--csm-font-en);font-weight:700">Search <strong>confirmed</strong> orders by worker, truck, and time range (order confirmed time). Select lines, submit a payment request (<span style="color:#f57f17">Pending</span>), then an admin confirms <span style="color:#2e7d32">Paid</span> and saves payment time, amount, and discount.</p>
+      <p style="font-size:13px;color:#555;margin:0 0 12px;font-family:var(--csm-font-en);font-weight:700">Search <strong>confirmed</strong> orders by fee type, filter, and time. Choose <strong>Worker</strong> to list and pay unload fees only, or <strong>Truck</strong> for delivery fees only. · 先选费用类型，再选工人或车、时间范围。</p>
       <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:14px">
-        <div class="fg" style="margin:0;min-width:160px"><label style="font-family:var(--csm-font-en);font-weight:700">Worker</label>
+        <div class="fg" style="margin:0;min-width:200px"><label style="font-family:var(--csm-font-en);font-weight:700">Fee type · 费用类型</label>
+          <select id="fin-wt-fee-type" onchange="csmFinWtOnFeeTypeChange()" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+            <option value="worker">Worker (unload) · 卸货费</option>
+            <option value="truck">Truck (delivery) · 送货费</option>
+          </select>
+        </div>
+        <div class="fg" id="fin-wt-worker-wrap" style="margin:0;min-width:160px"><label style="font-family:var(--csm-font-en);font-weight:700">Worker</label>
           <select id="fin-wt-worker" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></select></div>
-        <div class="fg" style="margin:0;min-width:160px"><label style="font-family:var(--csm-font-en);font-weight:700">Truck</label>
+        <div class="fg" id="fin-wt-truck-wrap" style="margin:0;min-width:160px;display:none"><label style="font-family:var(--csm-font-en);font-weight:700">Truck</label>
           <select id="fin-wt-truck" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></select></div>
         <div class="fg" style="margin:0"><label style="font-family:var(--csm-font-en);font-weight:700">Start</label>
           <input type="datetime-local" id="fin-wt-start" style="padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></div>
@@ -1350,7 +1361,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <button type="button" class="btn btn-s" onclick="csmFinWtRunSearch()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Search</button>
       </div>
       <div class="tw tw-sales-dense" style="margin-bottom:14px">
-        <table><thead><tr>
+        <table id="fin-wt-results-table" class="csm-wt-fee-worker"><thead><tr>
           <th>Sel</th>
           <th>Pay status</th>
           <th>Order No.</th>
@@ -1358,10 +1369,10 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           <th>Customer</th>
           <th>Container</th>
           <th>Product</th>
-          <th style="text-align:right">Worker Qty</th>
-          <th style="text-align:right">Worker (AED)</th>
-          <th style="text-align:right">Truck Qty</th>
-          <th style="text-align:right">Truck (AED)</th>
+          <th class="fin-wt-col-w" style="text-align:right">Worker Qty</th>
+          <th class="fin-wt-col-w" style="text-align:right">Worker (AED)</th>
+          <th class="fin-wt-col-t" style="text-align:right">Truck Qty</th>
+          <th class="fin-wt-col-t" style="text-align:right">Truck (AED)</th>
           <th style="text-align:right">Line total (AED)</th>
         </tr></thead><tbody id="fin-wt-results-tbody"></tbody></table>
       </div>
@@ -1374,6 +1385,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <table><thead><tr>
           <th>Created</th>
           <th>Period</th>
+          <th>Type</th>
           <th>Worker</th>
           <th>Truck</th>
           <th>Lines</th>

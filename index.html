@@ -479,7 +479,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260423cn-recon-expense-order" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260424pending-worker-section" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -1671,27 +1671,33 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           <h3 style="font-family:var(--csm-font-en);font-weight:800;margin:0 0 12px;font-size:20px;letter-spacing:.02em;color:#0f172a">Pending · 待审批</h3>
           <div id="fin-pending-module-badges" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px"></div>
         </div>
-        <div style="background:linear-gradient(135deg,#fff8e1,#fffde7);border:1px solid #ffb74d;border-radius:10px;padding:16px 18px;margin-bottom:18px;box-shadow:0 1px 6px rgba(0,0,0,.06)">
-          <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">
-            <h3 style="font-family:var(--csm-font-en);font-weight:700;margin:0;font-size:17px;color:#e65100">Worker / Truck · 工人 / 车工</h3>
-            <span style="font-family:var(--csm-font-en);font-weight:700;font-size:14px;color:#666">Queue · 队列: <strong id="fin-pending-count">0</strong></span>
+        <div id="fin-pending-wt-section" style="background:linear-gradient(135deg,#fff8e1,#fffde7);border:1px solid #ffb74d;border-radius:10px;padding:16px 18px;margin-bottom:18px;box-shadow:0 1px 6px rgba(0,0,0,.06)">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;flex:1;min-width:0">
+              <h3 style="font-family:var(--csm-font-en);font-weight:700;margin:0;font-size:17px;color:#e65100">Worker 待审批 <span style="font-size:12px;font-weight:700;opacity:.88">Worker — Pending</span></h3>
+              <button type="button" id="fin-pending-worker-btn" onclick="csmFinPendingToggleWTPanel()" aria-expanded="false" style="font-family:var(--csm-font-en);font-weight:700;padding:6px 14px;border-radius:8px;border:1px solid #ff9800;background:#ff9800;color:#fff;cursor:pointer;text-transform:none;box-shadow:0 1px 2px rgba(0,0,0,.08)">Worker</button>
+              <div id="fin-pending-worker-inline-badges" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:32px" aria-label="Worker truck pending fee counts"></div>
+            </div>
+            <span style="font-family:var(--csm-font-en);font-weight:700;font-size:14px;color:#666;white-space:nowrap">Queue · 队列: <strong id="fin-pending-count">0</strong></span>
           </div>
-          <div class="tw" style="overflow-x:auto;border:1px solid #ffe0b2;border-radius:8px;background:#fff">
-            <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:var(--csm-font-en);font-weight:700">
-              <thead><tr style="background:#fff3e0">
-                <th style="padding:10px 12px;text-align:left;text-transform:none;letter-spacing:.02em">Created<br><span style="font-size:11px;color:#a1887f;font-weight:700">创建时间</span></th>
-                <th style="padding:10px 12px;text-align:left;text-transform:none">Submitted by<br><span style="font-size:11px;color:#a1887f;font-weight:700">提交人</span></th>
-                <th style="padding:10px 12px;text-align:left;text-transform:none">Period<br><span style="font-size:11px;color:#a1887f;font-weight:700">期间</span></th>
-                <th style="padding:10px 12px;text-align:left;text-transform:none">Worker<br><span style="font-size:11px;color:#a1887f;font-weight:700">工人</span></th>
-                <th style="padding:10px 12px;text-align:left;text-transform:none">Truck<br><span style="font-size:11px;color:#a1887f;font-weight:700">车工</span></th>
-                <th style="padding:10px 12px;text-align:center;text-transform:none">Lines<br><span style="font-size:11px;color:#a1887f;font-weight:700">行数</span></th>
-                <th style="padding:10px 12px;text-align:right;text-transform:none">Gross (AED)<br><span style="font-size:11px;color:#a1887f;font-weight:700">合计 AED</span></th>
-                <th style="padding:10px 12px;text-align:left;text-transform:none">Actions<br><span style="font-size:11px;color:#a1887f;font-weight:700">操作</span></th>
-              </tr></thead>
-              <tbody id="tb-fin-pending"></tbody>
-            </table>
+          <div id="fin-pending-wt-panel" style="display:none">
+            <div class="tw" style="overflow-x:auto;border:1px solid #ffe0b2;border-radius:8px;background:#fff">
+              <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:var(--csm-font-en);font-weight:700">
+                <thead><tr style="background:#fff3e0">
+                  <th style="padding:10px 12px;text-align:left;text-transform:none;letter-spacing:.02em">Created<br><span style="font-size:11px;color:#a1887f;font-weight:700">创建时间</span></th>
+                  <th style="padding:10px 12px;text-align:left;text-transform:none">Submitted by<br><span style="font-size:11px;color:#a1887f;font-weight:700">提交人</span></th>
+                  <th style="padding:10px 12px;text-align:left;text-transform:none">Period<br><span style="font-size:11px;color:#a1887f;font-weight:700">期间</span></th>
+                  <th style="padding:10px 12px;text-align:left;text-transform:none">Worker<br><span style="font-size:11px;color:#a1887f;font-weight:700">工人</span></th>
+                  <th style="padding:10px 12px;text-align:left;text-transform:none">Truck<br><span style="font-size:11px;color:#a1887f;font-weight:700">车工</span></th>
+                  <th style="padding:10px 12px;text-align:center;text-transform:none">Lines<br><span style="font-size:11px;color:#a1887f;font-weight:700">行数</span></th>
+                  <th style="padding:10px 12px;text-align:right;text-transform:none">Gross (AED)<br><span style="font-size:11px;color:#a1887f;font-weight:700">合计 AED</span></th>
+                  <th style="padding:10px 12px;text-align:left;text-transform:none">Actions<br><span style="font-size:11px;color:#a1887f;font-weight:700">操作</span></th>
+                </tr></thead>
+                <tbody id="tb-fin-pending"></tbody>
+              </table>
+            </div>
+            <p id="fin-pending-empty" style="display:none;text-align:center;padding:22px;color:#888;font-family:var(--csm-font-en);font-weight:700">No pending Worker/Truck requests. · 暂无待审批的工人/车工结算。</p>
           </div>
-          <p id="fin-pending-empty" style="display:none;text-align:center;padding:22px;color:#888;font-family:var(--csm-font-en);font-weight:700">No pending Worker/Truck requests. · 暂无待审批的工人/车工结算。</p>
         </div>
 
         <div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:1px solid #a78bfa;border-radius:10px;padding:16px 18px;box-shadow:0 1px 6px rgba(0,0,0,.06)">

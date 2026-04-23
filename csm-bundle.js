@@ -6884,17 +6884,21 @@ function csmFinCustomsFeeTypeDefs() {
     { key: 'other', cn: '其他费用', en: 'Other charge' }
   ];
 }
-function csmFinPendingModuleDefs() {
+function csmFinPendingCustomsBadgeDefs() {
   return [
-    { key: 'logistics', cn: '停柜费', en: 'Logistics', src: 'customs' },
-    { key: 'coldFee', cn: '清关费', en: 'Cold Fee', src: 'customs' },
-    { key: 'attestation', cn: '冷藏费', en: 'Attestation', src: 'customs' },
-    { key: 'repack', cn: '单据认证', en: 'Repack', src: 'customs' },
-    { key: 'waste', cn: '翻包费', en: 'Waste', src: 'customs' },
-    { key: 'wtWorker', cn: '卸货费', en: 'Worker', src: 'wt', wtKey: 'worker' },
-    { key: 'wtTruck', cn: '送货费', en: 'Truck', src: 'wt', wtKey: 'truck' },
-    { key: 'wasteCharge', cn: '垃圾处理费', en: 'Waste charge', src: 'customs' },
-    { key: 'other', cn: '其他费用', en: 'Other charge', src: 'customs' }
+    { key: 'logistics', cn: '停柜费', en: 'Logistics' },
+    { key: 'coldFee', cn: '清关费', en: 'Cold Fee' },
+    { key: 'attestation', cn: '冷藏费', en: 'Attestation' },
+    { key: 'repack', cn: '单据认证', en: 'Repack' },
+    { key: 'waste', cn: '翻包费', en: 'Waste' },
+    { key: 'wasteCharge', cn: '垃圾处理费', en: 'Waste charge' },
+    { key: 'other', cn: '其他费用', en: 'Other charge' }
+  ];
+}
+function csmFinPendingWtPairBadgeDefs() {
+  return [
+    { key: 'wtWorker', cn: '卸货费', en: 'Worker' },
+    { key: 'wtTruck', cn: '送货费', en: 'Truck' }
   ];
 }
 function csmFinWtBatchWorkerTruckSums(b) {
@@ -6908,11 +6912,10 @@ function csmFinWtBatchWorkerTruckSums(b) {
 }
 function renderFinPendingModuleBadges() {
   var wrap = gid('fin-pending-module-badges');
-  if (!wrap) return;
   var cPend = (customsFeeRequests || []).filter(function(r) { return String(r && r.status || 'pending') === 'pending'; });
   var wPend = (salesWtSettlements || []).filter(function(b) { return String(b && b.status || '') === 'pending'; });
   var counts = {};
-  csmFinPendingModuleDefs().forEach(function(m) { counts[m.key] = 0; });
+  csmFinPendingCustomsBadgeDefs().concat(csmFinPendingWtPairBadgeDefs()).forEach(function(m) { counts[m.key] = 0; });
   cPend.forEach(function(r) {
     var lines = (r && r.lines) || {};
     csmFinCustomsFeeTypeDefs().forEach(function(d) {
@@ -6924,21 +6927,57 @@ function renderFinPendingModuleBadges() {
     if (s.worker > 0) counts.wtWorker += 1;
     if (s.truck > 0) counts.wtTruck += 1;
   });
-  wrap.innerHTML = csmFinPendingModuleDefs().map(function(m) {
-    var n = csmFinNum(counts[m.key]);
-    var nStyle = n > 0
-      ? 'background:#0f172a;color:#fff;min-width:28px;padding:2px 9px;border-radius:999px;text-align:center;font-size:12px'
-      : 'background:#e2e8f0;color:#94a3b8;min-width:28px;padding:2px 9px;border-radius:999px;text-align:center;font-size:12px';
-    return (
-      '<div style="background:#fff;border:1px solid #c4b5fd;border-radius:8px;padding:8px 10px;line-height:1.45;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;box-shadow:0 1px 2px rgba(0,0,0,.04)">' +
-        '<div style="flex:1;min-width:0;font-size:12px"><span style="color:#334155">' + csmEscapeHtml(m.cn) + '</span> · ' +
-        '<span style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(m.en) + '</span></div>' +
-        '<span style="font-family:var(--csm-font-en);font-weight:700;flex-shrink:0;' + nStyle + '">' + String(n) + '</span>' +
-        '</div>'
-    );
-  }).join('');
+  if (wrap) {
+    wrap.innerHTML = csmFinPendingCustomsBadgeDefs().map(function(m) {
+      var n = csmFinNum(counts[m.key]);
+      var nStyle = n > 0
+        ? 'background:#0f172a;color:#fff;min-width:28px;padding:2px 9px;border-radius:999px;text-align:center;font-size:12px'
+        : 'background:#e2e8f0;color:#94a3b8;min-width:28px;padding:2px 9px;border-radius:999px;text-align:center;font-size:12px';
+      return (
+        '<div style="background:#fff;border:1px solid #c4b5fd;border-radius:8px;padding:8px 10px;line-height:1.45;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;box-shadow:0 1px 2px rgba(0,0,0,.04)">' +
+          '<div style="flex:1;min-width:0;font-size:12px"><span style="color:#334155">' + csmEscapeHtml(m.cn) + '</span> · ' +
+          '<span style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(m.en) + '</span></div>' +
+          '<span style="font-family:var(--csm-font-en);font-weight:700;flex-shrink:0;' + nStyle + '">' + String(n) + '</span>' +
+          '</div>'
+      );
+    }).join('');
+  }
+  var wInline = gid('fin-pending-worker-inline-badges');
+  if (wInline) {
+    wInline.innerHTML = csmFinPendingWtPairBadgeDefs().map(function(m) {
+      var n = csmFinNum(counts[m.key]);
+      var nStyle = n > 0
+        ? 'background:#e65100;color:#fff;min-width:26px;padding:2px 8px;border-radius:999px;text-align:center;font-size:11px'
+        : 'background:#f1f5f9;color:#94a3b8;min-width:26px;padding:2px 8px;border-radius:999px;text-align:center;font-size:11px';
+      return (
+        '<div style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #ffe0b2;border-radius:8px;padding:4px 10px;font-size:12px;box-shadow:0 1px 2px rgba(0,0,0,.04)">' +
+          '<span style="color:#5d4037">' + csmEscapeHtml(m.cn) + '</span> · ' +
+          '<span style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(m.en) + '</span>' +
+          '<span style="font-family:var(--csm-font-en);font-weight:700;' + nStyle + '">' + String(n) + '</span></div>'
+      );
+    }).join('');
+  }
+}
+function csmFinPendingToggleWTPanel() {
+  var panel = gid('fin-pending-wt-panel');
+  var btn = gid('fin-pending-worker-btn');
+  if (!panel) return;
+  var cur = 'block';
+  try { cur = window.getComputedStyle(panel).display; } catch (e0) { cur = (panel.style.display && panel.style.display !== 'none') ? panel.style.display : 'none'; }
+  var willShow = cur === 'none';
+  panel.style.display = willShow ? 'block' : 'none';
+  if (btn) {
+    if (willShow) {
+      btn.setAttribute('aria-expanded', 'true');
+      btn.classList.add('csm-pending-wt-open');
+    } else {
+      btn.setAttribute('aria-expanded', 'false');
+      btn.classList.remove('csm-pending-wt-open');
+    }
+  }
 }
 try { window.renderFinPendingModuleBadges = renderFinPendingModuleBadges; } catch (eFpb) {}
+try { window.csmFinPendingToggleWTPanel = csmFinPendingToggleWTPanel; } catch (eWtTgl) {}
 function csmFinCustomsLinesTotal(lines) {
   lines = lines || {};
   var t = 0;

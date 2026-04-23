@@ -6886,7 +6886,7 @@ function csmFinCustomsFeeTypeDefs() {
 }
 function csmFinPendingAllCategoryDefs() {
   return [
-    { key: 'logistics', kind: 'customs', tag: 'Parking', cn: '停柜费', en: 'Logistics' },
+    { key: 'logistics', kind: 'customs', cn: '停柜费', en: 'Parking' },
     { key: 'coldFee', kind: 'customs', cn: '清关费', en: 'Cold Fee' },
     { key: 'attestation', kind: 'customs', cn: '冷藏费', en: 'Attestation' },
     { key: 'repack', kind: 'customs', cn: '单据认证', en: 'Repack' },
@@ -7078,8 +7078,8 @@ function renderFinPendingCategoryPanel() {
 function csmFinPendingRenderOneTile(m, counts) {
   var n = csmFinNum(counts[m.key]);
   var nStyle = n > 0
-    ? 'background:#0f172a;color:#fff;min-width:28px;padding:2px 9px;border-radius:999px;text-align:center;font-size:12px'
-    : 'background:#e2e8f0;color:#94a3b8;min-width:28px;padding:2px 9px;border-radius:999px;text-align:center;font-size:12px';
+    ? 'background:#0f172a;color:#fff;min-width:22px;padding:1px 6px;border-radius:999px;text-align:center;font-size:10px'
+    : 'background:#e2e8f0;color:#94a3b8;min-width:22px;padding:1px 6px;border-radius:999px;text-align:center;font-size:10px';
   var sel = finPendingSelectedCategoryKey === m.key;
   var bd = sel ? '2px solid #5b21b6' : '1px solid #c4b5fd';
   var bg = sel ? 'linear-gradient(135deg,#eef2ff,#fff7ed)' : '#fff';
@@ -7087,13 +7087,15 @@ function csmFinPendingRenderOneTile(m, counts) {
     bd = sel ? '2px solid #e65100' : '1px solid #ffb74d';
     bg = sel ? 'linear-gradient(135deg,#fff3e0,#fffde7)' : 'linear-gradient(180deg,#fff8e1,#fff)';
   }
+  var wFirst = m.section === 'worker' && m.key === 'wtAll';
+  var wBand = wFirst ? 'border-left:3px solid #ffb74d;border-radius:0 8px 8px 0;padding-left:5px;margin-left:2px;' : '';
   var line1 = m.tag
-    ? '<div style="font-size:10px;font-family:var(--csm-font-en);font-weight:700;color:#64748b;margin-bottom:2px">' + csmEscapeHtml(m.tag) + '</div><div><span style="color:#334155">' + csmEscapeHtml(m.cn) + '</span> · <span style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(m.en) + '</span></div>'
-    : '<div><span style="color:#334155">' + csmEscapeHtml(m.cn) + '</span> · <span style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(m.en) + '</span></div>';
+    ? '<div style="font-size:9px;font-family:var(--csm-font-en);font-weight:700;color:#64748b;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + csmEscapeHtml(m.tag) + '</div><div style="line-height:1.2"><span style="color:#334155;font-size:10px">' + csmEscapeHtml(m.cn) + '</span> · <span style="font-family:var(--csm-font-en);font-weight:700;font-size:10px">' + csmEscapeHtml(m.en) + '</span></div>'
+    : '<div style="line-height:1.25"><span style="color:#334155;font-size:10px">' + csmEscapeHtml(m.cn) + '</span> · <span style="font-family:var(--csm-font-en);font-weight:700;font-size:10px">' + csmEscapeHtml(m.en) + '</span></div>';
   return (
     '<button type="button" class="csm-pending-cat-tile" onclick="csmFinPendingSelectCategory(' + JSON.stringify(m.key) + ')" ' +
-    'style="font-family:var(--csm-font-en);font-weight:700;cursor:pointer;text-align:left;width:100%;box-sizing:border-box;margin:0;background:' + bg + ';border:' + bd + ';border-radius:8px;padding:8px 10px;line-height:1.4;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;box-shadow:0 1px 2px rgba(0,0,0,.04)">' +
-      '<div style="flex:1;min-width:0;font-size:12px">' + line1 + '</div>' +
+    'style="font-family:var(--csm-font-en);font-weight:700;cursor:pointer;text-align:left;flex:1 1 0;min-width:0;align-self:stretch;box-sizing:border-box;margin:0;background:' + bg + ';border:' + bd + ';border-radius:8px;padding:5px 6px;line-height:1.2;display:flex;align-items:center;justify-content:space-between;gap:4px;min-height:40px;max-height:100%;box-shadow:0 1px 2px rgba(0,0,0,.04);' + wBand + '">' +
+      '<div style="flex:1;min-width:0;overflow:hidden">' + line1 + '</div>' +
       '<span style="font-family:var(--csm-font-en);font-weight:700;flex-shrink:0;' + nStyle + '">' + String(n) + '</span>' +
     '</button>'
   );
@@ -7106,15 +7108,13 @@ function renderFinPendingModuleBadges() {
   var beforeW = all.filter(function(m) { return m.kind === 'customs' && ['logistics', 'coldFee', 'attestation', 'repack', 'waste'].indexOf(m.key) !== -1; });
   var workerB = all.filter(function(m) { return m.section === 'worker'; });
   var afterW = all.filter(function(m) { return m.kind === 'customs' && (m.key === 'wasteCharge' || m.key === 'other'); });
-  var partA = beforeW.map(function(m) { return csmFinPendingRenderOneTile(m, counts); }).join('');
-  var partW = workerB.map(function(m) { return csmFinPendingRenderOneTile(m, counts); }).join('');
-  var workerBlock =
-    '<div class="csm-pending-worker-dir" style="grid-column:1/-1;border:1px solid #ffe0b2;border-radius:10px;padding:10px 12px 12px;background:linear-gradient(180deg,#fff8e1,#fffcf5);box-shadow:0 1px 3px rgba(0,0,0,.04)">' +
-      '<div style="font-size:13px;font-family:var(--csm-font-en);font-weight:800;color:#e65100;margin:0 0 8px;letter-spacing:.02em">Worker 待审批 <span style="font-size:12px;font-weight:700;opacity:.9">· Worker — Pending</span></div>' +
-      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">' + partW + '</div>' +
+  var rowHtml = [].concat(beforeW, workerB, afterW).map(function(m) {
+    return csmFinPendingRenderOneTile(m, counts);
+  }).join('');
+  wrap.innerHTML =
+    '<div class="csm-pending-badges-one-row" style="display:flex;flex-direction:row;flex-wrap:nowrap;align-items:stretch;gap:5px;width:100%;min-width:0;box-sizing:border-box;overflow-x:auto;overflow-y:hidden;padding:2px 0;scrollbar-gutter:stable">' +
+    rowHtml +
     '</div>';
-  var partB = afterW.map(function(m) { return csmFinPendingRenderOneTile(m, counts); }).join('');
-  wrap.innerHTML = partA + workerBlock + partB;
 }
 try { window.renderFinPendingModuleBadges = renderFinPendingModuleBadges; } catch (eFpb) {}
 try { window.csmFinPendingSelectCategory = csmFinPendingSelectCategory; } catch (eFpb2) {}

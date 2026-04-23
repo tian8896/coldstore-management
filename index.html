@@ -28,6 +28,10 @@ body.csm-supplier-ui #suiteWarehouse1 > .hstats{display:none!important}
 body.csm-supplier-ui #suiteWarehouse1 > .main{grid-template-columns:1fr!important}
 body.csm-supplier-ui #suiteWarehouse1 > .main > .left{display:none!important}
 body.csm-supplier-ui #suiteWarehouse1 > .main > #supplierView{grid-column:1 / -1;width:100%;min-height:calc(100vh - 160px)}
+/* 物流公司账号：不显示左侧门店/入库/出库，仅显示物流表区域 */
+body.csm-logistics-ui #suiteWarehouse1 > .main{grid-template-columns:1fr!important;min-height:calc(100vh - 130px)}
+body.csm-logistics-ui #suiteWarehouse1 .left{display:none!important}
+body.csm-logistics-ui #logisticsView{min-width:0;width:100%;max-width:100%}
 .left{border-right:1px solid var(--bd);padding:20px 15px 20px 20px;display:flex;flex-direction:column;gap:18px;overflow-y:auto;background:#fafafa}
 .section{background:var(--bg3);border:1px solid var(--bd);border-radius:7px;padding:18px 15px}
 .stitle{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--tx2);margin-bottom:14px;padding-bottom:9px;border-bottom:1px solid var(--bd);font-family:var(--csm-font-en);font-weight:700}
@@ -475,7 +479,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260423fin-portal-stats-one-row" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260423logistics-hide-w1-inout" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {

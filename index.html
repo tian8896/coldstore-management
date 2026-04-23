@@ -482,7 +482,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260423customs-label-fix" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260423paymentapp-tab" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -1506,7 +1506,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px">
         <div>
           <h3 style="margin:0 0 6px;font-family:var(--csm-font-en);font-weight:700;color:#0f172a">Finance workspace · 财务工作台</h3>
-          <p style="margin:0;color:#52606d;font-size:13px;line-height:1.6;font-family:var(--csm-font-en);font-weight:700">Use the top switcher below to open dashboard, ledgers, cash &amp; bank, tax, and pending approval items in one place. · 下方列表与对应显示内容已统一移到页面上方。</p>
+          <p style="margin:0;color:#52606d;font-size:13px;line-height:1.6;font-family:var(--csm-font-en);font-weight:700">Use the top switcher below to open dashboard, ledgers, cash &amp; bank, tax, pending approval items, and payment applications in one place. · 下方列表与对应显示内容已统一移到页面上方。</p>
         </div>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
@@ -1516,6 +1516,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <button type="button" class="btn btn-g" id="company-fin-btn-cashbank" onclick="swCompanyFinView('cashbank')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Cash &amp; Bank <span style="font-size:11px;opacity:.9;font-family:var(--csm-font-en);font-weight:700">现金与银行</span></button>
         <button type="button" class="btn btn-g" id="company-fin-btn-tax" onclick="swCompanyFinView('tax')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">VAT &amp; Corporate Tax <span style="font-size:11px;opacity:.9;font-family:var(--csm-font-en);font-weight:700">增值税与企业所得税</span></button>
         <button type="button" class="btn btn-g" id="company-fin-btn-pending" onclick="swCompanyFinView('pending')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Pending approvals <span style="font-size:11px;opacity:.9;font-family:var(--csm-font-en);font-weight:700">待审批项目</span> <span id="company-fin-pending-badge" style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;border:1px solid currentColor;font-size:11px;font-family:var(--csm-font-en);font-weight:700;line-height:1">0</span></button>
+        <button type="button" class="btn btn-g" id="company-fin-btn-paymentapp" onclick="swCompanyFinView('paymentapp')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Payment application <span style="font-size:11px;opacity:.9;font-family:var(--csm-font-en);font-weight:700">付款申请</span></button>
       </div>
 
       <div id="company-fin-panel-dashboard">
@@ -1724,6 +1725,16 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
                 <tbody id="tb-fin-pending-cat-customs"></tbody>
               </table>
             </div>
+          </div>
+        </div>
+      </div>
+      <div id="company-fin-panel-paymentapp" style="display:none">
+        <div style="border:1px solid #bfdbfe;border-radius:12px;padding:18px 20px;background:linear-gradient(180deg,#eff6ff,#ffffff);box-shadow:0 1px 6px rgba(0,0,0,.05)">
+          <h3 style="margin:0 0 8px;font-family:var(--csm-font-en);font-weight:800;color:#0f172a">Payment application · 付款申请</h3>
+          <p style="margin:0 0 14px;font-size:13px;line-height:1.7;color:#475569;font-family:var(--csm-font-en);font-weight:700">This page is reserved for centralized payment application workflow and summaries. · 此页面预留给统一的付款申请流程与汇总展示。</p>
+          <div style="border:1px dashed #93c5fd;border-radius:10px;padding:18px;background:#ffffff">
+            <div style="font-size:14px;color:#1e3a8a;font-family:var(--csm-font-en);font-weight:700;margin-bottom:6px">Payment application workspace</div>
+            <div style="font-size:13px;color:#64748b;line-height:1.7;font-family:var(--csm-font-en);font-weight:700">Next step can place Worker / Truck / Customs payment requests, approval status, and payment batch summaries here.</div>
           </div>
         </div>
       </div>

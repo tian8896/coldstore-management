@@ -4865,7 +4865,7 @@ function csmFinBuildWorkspaceState() {
   };
 }
 function swCompanyFinView(view) {
-  var views = ['dashboard', 'gl', 'detail', 'cashbank', 'tax', 'pending'];
+  var views = ['dashboard', 'gl', 'detail', 'cashbank', 'tax', 'pending', 'paymentapp'];
   if (isStaff) {
     companyFinView = 'pending';
   } else {

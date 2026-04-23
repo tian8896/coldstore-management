@@ -20,6 +20,8 @@ header p{color:var(--tx);font-size:17px;font-weight:bold;margin-top:4px;letter-s
 .hstat{text-align:center}
 .hstat .v{font-size:22px;font-weight:bold;color:var(--am)}
 .hstat .l{font-size:11px;color:var(--tx2);letter-spacing:1px;text-transform:uppercase;font-family:var(--csm-font-en);font-weight:700}
+/* 总入库/托盘/件数 已在顶部门户行（W1|W2|财务）右侧显示，避免 W1 内再出现一整条重复 */
+#suiteWarehouse1 > .hstats:first-of-type{display:none!important}
 .main{display:grid;grid-template-columns:360px 1fr;min-height:calc(100vh - 130px)}
 /* 供应商账号：不显示 W1 顶部入库汇总、左侧冷库/入库/出库 */
 body.csm-supplier-ui #suiteWarehouse1 > .hstats{display:none!important}
@@ -328,9 +330,10 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 #settingsModal #new-user-supplier-name{width:100%;padding:12px 14px!important;font-size:15px!important;min-height:46px;border-radius:6px!important;border:1px solid #ccc!important;font-family:var(--csm-font-en);font-weight:700}
 /* 销售订单弹窗：单价在品名下；VAT 为大号按钮式选项 */
 .portal-shell{display:none;padding:12px 36px;background:var(--bg3);border-bottom:1px solid var(--bd)}
-.portal-shell .portal-btn-row{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;justify-content:space-between}
-.portal-shell .portal-btn-group{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;flex:1 1 auto;min-width:0}
-.portal-shell .portal-w1-hstats{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:flex-end;gap:16px 22px;margin:0;margin-left:auto;flex:0 0 auto;text-align:center}
+/* 与三个域按钮严格同一行：左侧三个按钮、右侧在库统计；过窄时横向滚动不换行 */
+.portal-shell .portal-btn-row{display:flex;flex-wrap:nowrap;align-items:center;justify-content:space-between;gap:8px 12px;min-width:0;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
+.portal-shell .portal-btn-group{display:flex;flex-wrap:nowrap;align-items:stretch;gap:10px;flex:0 1 auto;min-width:0}
+.portal-shell .portal-w1-hstats{display:flex;flex-wrap:nowrap;align-items:flex-end;justify-content:flex-end;gap:12px 18px;margin:0;padding-left:8px;border-left:1px solid #ddd;margin-left:8px;flex:0 0 auto;text-align:center}
 .portal-shell .portal-w1-hstats .hstat .v{font-size:20px}
 .portal-shell .portal-w1-hstats .hstat .l{font-size:10px;white-space:nowrap}
 .portal-app-btn{flex:0 0 auto;min-width:140px;padding:10px 16px;border:2px solid var(--bd);border-radius:6px;background:var(--bg2);color:var(--tx2);font-family:var(--csm-font-en);font-weight:700;cursor:pointer;transition:all .2s;font-size:12px;text-align:center;line-height:1.35}
@@ -472,7 +475,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260423fin-w1-stats-portal-row" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260423fin-portal-stats-one-row" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {

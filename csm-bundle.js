@@ -6891,11 +6891,17 @@ function csmFinPendingAllCategoryDefs() {
     { key: 'attestation', kind: 'customs', cn: '冷藏费', en: 'Attestation' },
     { key: 'repack', kind: 'customs', cn: '单据认证', en: 'Repack' },
     { key: 'waste', kind: 'customs', cn: '翻包费', en: 'Waste' },
-    { key: 'wtWorker', kind: 'wt', cn: '卸货费', en: 'Worker' },
-    { key: 'wtTruck', kind: 'wt', cn: '送货费', en: 'Truck' },
+    { key: 'wtAll', kind: 'wt', section: 'worker', cn: 'Worker 待审批', en: 'All · 全部' },
+    { key: 'wtWorker', kind: 'wt', section: 'worker', cn: '卸货费', en: 'Worker' },
+    { key: 'wtTruck', kind: 'wt', section: 'worker', cn: '送货费', en: 'Truck' },
     { key: 'wasteCharge', kind: 'customs', cn: '垃圾处理费', en: 'Waste charge' },
     { key: 'other', kind: 'customs', cn: '其他费用', en: 'Other charge' }
   ];
+}
+function csmFinWtBatchUnallocated(b) {
+  if (!b || String(b.status || '') !== 'pending') return false;
+  var s = csmFinWtBatchWorkerTruckSums(b);
+  return s.worker <= 0 && s.truck <= 0;
 }
 function csmFinWtBatchWorkerTruckSums(b) {
   var w = 0;
@@ -6917,9 +6923,11 @@ function csmFinPendingComputeCategoryCounts() {
       if (csmFinNum(lines[d.key]) > 0) counts[d.key] += 1;
     });
   });
+  counts.wtAll = wPend.length;
   wPend.forEach(function(b) {
     var s = csmFinWtBatchWorkerTruckSums(b);
     if (s.worker > 0) counts.wtWorker += 1;
+    else if (csmFinWtBatchUnallocated(b)) counts.wtWorker += 1;
     if (s.truck > 0) counts.wtTruck += 1;
   });
   return counts;
@@ -7015,17 +7023,32 @@ function renderFinPendingCategoryPanel() {
     ? '<span style="font-size:12px;font-family:var(--csm-font-en);font-weight:700;color:#64748b">' + csmEscapeHtml(def.tag) + '</span> ' + csmEscapeHtml(def.cn) + ' · ' + csmEscapeHtml(def.en)
     : csmEscapeHtml(def.cn) + ' · ' + csmEscapeHtml(def.en);
   if (titleEl) titleEl.innerHTML = titleParts;
-  if (subEl) subEl.textContent = (def.kind === 'wt' ? 'Worker / Truck settlement' : 'Customs fee request') + ' / ' + (def.kind === 'wt' ? '装卸结算待审批' : '清关费用待审批');
+  if (subEl) {
+    if (k === 'wtAll') {
+      subEl.textContent = 'All pending Worker/Truck settlement batches in queue. · 当前队列内全部待审批的装卸结算批次。';
+    } else {
+      subEl.textContent = (def.kind === 'wt' ? 'Worker / Truck settlement' : 'Customs fee request') + ' / ' + (def.kind === 'wt' ? '装卸结算待审批' : '清关费用待审批');
+    }
+  }
   if (def.kind === 'wt') {
     if (cWrap) cWrap.style.display = 'none';
     if (wWrap) wWrap.style.display = 'block';
     if (emptyEl) emptyEl.style.display = 'none';
     panel.style.display = 'block';
     var wPend = (salesWtSettlements || []).filter(function(b) { return String(b && b.status || '') === 'pending'; });
-    wPend = wPend.filter(function(b) {
-      var s = csmFinWtBatchWorkerTruckSums(b);
-      return k === 'wtWorker' ? s.worker > 0 : s.truck > 0;
-    });
+    if (k === 'wtAll') {
+    } else if (k === 'wtWorker') {
+      wPend = wPend.filter(function(b) {
+        var s = csmFinWtBatchWorkerTruckSums(b);
+        return s.worker > 0 || csmFinWtBatchUnallocated(b);
+      });
+    } else if (k === 'wtTruck') {
+      wPend = wPend.filter(function(b) {
+        return csmFinWtBatchWorkerTruckSums(b).truck > 0;
+      });
+    } else {
+      wPend = [];
+    }
     if (twTb) {
       if (!wPend.length) {
         twTb.innerHTML = '';
@@ -7052,30 +7075,46 @@ function renderFinPendingCategoryPanel() {
     }
   }
 }
+function csmFinPendingRenderOneTile(m, counts) {
+  var n = csmFinNum(counts[m.key]);
+  var nStyle = n > 0
+    ? 'background:#0f172a;color:#fff;min-width:28px;padding:2px 9px;border-radius:999px;text-align:center;font-size:12px'
+    : 'background:#e2e8f0;color:#94a3b8;min-width:28px;padding:2px 9px;border-radius:999px;text-align:center;font-size:12px';
+  var sel = finPendingSelectedCategoryKey === m.key;
+  var bd = sel ? '2px solid #5b21b6' : '1px solid #c4b5fd';
+  var bg = sel ? 'linear-gradient(135deg,#eef2ff,#fff7ed)' : '#fff';
+  if (m.key === 'wtAll') {
+    bd = sel ? '2px solid #e65100' : '1px solid #ffb74d';
+    bg = sel ? 'linear-gradient(135deg,#fff3e0,#fffde7)' : 'linear-gradient(180deg,#fff8e1,#fff)';
+  }
+  var line1 = m.tag
+    ? '<div style="font-size:10px;font-family:var(--csm-font-en);font-weight:700;color:#64748b;margin-bottom:2px">' + csmEscapeHtml(m.tag) + '</div><div><span style="color:#334155">' + csmEscapeHtml(m.cn) + '</span> · <span style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(m.en) + '</span></div>'
+    : '<div><span style="color:#334155">' + csmEscapeHtml(m.cn) + '</span> · <span style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(m.en) + '</span></div>';
+  return (
+    '<button type="button" class="csm-pending-cat-tile" onclick="csmFinPendingSelectCategory(' + JSON.stringify(m.key) + ')" ' +
+    'style="font-family:var(--csm-font-en);font-weight:700;cursor:pointer;text-align:left;width:100%;box-sizing:border-box;margin:0;background:' + bg + ';border:' + bd + ';border-radius:8px;padding:8px 10px;line-height:1.4;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;box-shadow:0 1px 2px rgba(0,0,0,.04)">' +
+      '<div style="flex:1;min-width:0;font-size:12px">' + line1 + '</div>' +
+      '<span style="font-family:var(--csm-font-en);font-weight:700;flex-shrink:0;' + nStyle + '">' + String(n) + '</span>' +
+    '</button>'
+  );
+}
 function renderFinPendingModuleBadges() {
   var wrap = gid('fin-pending-module-badges');
   var counts = csmFinPendingComputeCategoryCounts();
-  if (wrap) {
-    wrap.innerHTML = csmFinPendingAllCategoryDefs().map(function(m) {
-      var n = csmFinNum(counts[m.key]);
-      var nStyle = n > 0
-        ? 'background:#0f172a;color:#fff;min-width:28px;padding:2px 9px;border-radius:999px;text-align:center;font-size:12px'
-        : 'background:#e2e8f0;color:#94a3b8;min-width:28px;padding:2px 9px;border-radius:999px;text-align:center;font-size:12px';
-      var sel = finPendingSelectedCategoryKey === m.key;
-      var bd = sel ? '2px solid #5b21b6' : '1px solid #c4b5fd';
-      var bg = sel ? 'linear-gradient(135deg,#eef2ff,#fff7ed)' : '#fff';
-      var line1 = m.tag
-        ? '<div style="font-size:10px;font-family:var(--csm-font-en);font-weight:700;color:#64748b;margin-bottom:2px">' + csmEscapeHtml(m.tag) + '</div><div><span style="color:#334155">' + csmEscapeHtml(m.cn) + '</span> · <span style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(m.en) + '</span></div>'
-        : '<div><span style="color:#334155">' + csmEscapeHtml(m.cn) + '</span> · <span style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(m.en) + '</span></div>';
-      return (
-        '<button type="button" class="csm-pending-cat-tile" onclick="csmFinPendingSelectCategory(' + JSON.stringify(m.key) + ')" ' +
-        'style="font-family:var(--csm-font-en);font-weight:700;cursor:pointer;text-align:left;width:100%;box-sizing:border-box;margin:0;background:' + bg + ';border:' + bd + ';border-radius:8px;padding:8px 10px;line-height:1.4;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;box-shadow:0 1px 2px rgba(0,0,0,.04)">' +
-          '<div style="flex:1;min-width:0;font-size:12px">' + line1 + '</div>' +
-          '<span style="font-family:var(--csm-font-en);font-weight:700;flex-shrink:0;' + nStyle + '">' + String(n) + '</span>' +
-        '</button>'
-      );
-    }).join('');
-  }
+  if (!wrap) return;
+  var all = csmFinPendingAllCategoryDefs();
+  var beforeW = all.filter(function(m) { return m.kind === 'customs' && ['logistics', 'coldFee', 'attestation', 'repack', 'waste'].indexOf(m.key) !== -1; });
+  var workerB = all.filter(function(m) { return m.section === 'worker'; });
+  var afterW = all.filter(function(m) { return m.kind === 'customs' && (m.key === 'wasteCharge' || m.key === 'other'); });
+  var partA = beforeW.map(function(m) { return csmFinPendingRenderOneTile(m, counts); }).join('');
+  var partW = workerB.map(function(m) { return csmFinPendingRenderOneTile(m, counts); }).join('');
+  var workerBlock =
+    '<div class="csm-pending-worker-dir" style="grid-column:1/-1;border:1px solid #ffe0b2;border-radius:10px;padding:10px 12px 12px;background:linear-gradient(180deg,#fff8e1,#fffcf5);box-shadow:0 1px 3px rgba(0,0,0,.04)">' +
+      '<div style="font-size:13px;font-family:var(--csm-font-en);font-weight:800;color:#e65100;margin:0 0 8px;letter-spacing:.02em">Worker 待审批 <span style="font-size:12px;font-weight:700;opacity:.9">· Worker — Pending</span></div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">' + partW + '</div>' +
+    '</div>';
+  var partB = afterW.map(function(m) { return csmFinPendingRenderOneTile(m, counts); }).join('');
+  wrap.innerHTML = partA + workerBlock + partB;
 }
 try { window.renderFinPendingModuleBadges = renderFinPendingModuleBadges; } catch (eFpb) {}
 try { window.csmFinPendingSelectCategory = csmFinPendingSelectCategory; } catch (eFpb2) {}

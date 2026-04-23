@@ -4775,7 +4775,7 @@ function csmFinBuildSummary() {
     sum.receiptsAed += actual;
   });
   (salesWtSettlements || []).forEach(function(b) {
-    if (!b || String(b.status || '') !== 'pending') return;
+    if (!b || !csmFinWtIsAwaitingPayment(b)) return;
     sum.pendingApprovalCount += 1;
     sum.pendingApprovalAed += csmFinNum(b.grossAed);
   });
@@ -6508,6 +6508,15 @@ function csmFinWtCanConfirmPaid() {
   if (isStaff) return false;
   return isAdmin === true;
 }
+function csmFinWtStatusNorm(b) {
+  return String(b && b.status != null ? b.status : '').trim().toLowerCase();
+}
+/** Same as Payment records: not yet paid (Pending). Includes missing/legacy status, any case. */
+function csmFinWtIsAwaitingPayment(b) {
+  if (!b) return false;
+  var s = csmFinWtStatusNorm(b);
+  return s !== 'paid' && s !== 'void' && s !== 'cancelled';
+}
 function csmSalesOrderFinTimeMs(o) {
   var s = String(o && (o.confirmedAt || o.createdAt) || '').trim();
   if (!s) return 0;
@@ -6523,14 +6532,17 @@ function csmFinWtLineSettlementStatus(lineKey) {
     var keys = b.lineKeys || [];
     if (keys.indexOf(lineKey) === -1) return;
     if (b.status === 'paid') st = 'paid';
-    else if (b.status === 'pending' && st !== 'paid') st = 'pending';
+    else if (csmFinWtIsAwaitingPayment(b) && st !== 'paid') st = 'pending';
   });
   return st;
 }
 function csmFinWtReservedLineKeySet() {
   var set = {};
   (salesWtSettlements || []).forEach(function(b) {
-    if (b.status !== 'pending' && b.status !== 'paid') return;
+    if (!b) return;
+    var sn = csmFinWtStatusNorm(b);
+    if (sn === 'void' || sn === 'cancelled') return;
+    if (sn !== 'pending' && sn !== 'paid' && String(b.status != null ? b.status : '').trim() !== '') return;
     (b.lineKeys || []).forEach(function(k) { set[k] = true; });
   });
   return set;
@@ -6650,9 +6662,10 @@ function renderFinWtPanel() {
           : '<span style="color:#f57f17;font-family:var(--csm-font-en);font-weight:700">Pending</span>';
         var paidAt = b.paidAt ? csmSalesFormatOrderCreated(b.paidAt) : '—';
         var actions = '';
-        if (st === 'pending' && csmFinWtCanConfirmPaid()) {
+        var openForPay = csmFinWtIsAwaitingPayment(b);
+        if (openForPay && csmFinWtCanConfirmPaid()) {
           actions = '<button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="csmFinWtOpenConfirm(' + JSON.stringify(b.id) + ')">Confirm paid</button>';
-        } else if (st === 'pending' && !csmFinWtCanConfirmPaid()) {
+        } else if (openForPay && !csmFinWtCanConfirmPaid()) {
           actions = '<span style="color:#888;font-size:12px;font-family:var(--csm-font-en);font-weight:700">' + (isStaff ? 'Admin only (staff cannot confirm)' : 'Awaiting admin') + '</span>';
         } else {
           actions = '—';
@@ -6788,7 +6801,7 @@ function csmFinWtSubmitPending() {
 function csmFinWtOpenConfirm(batchId) {
   if (!csmFinWtCanConfirmPaid()) { toast(isStaff ? 'Staff cannot confirm paid — admin only' : 'Admin only', 'err'); return; }
   var b = (salesWtSettlements || []).find(function(x) { return x.id === batchId; });
-  if (!b || b.status !== 'pending') { toast('Batch not found', 'err'); return; }
+  if (!b || !csmFinWtIsAwaitingPayment(b)) { toast('Batch not found or already paid', 'err'); return; }
   var m = gid('fin-wt-confirm-modal');
   var idEl = gid('fin-wt-confirm-batch-id');
   var payEl = gid('fin-wt-confirm-pay');
@@ -6899,7 +6912,7 @@ function csmFinPendingAllCategoryDefs() {
   ];
 }
 function csmFinWtBatchUnallocated(b) {
-  if (!b || String(b.status || '') !== 'pending') return false;
+  if (!b || !csmFinWtIsAwaitingPayment(b)) return false;
   var s = csmFinWtBatchWorkerTruckSums(b);
   return s.worker <= 0 && s.truck <= 0;
 }
@@ -6914,7 +6927,7 @@ function csmFinWtBatchWorkerTruckSums(b) {
 }
 function csmFinPendingComputeCategoryCounts() {
   var cPend = (customsFeeRequests || []).filter(function(r) { return String(r && r.status || 'pending') === 'pending'; });
-  var wPend = (salesWtSettlements || []).filter(function(b) { return String(b && b.status || '') === 'pending'; });
+  var wPend = (salesWtSettlements || []).filter(function(b) { return csmFinWtIsAwaitingPayment(b); });
   var counts = {};
   csmFinPendingAllCategoryDefs().forEach(function(m) { counts[m.key] = 0; });
   cPend.forEach(function(r) {
@@ -7035,7 +7048,7 @@ function renderFinPendingCategoryPanel() {
     if (wWrap) wWrap.style.display = 'block';
     if (emptyEl) emptyEl.style.display = 'none';
     panel.style.display = 'block';
-    var wPend = (salesWtSettlements || []).filter(function(b) { return String(b && b.status || '') === 'pending'; });
+    var wPend = (salesWtSettlements || []).filter(function(b) { return csmFinWtIsAwaitingPayment(b); });
     if (k === 'wtAll') {
     } else if (k === 'wtWorker') {
       wPend = wPend.filter(function(b) {
@@ -7171,7 +7184,7 @@ try { window.csmFinCustomsApprove = csmFinCustomsApprove; } catch (eCfa) {}
 try { window.renderCompanyFinancialPendingCustoms = renderCompanyFinancialPendingCustoms; } catch (eCfr) {}
 function renderCompanyFinancialPending() {
   var countEl = gid('fin-pending-count');
-  var pending = (salesWtSettlements || []).filter(function(b) { return String(b.status || '') === 'pending'; });
+  var pending = (salesWtSettlements || []).filter(function(b) { return csmFinWtIsAwaitingPayment(b); });
   if (countEl) countEl.textContent = String(pending.length);
   try { renderFinPendingModuleBadges(); } catch (eBdg0) {}
   try { renderFinPendingCategoryPanel(); } catch (eBdg1) {}
@@ -7182,7 +7195,7 @@ function csmFinWtQuickApprove(batchId) {
     return;
   }
   var b = (salesWtSettlements || []).find(function(x) { return x.id === batchId; });
-  if (!b || String(b.status || '') !== 'pending') {
+  if (!b || !csmFinWtIsAwaitingPayment(b)) {
     toast('Request not found or already processed', 'err');
     return;
   }

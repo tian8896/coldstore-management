@@ -7772,6 +7772,98 @@ function buildSalesOrderLineProductOptionsForCn(cnNorm, selectedRaw) {
   if (distinct.length > 1) return buildSalesOrderProductOptionsMulti(distinct, selectedRaw);
   return buildProductSelectOptionsHtml(selectedRaw);
 }
+function csmSalesRemainingQtyKey(cn, product) {
+  return String(cn || '').trim().toUpperCase() + '\x1e' + canonicalProductName(String(product || '').trim());
+}
+function csmSalesPurchaseRemainingQtyForKey(cn, product) {
+  var key = csmSalesRemainingQtyKey(cn, product);
+  var sum = 0;
+  (purchaseRecs || []).forEach(function(p) {
+    if (csmSalesRemainingQtyKey(p.cn, p.product) !== key) return;
+    sum += parseFloat(p.qty) || 0;
+  });
+  return csmSalesRound2(sum);
+}
+function csmSalesEditingOrderReservedQtyForKey(cn, product) {
+  var orderId = String((gid('sales-order-id') && gid('sales-order-id').value) || '').trim();
+  if (!orderId) return 0;
+  var o = (salesOrders || []).find(function(x) { return x.id === orderId; });
+  if (!o || o.voided) return 0;
+  var key = csmSalesRemainingQtyKey(cn, product);
+  var sum = 0;
+  csmSalesNormalizeLinesFromOrder(o).forEach(function(L) {
+    if (csmSalesRemainingQtyKey(L.containerNo, L.productName) !== key) return;
+    sum += parseFloat(L.quantity) || 0;
+  });
+  return csmSalesRound2(sum);
+}
+function csmSalesDomAllocatedQtyForKey(key, excludeTr) {
+  var tb = gid('sales-order-lines-body');
+  if (!tb || !key) return 0;
+  var sum = 0;
+  tb.querySelectorAll('tr.csm-sol-main').forEach(function(tr) {
+    if (excludeTr && tr === excludeTr) return;
+    var hidCn = tr.querySelector('.sol-cn-val');
+    var prEl = tr.querySelector('.sol-pr');
+    var qtyEl = tr.querySelector('.sol-qty');
+    var cn = String(hidCn && hidCn.value || '').trim().toUpperCase();
+    var pr = canonicalProductName(String(prEl && prEl.value || '').trim());
+    if (!cn || !pr) return;
+    if (csmSalesRemainingQtyKey(cn, pr) !== key) return;
+    sum += parseFloat(qtyEl && qtyEl.value) || 0;
+  });
+  return csmSalesRound2(sum);
+}
+function csmSalesRemainingQtyForEditorRow(tr) {
+  if (!tr) return { key: '', purchasedRemaining: 0, existingReserved: 0, otherAllocated: 0, available: 0 };
+  var hidCn = tr.querySelector('.sol-cn-val');
+  var prEl = tr.querySelector('.sol-pr');
+  var cn = String(hidCn && hidCn.value || '').trim().toUpperCase();
+  var pr = canonicalProductName(String(prEl && prEl.value || '').trim());
+  var key = csmSalesRemainingQtyKey(cn, pr);
+  if (!cn || !pr) return { key: key, purchasedRemaining: 0, existingReserved: 0, otherAllocated: 0, available: 0 };
+  var purchasedRemaining = csmSalesPurchaseRemainingQtyForKey(cn, pr);
+  var existingReserved = csmSalesEditingOrderReservedQtyForKey(cn, pr);
+  var otherAllocated = csmSalesDomAllocatedQtyForKey(key, tr);
+  var available = csmSalesRound2(purchasedRemaining + existingReserved - otherAllocated);
+  if (available < 0) available = 0;
+  return {
+    key: key,
+    purchasedRemaining: purchasedRemaining,
+    existingReserved: existingReserved,
+    otherAllocated: otherAllocated,
+    available: available
+  };
+}
+function salesOrderRefreshRemainingHintForRow(tr) {
+  if (!tr) return;
+  var hint = tr.querySelector('.sol-qty-rem');
+  var qtyEl = tr.querySelector('.sol-qty');
+  var hidCn = tr.querySelector('.sol-cn-val');
+  var prEl = tr.querySelector('.sol-pr');
+  if (!hint || !qtyEl) return;
+  var cn = String(hidCn && hidCn.value || '').trim().toUpperCase();
+  var pr = canonicalProductName(String(prEl && prEl.value || '').trim());
+  if (!cn || !pr) {
+    hint.textContent = 'Remaining / 剩余: —';
+    hint.style.color = '#888';
+    qtyEl.removeAttribute('max');
+    return;
+  }
+  var rem = csmSalesRemainingQtyForEditorRow(tr);
+  hint.textContent = 'Remaining / 剩余: ' + String(rem.available);
+  hint.style.color = rem.available > 0 ? '#0f766e' : '#cc0000';
+  qtyEl.setAttribute('max', String(rem.available));
+  var qv = parseFloat(qtyEl.value);
+  if (!isNaN(qv) && qv > rem.available) qtyEl.value = String(rem.available);
+}
+function salesOrderRefreshAllRemainingHints() {
+  var tb = gid('sales-order-lines-body');
+  if (!tb) return;
+  tb.querySelectorAll('tr.csm-sol-main').forEach(function(tr) {
+    salesOrderRefreshRemainingHintForRow(tr);
+  });
+}
 function buildSalesOrderLineCnCellHtml(cn) {
   var cnNorm = String(cn || '').trim().toUpperCase();
   return '<td style="padding:6px 8px;vertical-align:middle">' +
@@ -7833,6 +7925,14 @@ function salesOrderLineAfterCnPicked(tr, cnU) {
   pr.innerHTML = buildSalesOrderLineProductOptionsForCn(cnU, prev);
   var distinct = getDistinctPurchaseProductsForCn(cnU);
   if (distinct.length === 1) pr.value = distinct[0];
+  salesOrderRefreshRemainingHintForRow(tr);
+  salesOrderRefreshAllRemainingHints();
+}
+function salesOrderLineProductChanged(el) {
+  var tr = el && el.closest && el.closest('tr.csm-sol-main');
+  if (!tr) return;
+  salesOrderRefreshRemainingHintForRow(tr);
+  salesOrderRefreshAllRemainingHints();
 }
 function salesOrderLineCnSearchInput(el) {
   var wrap = el && el.closest && el.closest('.csm-sol-cn-wrap');
@@ -7847,6 +7947,8 @@ function salesOrderLineCnSearchInput(el) {
     if (tr0) {
       var pr0 = tr0.querySelector('.sol-pr');
       if (pr0) pr0.innerHTML = buildSalesOrderLineProductOptionsForCn('', '');
+      salesOrderRefreshRemainingHintForRow(tr0);
+      salesOrderRefreshAllRemainingHints();
     }
   }
   salesOrderLineCnRenderDd(el);
@@ -7915,9 +8017,9 @@ function buildSalesOrderLineEditorRow(line) {
     '</div></div></div>';
   return '<tr class="csm-sol-main"' + basisAttr + '>' +
     buildSalesOrderLineCnCellHtml(cn) +
-    '<td style="padding:6px 8px;vertical-align:middle"><select class="sol-pr csm-product-select" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box">' +
+    '<td style="padding:6px 8px;vertical-align:middle"><select class="sol-pr csm-product-select" onchange="salesOrderLineProductChanged(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box">' +
     buildSalesOrderLineProductOptionsForCn(String(cn || '').trim().toUpperCase(), pr) + '</select></td>' +
-    '<td style="padding:6px 8px;vertical-align:middle"><input type="number" class="sol-qty" min="0.01" step="any" value="' + csmEscapeHtml(String(qty)) + '" oninput="salesOrderLineQtyChanged(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box"></td>' +
+    '<td style="padding:6px 8px;vertical-align:middle"><div class="sol-qty-rem" style="font-size:11px;color:#0f766e;margin-bottom:4px;font-family:var(--csm-font-en);font-weight:700">Remaining / 剩余: —</div><input type="number" class="sol-qty" min="0.01" step="any" value="' + csmEscapeHtml(String(qty)) + '" oninput="salesOrderLineQtyChanged(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box"></td>' +
     '<td style="padding:6px 8px;vertical-align:middle"><input type="number" class="sol-price-incl" min="0" step="any" value="' + (inclVal === '' ? '' : csmEscapeHtml(inclVal)) + '" oninput="salesOrderLinePriceSync(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box" title="Unit including 5% VAT \u2014 other column auto-fills"></td>' +
     '<td style="padding:6px 8px;vertical-align:middle"><input type="number" class="sol-price-excl" min="0" step="any" value="' + (exclVal === '' ? '' : csmEscapeHtml(exclVal)) + '" oninput="salesOrderLinePriceSync(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box" title="Unit before 5% VAT \u2014 other column auto-fills"></td>' +
     '<td style="padding:6px 4px;vertical-align:middle;text-align:center"><button type="button" class="abtn x" onclick="salesOrderRemoveLine(this)" title="Remove line">\u00d7</button></td>' +
@@ -7979,6 +8081,9 @@ function salesOrderLinePriceSync(el) {
 function salesOrderLineQtyChanged(qtyEl) {
   var tr = qtyEl && qtyEl.closest && qtyEl.closest('tr.csm-sol-main');
   if (!tr) return;
+  var rem = csmSalesRemainingQtyForEditorRow(tr);
+  var qtyNow = parseFloat(qtyEl.value);
+  if (!isNaN(qtyNow) && qtyNow > rem.available) qtyEl.value = String(rem.available);
   var sub = tr.nextElementSibling;
   if (!sub || !sub.classList.contains('csm-sol-sub')) return;
   var lineQty = parseFloat(qtyEl.value);
@@ -7989,6 +8094,7 @@ function salesOrderLineQtyChanged(qtyEl) {
     var v = parseFloat(inp.value);
     if (capOk && !isNaN(v) && v > lineQty) inp.value = String(lineQty);
   });
+  salesOrderRefreshAllRemainingHints();
 }
 function salesOrderServiceQtyInput(el) {
   var sub = el && el.closest && el.closest('tr.csm-sol-sub');
@@ -8006,6 +8112,7 @@ function salesOrderSyncServiceQtyCapsFromDom() {
   var tb = gid('sales-order-lines-body');
   if (!tb) return;
   tb.querySelectorAll('tr.csm-sol-main .sol-qty').forEach(function(q) { salesOrderLineQtyChanged(q); });
+  salesOrderRefreshAllRemainingHints();
 }
 function salesOrderFillLinesBody(orderOrNull) {
   var tb = gid('sales-order-lines-body');
@@ -8034,6 +8141,7 @@ function salesOrderRemoveLine(btn) {
   var sub = tr.nextElementSibling;
   if (sub && sub.classList.contains('csm-sol-sub')) sub.remove();
   tr.remove();
+  salesOrderRefreshAllRemainingHints();
 }
 function salesOrderReadLinesFromDom() {
   var tb = gid('sales-order-lines-body');
@@ -8093,6 +8201,11 @@ function salesOrderReadLinesFromDom() {
       incomplete = true;
       return;
     }
+    var rem = csmSalesRemainingQtyForEditorRow(tr);
+    if (qty > rem.available) {
+      svcQtyOver = true;
+      return;
+    }
     var wPartial = (!workerId && hasWorkerQty && workerQty > 0);
     var tPartial = (!truckId && hasTruckQty && truckQty > 0);
     if (wPartial || tPartial) {
@@ -8136,7 +8249,7 @@ function salesOrderReadLinesFromDom() {
     }
   });
   if (priceMismatch) return { err: 'Include VAT and Exclude VAT must match 5% VAT on each line (or clear one column).' };
-  if (svcQtyOver) return { err: 'Worker or truck Qty cannot exceed line Qty on a line.' };
+  if (svcQtyOver) return { err: 'Qty cannot exceed remaining quantity, and worker or truck Qty cannot exceed line Qty on a line.' };
   if (incomplete) return { err: 'Each line needs container, product, qty, and at least one unit price. If you enter worker or truck, set both name and Qty.' };
   if (!out.length) return { err: 'Add at least one complete line (container + product + qty + unit price).' };
   return { lines: out };
@@ -8340,6 +8453,7 @@ try { window.salesOrderLineCnDdPick = salesOrderLineCnDdPick; } catch (e) {}
 try { window.salesOrderLinePriceSync = salesOrderLinePriceSync; } catch (e) {}
 try { window.salesOrderLineQtyChanged = salesOrderLineQtyChanged; } catch (e) {}
 try { window.salesOrderServiceQtyInput = salesOrderServiceQtyInput; } catch (e) {}
+try { window.salesOrderLineProductChanged = salesOrderLineProductChanged; } catch (e) {}
 try { window.salesOrderCustomerComboOnInput = salesOrderCustomerComboOnInput; } catch (e) {}
 try { window.salesOrderCustomerComboOnFocus = salesOrderCustomerComboOnFocus; } catch (e) {}
 try { window.salesOrderCustomerComboOnBlurSoon = salesOrderCustomerComboOnBlurSoon; } catch (e) {}

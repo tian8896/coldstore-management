@@ -20,10 +20,6 @@ header p{color:var(--tx);font-size:17px;font-weight:bold;margin-top:4px;letter-s
 .hstat{text-align:center}
 .hstat .v{font-size:22px;font-weight:bold;color:var(--am)}
 .hstat .l{font-size:11px;color:var(--tx2);letter-spacing:1px;text-transform:uppercase;font-family:var(--csm-font-en);font-weight:700}
-#suiteCompanyFinancial .csm-fin-w1-hstats{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:flex-end;gap:20px 24px;margin-left:auto;text-align:center;flex:0 0 auto}
-#suiteCompanyFinancial .csm-fin-w1-hstats .hstat{min-width:0}
-#suiteCompanyFinancial .csm-fin-w1-hstats .hstat .v{font-size:20px}
-#suiteCompanyFinancial .csm-fin-w1-hstats .hstat .l{font-size:10px;white-space:nowrap}
 .main{display:grid;grid-template-columns:360px 1fr;min-height:calc(100vh - 130px)}
 /* 供应商账号：不显示 W1 顶部入库汇总、左侧冷库/入库/出库 */
 body.csm-supplier-ui #suiteWarehouse1 > .hstats{display:none!important}
@@ -332,7 +328,11 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 #settingsModal #new-user-supplier-name{width:100%;padding:12px 14px!important;font-size:15px!important;min-height:46px;border-radius:6px!important;border:1px solid #ccc!important;font-family:var(--csm-font-en);font-weight:700}
 /* 销售订单弹窗：单价在品名下；VAT 为大号按钮式选项 */
 .portal-shell{display:none;padding:12px 36px;background:var(--bg3);border-bottom:1px solid var(--bd)}
-.portal-shell .portal-btn-row{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch}
+.portal-shell .portal-btn-row{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;justify-content:space-between}
+.portal-shell .portal-btn-group{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;flex:1 1 auto;min-width:0}
+.portal-shell .portal-w1-hstats{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:flex-end;gap:16px 22px;margin:0;margin-left:auto;flex:0 0 auto;text-align:center}
+.portal-shell .portal-w1-hstats .hstat .v{font-size:20px}
+.portal-shell .portal-w1-hstats .hstat .l{font-size:10px;white-space:nowrap}
 .portal-app-btn{flex:0 0 auto;min-width:140px;padding:10px 16px;border:2px solid var(--bd);border-radius:6px;background:var(--bg2);color:var(--tx2);font-family:var(--csm-font-en);font-weight:700;cursor:pointer;transition:all .2s;font-size:12px;text-align:center;line-height:1.35}
 .portal-app-btn:hover{border-color:var(--ice);color:var(--ice)}
 .portal-app-btn.ac{border-color:var(--ice);background:rgba(0,191,255,0.12);color:var(--ice)}
@@ -472,7 +472,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260423fin-w1-stats-in-company-fin-header" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260423fin-w1-stats-portal-row" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -797,9 +797,16 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 
 <div id="adminPortalShell" class="portal-shell" aria-hidden="true">
   <div class="portal-btn-row">
+    <div class="portal-btn-group">
     <button type="button" class="portal-app-btn ac" id="portalBtnW1" onclick="switchMainSuite('w1')">Warehouse 1<br><span style="font-size:10px;font-weight:normal;opacity:.85">独立业务域 · 迪拜冷库主系统</span></button>
     <button type="button" class="portal-app-btn" id="portalBtnW2" onclick="switchMainSuite('w2')">Warehouse 2<br><span style="font-size:10px;font-weight:normal;opacity:.85">独立业务域 · 另一冷库</span></button>
     <button type="button" class="portal-app-btn" id="portalBtnFin" onclick="switchMainSuite('fin')">公司财务<br><span style="font-size:10px;font-weight:normal;opacity:.85">独立业务域 · Company Financial</span></button>
+    </div>
+    <div class="hstats portal-w1-hstats" title="当前 Warehouse 1 顶部所选门店 · 在库统计 / In-stock for selected W1 store" aria-label="Warehouse 1 in-stock summary">
+      <div class="hstat"><div class="v" id="portal-s-total">0</div><div class="l">总入库 Total</div></div>
+      <div class="hstat"><div class="v" id="portal-s-pallets">0</div><div class="l">总托盘 Pallets</div></div>
+      <div class="hstat"><div class="v" id="portal-s-items">0</div><div class="l">总件数 Items</div></div>
+    </div>
   </div>
 </div>
 
@@ -1474,15 +1481,10 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 <div id="suiteCompanyFinancial" class="portal-suite" style="display:none" data-portal-suite="fin">
   <div style="padding:8px 14px 24px 8px;width:calc(100vw - 8px);max-width:none;margin:0;box-sizing:border-box">
     <section style="margin-bottom:22px;background:#fff;border:1px solid #dbe6f3;border-radius:12px;padding:18px 20px;box-shadow:0 1px 8px rgba(0,0,0,.04)">
-      <div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px 16px;margin-bottom:16px">
-        <div style="min-width:min(100%,320px);flex:1 1 auto">
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px">
+        <div>
           <h3 style="margin:0 0 6px;font-family:var(--csm-font-en);font-weight:700;color:#0f172a">Finance workspace · 财务工作台</h3>
           <p style="margin:0;color:#52606d;font-size:13px;line-height:1.6;font-family:var(--csm-font-en);font-weight:700">Use the top switcher below to open dashboard, ledgers, cash &amp; bank, tax, and pending approval items in one place. · 下方列表与对应显示内容已统一移到页面上方。</p>
-        </div>
-        <div class="csm-fin-w1-hstats" title="与 Warehouse 1 顶部「当前门店在库」一致 / Same as W1 header for active store" aria-label="W1 in-stock summary">
-          <div class="hstat"><div class="v" id="fin-s-total">0</div><div class="l">总入库 Total</div></div>
-          <div class="hstat"><div class="v" id="fin-s-pallets">0</div><div class="l">总托盘 Pallets</div></div>
-          <div class="hstat"><div class="v" id="fin-s-items">0</div><div class="l">总件数 Items</div></div>
         </div>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">

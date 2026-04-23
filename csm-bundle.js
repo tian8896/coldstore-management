@@ -7241,7 +7241,7 @@ function csmFinPendingRenderOneTile(m, counts) {
     ? '<div style="font-size:10px;font-family:var(--csm-font-en);font-weight:700;color:#64748b;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + csmEscapeHtml(m.tag) + '</div><div style="line-height:1.25"><span style="color:#334155;font-size:12px">' + csmEscapeHtml(m.cn) + '</span> · <span style="font-family:var(--csm-font-en);font-weight:700;font-size:12px">' + csmEscapeHtml(m.en) + '</span></div>'
     : '<div style="line-height:1.3"><span style="color:#334155;font-size:12px">' + csmEscapeHtml(m.cn) + '</span> · <span style="font-family:var(--csm-font-en);font-weight:700;font-size:12px">' + csmEscapeHtml(m.en) + '</span></div>';
   return (
-    '<button type="button" class="csm-pending-cat-tile" onclick="csmFinPendingSelectCategory(' + csmHtmlAttrJson(m.key) + ')" ' +
+    '<button type="button" class="csm-pending-cat-tile" data-pending-key="' + csmAttrEscape(m.key) + '" ' +
     'style="font-family:var(--csm-font-en);font-weight:700;cursor:pointer;text-align:left;flex:1 1 0;min-width:0;align-self:stretch;box-sizing:border-box;margin:0;background:' + bg + ';border:' + bd + ';border-radius:8px;padding:7px 8px;line-height:1.3;display:flex;align-items:center;justify-content:space-between;gap:5px;min-height:46px;max-height:100%;box-shadow:0 1px 2px rgba(0,0,0,.04);' + wBand + '">' +
       '<div style="flex:1;min-width:0;overflow:hidden">' + line1 + '</div>' +
       '<span style="font-family:var(--csm-font-en);font-weight:700;flex-shrink:0;' + nStyle + '">' + String(n) + '</span>' +
@@ -7263,6 +7263,11 @@ function renderFinPendingModuleBadges() {
     '<div class="csm-pending-badges-one-row" style="display:flex;flex-direction:row;flex-wrap:nowrap;align-items:stretch;gap:5px;width:100%;min-width:0;box-sizing:border-box;overflow-x:auto;overflow-y:hidden;padding:2px 0;scrollbar-gutter:stable">' +
     rowHtml +
     '</div>';
+  wrap.querySelectorAll('.csm-pending-cat-tile').forEach(function(btn) {
+    btn.onclick = function() {
+      csmFinPendingSelectCategory(btn.getAttribute('data-pending-key') || '');
+    };
+  });
 }
 try { window.renderFinPendingModuleBadges = renderFinPendingModuleBadges; } catch (eFpb) {}
 try { window.csmFinPendingSelectCategory = csmFinPendingSelectCategory; } catch (eFpb2) {}

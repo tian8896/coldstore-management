@@ -5170,7 +5170,7 @@ function csmFinCnSavePrimaryPurchaseMeta(cn, patch) {
 }
 function csmFinCnExpenseBreakdown(cn) {
   var key = csmFinCnNormalize(cn);
-  var fees = [
+  var purchaseFeeDefs = [
     { key: 'demurrage', cn: '停柜费', en: 'Demurrage', source: 'Purchase records · 采购记录' },
     { key: 'customs', cn: '清关费', en: 'Logistics', source: 'Purchase records · 采购记录' },
     { key: 'coldFee', cn: '冷藏费', en: 'Cold Fee', source: 'Purchase records · 采购记录' },
@@ -5179,18 +5179,31 @@ function csmFinCnExpenseBreakdown(cn) {
     { key: 'waste', cn: '垃圾费', en: 'Waste', source: 'Purchase records · 采购记录' },
     { key: 'other', cn: '其他', en: 'Other', source: 'Purchase records · 采购记录' }
   ];
-  var rows = fees.map(function(x) {
-    return { key: x.key, cn: x.cn, en: x.en, source: x.source, amount: 0, editable: true };
-  });
+  var totals = {};
+  purchaseFeeDefs.forEach(function(d) { totals[d.key] = 0; });
   (purchaseRecs || []).forEach(function(p) {
     if (csmFinCnNormalize(p && p.cn) !== key) return;
-    rows.forEach(function(r) {
-      r.amount += parseFloat(p && p[r.key]) || 0;
+    purchaseFeeDefs.forEach(function(d) {
+      totals[d.key] += parseFloat(p && p[d.key]) || 0;
     });
   });
   var netAmountTotal = csmFinCnNetAmountTotal(key);
   var commissionRate = csmFinCnGetCommissionRate(key);
   var workerTruckAmount = csmFinCnGetWorkerTruckAmount(key);
+  var defByKey = {};
+  purchaseFeeDefs.forEach(function(d) { defByKey[d.key] = d; });
+  function purchaseRow(k) {
+    var d = defByKey[k];
+    return {
+      key: d.key,
+      cn: d.cn,
+      en: d.en,
+      source: d.source,
+      amount: totals[k],
+      editable: true
+    };
+  }
+  var rows = [];
   rows.push({
     key: 'workerTruck',
     cn: '卸货送货及退换货',
@@ -5199,6 +5212,7 @@ function csmFinCnExpenseBreakdown(cn) {
     amount: workerTruckAmount,
     editable: true
   });
+  rows.push(purchaseRow('demurrage'));
   rows.push({
     key: 'commission',
     cn: '佣金',
@@ -5208,6 +5222,12 @@ function csmFinCnExpenseBreakdown(cn) {
     editable: true,
     rate: commissionRate
   });
+  rows.push(purchaseRow('customs'));
+  rows.push(purchaseRow('coldFee'));
+  rows.push(purchaseRow('attestation'));
+  rows.push(purchaseRow('repack'));
+  rows.push(purchaseRow('waste'));
+  rows.push(purchaseRow('other'));
   var normalizedRows = rows.map(function(r) {
     return {
       key: r.key,

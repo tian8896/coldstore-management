@@ -4575,7 +4575,7 @@ function csmFinIntegrationDefinitions() {
       eventType: 'customs_clearance_fee_request',
       inboxPath: 'csm_fin/pending_customs_fees',
       ledgerArea: 'AP + clearance / cold / logistics expense (post-approval payment)',
-      requiredFields: 'sourceId, bizDate, containerNo, bl, lines.logistics|coldFee|attestation|repack|waste|other, status, submittedBy'
+      requiredFields: 'sourceId, bizDate, containerNo, bl, lines.logistics|coldFee|attestation|repack|waste|wasteCharge|other, status, submittedBy'
     },
     {
       source: 'Manual finance adjustment',
@@ -6860,9 +6860,65 @@ function csmFinCustomsFeeTypeDefs() {
     { key: 'attestation', cn: '冷藏费', en: 'Attestation' },
     { key: 'repack', cn: '单据认证', en: 'Repack' },
     { key: 'waste', cn: '翻包费', en: 'Waste' },
-    { key: 'other', cn: '其他', en: 'Other' }
+    { key: 'wasteCharge', cn: '垃圾处理费', en: 'Waste charge' },
+    { key: 'other', cn: '其他费用', en: 'Other charge' }
   ];
 }
+function csmFinPendingModuleDefs() {
+  return [
+    { key: 'logistics', cn: '停柜费', en: 'Logistics', src: 'customs' },
+    { key: 'coldFee', cn: '清关费', en: 'Cold Fee', src: 'customs' },
+    { key: 'attestation', cn: '冷藏费', en: 'Attestation', src: 'customs' },
+    { key: 'repack', cn: '单据认证', en: 'Repack', src: 'customs' },
+    { key: 'waste', cn: '翻包费', en: 'Waste', src: 'customs' },
+    { key: 'wtWorker', cn: '卸货费', en: 'Worker', src: 'wt', wtKey: 'worker' },
+    { key: 'wtTruck', cn: '送货费', en: 'Truck', src: 'wt', wtKey: 'truck' },
+    { key: 'wasteCharge', cn: '垃圾处理费', en: 'Waste charge', src: 'customs' },
+    { key: 'other', cn: '其他费用', en: 'Other charge', src: 'customs' }
+  ];
+}
+function csmFinWtBatchWorkerTruckSums(b) {
+  var w = 0;
+  var t = 0;
+  (b && b.linesSnapshot || []).forEach(function(L) {
+    w += csmFinNum(L && L.workerAmount);
+    t += csmFinNum(L && L.truckAmount);
+  });
+  return { worker: csmSalesRound2(w), truck: csmSalesRound2(t) };
+}
+function renderFinPendingModuleBadges() {
+  var wrap = gid('fin-pending-module-badges');
+  if (!wrap) return;
+  var cPend = (customsFeeRequests || []).filter(function(r) { return String(r && r.status || 'pending') === 'pending'; });
+  var wPend = (salesWtSettlements || []).filter(function(b) { return String(b && b.status || '') === 'pending'; });
+  var counts = {};
+  csmFinPendingModuleDefs().forEach(function(m) { counts[m.key] = 0; });
+  cPend.forEach(function(r) {
+    var lines = (r && r.lines) || {};
+    csmFinCustomsFeeTypeDefs().forEach(function(d) {
+      if (csmFinNum(lines[d.key]) > 0) counts[d.key] += 1;
+    });
+  });
+  wPend.forEach(function(b) {
+    var s = csmFinWtBatchWorkerTruckSums(b);
+    if (s.worker > 0) counts.wtWorker += 1;
+    if (s.truck > 0) counts.wtTruck += 1;
+  });
+  wrap.innerHTML = csmFinPendingModuleDefs().map(function(m) {
+    var n = csmFinNum(counts[m.key]);
+    var nStyle = n > 0
+      ? 'background:#0f172a;color:#fff;min-width:28px;padding:2px 9px;border-radius:999px;text-align:center;font-size:12px'
+      : 'background:#e2e8f0;color:#94a3b8;min-width:28px;padding:2px 9px;border-radius:999px;text-align:center;font-size:12px';
+    return (
+      '<div style="background:#fff;border:1px solid #c4b5fd;border-radius:8px;padding:8px 10px;line-height:1.45;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;box-shadow:0 1px 2px rgba(0,0,0,.04)">' +
+        '<div style="flex:1;min-width:0;font-size:12px"><span style="color:#334155">' + csmEscapeHtml(m.cn) + '</span> · ' +
+        '<span style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(m.en) + '</span></div>' +
+        '<span style="font-family:var(--csm-font-en);font-weight:700;flex-shrink:0;' + nStyle + '">' + String(n) + '</span>' +
+        '</div>'
+    );
+  }).join('');
+}
+try { window.renderFinPendingModuleBadges = renderFinPendingModuleBadges; } catch (eFpb) {}
 function csmFinCustomsLinesTotal(lines) {
   lines = lines || {};
   var t = 0;
@@ -6884,7 +6940,10 @@ function renderCompanyFinancialPendingCustoms() {
   var tb = gid('tb-fin-pending-customs');
   var empty = gid('fin-pending-customs-empty');
   var countEl = gid('fin-pending-customs-count');
-  if (!tb) return;
+  if (!tb) {
+    try { renderFinPendingModuleBadges(); } catch (eBdgC) {}
+    return;
+  }
   var pending = (customsFeeRequests || []).filter(function(r) {
     return String(r.status || 'pending') === 'pending';
   });
@@ -6892,6 +6951,7 @@ function renderCompanyFinancialPendingCustoms() {
   if (!pending.length) {
     tb.innerHTML = '';
     if (empty) empty.style.display = 'block';
+    try { renderFinPendingModuleBadges(); } catch (eBdg2) {}
     return;
   }
   if (empty) empty.style.display = 'none';
@@ -6915,6 +6975,7 @@ function renderCompanyFinancialPendingCustoms() {
       '<td style="padding:10px 12px;font-size:11px;color:#334155;max-width:260px;line-height:1.35">' + sumTxt + '</td>' +
       '<td style="padding:10px 12px;white-space:normal">' + btnApr + '</td></tr>';
   }).join('');
+  try { renderFinPendingModuleBadges(); } catch (eBdg3) {}
 }
 function csmFinCustomsApprove(requestId) {
   if (!isAdmin || !customsFeePendingRef || !requestId) {
@@ -6945,12 +7006,16 @@ function renderCompanyFinancialPending() {
   var tb = gid('tb-fin-pending');
   var empty = gid('fin-pending-empty');
   var countEl = gid('fin-pending-count');
-  if (!tb) return;
+  if (!tb) {
+    try { renderFinPendingModuleBadges(); } catch (eBdgT) {}
+    return;
+  }
   var pending = (salesWtSettlements || []).filter(function(b) { return String(b.status || '') === 'pending'; });
   if (countEl) countEl.textContent = String(pending.length);
   if (!pending.length) {
     tb.innerHTML = '';
     if (empty) empty.style.display = 'block';
+    try { renderFinPendingModuleBadges(); } catch (eBdg0) {}
     return;
   }
   if (empty) empty.style.display = 'none';
@@ -6981,6 +7046,7 @@ function renderCompanyFinancialPending() {
       '<td style="padding:10px 12px;white-space:normal">' + btnDetail + ' ' + btnApr + btnCustom + '</td></tr>' +
       '<tr id="' + detailId + '" class="fin-pending-detail" style="display:none"><td colspan="8" style="padding:12px 14px;border-bottom:1px solid #ffe0b2">' + csmFinWtPendingDetailInnerHtml(b) + '</td></tr>';
   }).join('');
+  try { renderFinPendingModuleBadges(); } catch (eBdg1) {}
 }
 function csmFinWtQuickApprove(batchId) {
   if (!csmFinWtCanConfirmPaid() || !salesWtSettlementsRef) {

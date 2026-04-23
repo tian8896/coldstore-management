@@ -479,7 +479,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260426wt-pending-unify" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260427pending-type-scale" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -1668,8 +1668,8 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       </div>
       <div id="company-fin-panel-pending" style="display:none">
         <div style="background:linear-gradient(135deg,#f5f3ff,#fff7ed);border:1px solid #a78bfa;border-radius:10px;padding:16px 18px;margin-bottom:18px;box-shadow:0 1px 6px rgba(0,0,0,.06)">
-          <h3 style="font-family:var(--csm-font-en);font-weight:800;margin:0 0 8px;font-size:20px;letter-spacing:.02em;color:#0f172a">Pending · 待审批</h3>
-          <div style="display:flex;flex-wrap:wrap;gap:14px 20px;margin-bottom:12px;font-size:13px;font-family:var(--csm-font-en);font-weight:700;color:#475569">
+          <h3 style="font-family:var(--csm-font-en);font-weight:800;margin:0 0 10px;font-size:24px;letter-spacing:.02em;color:#0f172a">Pending · 待审批</h3>
+          <div style="display:flex;flex-wrap:wrap;gap:14px 22px;margin-bottom:14px;font-size:15px;font-family:var(--csm-font-en);font-weight:700;color:#475569">
             <span>Worker/Truck · 装卸: <strong id="fin-pending-count" style="color:#0f172a">0</strong></span>
             <span>Customs · 清关: <strong id="fin-pending-customs-count" style="color:#0f172a">0</strong></span>
           </div>
@@ -1677,37 +1677,37 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           <div id="fin-pending-category-panel" style="display:none;margin-top:14px;border:1px solid #c4b5fd;border-radius:10px;padding:12px 14px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.05)">
             <div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px">
               <div>
-                <div id="fin-pending-category-title" style="font-size:16px;font-weight:700;color:#0f172a;line-height:1.35">—</div>
-                <div id="fin-pending-category-subtitle" style="margin-top:4px;font-size:12px;color:#64748b;font-family:var(--csm-font-en);font-weight:700">—</div>
+                <div id="fin-pending-category-title" style="font-size:19px;font-weight:700;color:#0f172a;line-height:1.35">—</div>
+                <div id="fin-pending-category-subtitle" style="margin-top:4px;font-size:14px;color:#64748b;font-family:var(--csm-font-en);font-weight:700">—</div>
               </div>
               <button type="button" class="btn btn-g" onclick="csmFinPendingSelectCategory('')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Close · 关闭</button>
             </div>
             <p id="fin-pending-panel-empty" style="display:none;text-align:center;padding:20px;margin:0;color:#888;font-family:var(--csm-font-en);font-weight:700">—</p>
             <div id="fin-pending-wt-wrap" class="tw" style="display:none;overflow-x:auto;border:1px solid #ffe0b2;border-radius:8px;background:#fff;margin-top:6px">
-              <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:var(--csm-font-en);font-weight:700">
+              <table style="width:100%;border-collapse:collapse;font-size:14px;font-family:var(--csm-font-en);font-weight:700">
                 <thead><tr style="background:#fff3e0">
-                  <th style="padding:10px 12px;text-align:left;text-transform:none;letter-spacing:.02em">Created<br><span style="font-size:11px;color:#a1887f;font-weight:700">创建时间</span></th>
-                  <th style="padding:10px 12px;text-align:left;text-transform:none">Submitted by<br><span style="font-size:11px;color:#a1887f;font-weight:700">提交人</span></th>
-                  <th style="padding:10px 12px;text-align:left;text-transform:none">Period<br><span style="font-size:11px;color:#a1887f;font-weight:700">期间</span></th>
-                  <th style="padding:10px 12px;text-align:left;text-transform:none">Worker<br><span style="font-size:11px;color:#a1887f;font-weight:700">工人</span></th>
-                  <th style="padding:10px 12px;text-align:left;text-transform:none">Truck<br><span style="font-size:11px;color:#a1887f;font-weight:700">车工</span></th>
-                  <th style="padding:10px 12px;text-align:center;text-transform:none">Lines<br><span style="font-size:11px;color:#a1887f;font-weight:700">行数</span></th>
-                  <th style="padding:10px 12px;text-align:right;text-transform:none">Gross (AED)<br><span style="font-size:11px;color:#a1887f;font-weight:700">合计 AED</span></th>
-                  <th style="padding:10px 12px;text-align:left;text-transform:none">Actions<br><span style="font-size:11px;color:#a1887f;font-weight:700">操作</span></th>
+                  <th style="padding:10px 12px;text-align:left;text-transform:none;letter-spacing:.02em;font-size:15px">Created<br><span style="font-size:13px;color:#a1887f;font-weight:700">创建时间</span></th>
+                  <th style="padding:10px 12px;text-align:left;text-transform:none;font-size:15px">Submitted by<br><span style="font-size:13px;color:#a1887f;font-weight:700">提交人</span></th>
+                  <th style="padding:10px 12px;text-align:left;text-transform:none;font-size:15px">Period<br><span style="font-size:13px;color:#a1887f;font-weight:700">期间</span></th>
+                  <th style="padding:10px 12px;text-align:left;text-transform:none;font-size:15px">Worker<br><span style="font-size:13px;color:#a1887f;font-weight:700">工人</span></th>
+                  <th style="padding:10px 12px;text-align:left;text-transform:none;font-size:15px">Truck<br><span style="font-size:13px;color:#a1887f;font-weight:700">车工</span></th>
+                  <th style="padding:10px 12px;text-align:center;text-transform:none;font-size:15px">Lines<br><span style="font-size:13px;color:#a1887f;font-weight:700">行数</span></th>
+                  <th style="padding:10px 12px;text-align:right;text-transform:none;font-size:15px">Gross (AED)<br><span style="font-size:13px;color:#a1887f;font-weight:700">合计 AED</span></th>
+                  <th style="padding:10px 12px;text-align:left;text-transform:none;font-size:15px">Actions<br><span style="font-size:13px;color:#a1887f;font-weight:700">操作</span></th>
                 </tr></thead>
                 <tbody id="tb-fin-pending-cat-wt"></tbody>
               </table>
             </div>
             <div id="fin-pending-customs-wrap" class="tw" style="display:none;overflow-x:auto;border:1px solid #c4b5fd;border-radius:8px;background:#fff;margin-top:6px">
-              <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:var(--csm-font-en);font-weight:700">
+              <table style="width:100%;border-collapse:collapse;font-size:14px;font-family:var(--csm-font-en);font-weight:700">
                 <thead><tr style="background:#ede9fe">
-                  <th style="padding:10px 12px;text-align:left;text-transform:none">Created<br><span style="font-size:11px;color:#6d28d9;font-weight:700">创建时间</span></th>
-                  <th style="padding:10px 12px;text-align:left;text-transform:none">Submitted by<br><span style="font-size:11px;color:#6d28d9;font-weight:700">提交人</span></th>
-                  <th style="padding:10px 12px;text-align:left;text-transform:none">Ref<br><span style="font-size:11px;color:#6d28d9;font-weight:700">参考号</span></th>
-                  <th style="padding:10px 12px;text-align:left;text-transform:none">BL / Container<br><span style="font-size:11px;color:#6d28d9;font-weight:700">提单 / 柜号</span></th>
-                  <th style="padding:10px 12px;text-align:right;text-transform:none">This line (AED)<br><span style="font-size:11px;color:#6d28d9;font-weight:700">本项金额</span></th>
-                  <th style="padding:10px 12px;text-align:left;text-transform:none">Breakdown<br><span style="font-size:11px;color:#6d28d9;font-weight:700">分项</span></th>
-                  <th style="padding:10px 12px;text-align:left;text-transform:none">Actions<br><span style="font-size:11px;color:#6d28d9;font-weight:700">操作</span></th>
+                  <th style="padding:10px 12px;text-align:left;text-transform:none;font-size:15px">Created<br><span style="font-size:13px;color:#6d28d9;font-weight:700">创建时间</span></th>
+                  <th style="padding:10px 12px;text-align:left;text-transform:none;font-size:15px">Submitted by<br><span style="font-size:13px;color:#6d28d9;font-weight:700">提交人</span></th>
+                  <th style="padding:10px 12px;text-align:left;text-transform:none;font-size:15px">Ref<br><span style="font-size:13px;color:#6d28d9;font-weight:700">参考号</span></th>
+                  <th style="padding:10px 12px;text-align:left;text-transform:none;font-size:15px">BL / Container<br><span style="font-size:13px;color:#6d28d9;font-weight:700">提单 / 柜号</span></th>
+                  <th style="padding:10px 12px;text-align:right;text-transform:none;font-size:15px">This line (AED)<br><span style="font-size:13px;color:#6d28d9;font-weight:700">本项金额</span></th>
+                  <th style="padding:10px 12px;text-align:left;text-transform:none;font-size:15px">Breakdown<br><span style="font-size:13px;color:#6d28d9;font-weight:700">分项</span></th>
+                  <th style="padding:10px 12px;text-align:left;text-transform:none;font-size:15px">Actions<br><span style="font-size:13px;color:#6d28d9;font-weight:700">操作</span></th>
                 </tr></thead>
                 <tbody id="tb-fin-pending-cat-customs"></tbody>
               </table>

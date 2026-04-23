@@ -7091,8 +7091,8 @@ function renderFinPendingCategoryPanel() {
 function csmFinPendingRenderOneTile(m, counts) {
   var n = csmFinNum(counts[m.key]);
   var nStyle = n > 0
-    ? 'background:#0f172a;color:#fff;min-width:22px;padding:1px 6px;border-radius:999px;text-align:center;font-size:10px'
-    : 'background:#e2e8f0;color:#94a3b8;min-width:22px;padding:1px 6px;border-radius:999px;text-align:center;font-size:10px';
+    ? 'background:#0f172a;color:#fff;min-width:24px;padding:2px 7px;border-radius:999px;text-align:center;font-size:11px'
+    : 'background:#e2e8f0;color:#94a3b8;min-width:24px;padding:2px 7px;border-radius:999px;text-align:center;font-size:11px';
   var sel = finPendingSelectedCategoryKey === m.key;
   var bd = sel ? '2px solid #5b21b6' : '1px solid #c4b5fd';
   var bg = sel ? 'linear-gradient(135deg,#eef2ff,#fff7ed)' : '#fff';
@@ -7103,11 +7103,11 @@ function csmFinPendingRenderOneTile(m, counts) {
   var wFirst = m.section === 'worker' && m.key === 'wtAll';
   var wBand = wFirst ? 'border-left:3px solid #ffb74d;border-radius:0 8px 8px 0;padding-left:5px;margin-left:2px;' : '';
   var line1 = m.tag
-    ? '<div style="font-size:9px;font-family:var(--csm-font-en);font-weight:700;color:#64748b;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + csmEscapeHtml(m.tag) + '</div><div style="line-height:1.2"><span style="color:#334155;font-size:10px">' + csmEscapeHtml(m.cn) + '</span> · <span style="font-family:var(--csm-font-en);font-weight:700;font-size:10px">' + csmEscapeHtml(m.en) + '</span></div>'
-    : '<div style="line-height:1.25"><span style="color:#334155;font-size:10px">' + csmEscapeHtml(m.cn) + '</span> · <span style="font-family:var(--csm-font-en);font-weight:700;font-size:10px">' + csmEscapeHtml(m.en) + '</span></div>';
+    ? '<div style="font-size:10px;font-family:var(--csm-font-en);font-weight:700;color:#64748b;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + csmEscapeHtml(m.tag) + '</div><div style="line-height:1.25"><span style="color:#334155;font-size:12px">' + csmEscapeHtml(m.cn) + '</span> · <span style="font-family:var(--csm-font-en);font-weight:700;font-size:12px">' + csmEscapeHtml(m.en) + '</span></div>'
+    : '<div style="line-height:1.3"><span style="color:#334155;font-size:12px">' + csmEscapeHtml(m.cn) + '</span> · <span style="font-family:var(--csm-font-en);font-weight:700;font-size:12px">' + csmEscapeHtml(m.en) + '</span></div>';
   return (
     '<button type="button" class="csm-pending-cat-tile" onclick="csmFinPendingSelectCategory(' + JSON.stringify(m.key) + ')" ' +
-    'style="font-family:var(--csm-font-en);font-weight:700;cursor:pointer;text-align:left;flex:1 1 0;min-width:0;align-self:stretch;box-sizing:border-box;margin:0;background:' + bg + ';border:' + bd + ';border-radius:8px;padding:5px 6px;line-height:1.2;display:flex;align-items:center;justify-content:space-between;gap:4px;min-height:40px;max-height:100%;box-shadow:0 1px 2px rgba(0,0,0,.04);' + wBand + '">' +
+    'style="font-family:var(--csm-font-en);font-weight:700;cursor:pointer;text-align:left;flex:1 1 0;min-width:0;align-self:stretch;box-sizing:border-box;margin:0;background:' + bg + ';border:' + bd + ';border-radius:8px;padding:7px 8px;line-height:1.3;display:flex;align-items:center;justify-content:space-between;gap:5px;min-height:46px;max-height:100%;box-shadow:0 1px 2px rgba(0,0,0,.04);' + wBand + '">' +
       '<div style="flex:1;min-width:0;overflow:hidden">' + line1 + '</div>' +
       '<span style="font-family:var(--csm-font-en);font-weight:700;flex-shrink:0;' + nStyle + '">' + String(n) + '</span>' +
     '</button>'

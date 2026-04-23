@@ -2267,11 +2267,11 @@ function showPurchaseCnDetail(cn) {
   });
   gid('modal').classList.add('sh');
 }
-function calcFee(r) {  if (!r.arr) return 0;  var start = new Date(r.arr);  var end = r.dep ? new Date(r.dep) : new Date();  var days = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;  if (days <= 0) return 0;  var weeks = Math.ceil(days / 7);  var totalPallets = r.pallets - (r.pallets_out || 0);  var rate = getRateByStore(r.store);  return weeks * totalPallets * rate * (1 + VAT_RATE);}function updStats() {  if (!gid('s-total') || !gid('s-pallets') || !gid('s-items')) return;  
+function calcFee(r) {  if (!r.arr) return 0;  var start = new Date(r.arr);  var end = r.dep ? new Date(r.dep) : new Date();  var days = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;  if (days <= 0) return 0;  var weeks = Math.ceil(days / 7);  var totalPallets = r.pallets - (r.pallets_out || 0);  var rate = getRateByStore(r.store);  return weeks * totalPallets * rate * (1 + VAT_RATE);}function updStats() {  
 // 只统计入库记录（排除出库记录类型）  
 var inRecsAll = recs.filter(function(r) { return !r.type; });  var inRecs = inRecsAll.filter(function(r) { return r.store === currentColdStore && !r.dep; });  
-// 顶部统计显示当前冷库的在库数据  
-gid('s-total').textContent = inRecs.length;  gid('s-pallets').textContent = inRecs.reduce(function(s, r) { return s + r.pallets - (r.pallets_out || 0); }, 0);  gid('s-items').textContent = inRecs.reduce(function(s, r) { return s + r.items - (r.items_out || 0); }, 0);  
+// 顶部统计显示当前冷库的在库数据（W1 顶栏 + 公司财务首行）  
+var w1Total = inRecs.length;  var w1Pallets = inRecs.reduce(function(s, r) { return s + r.pallets - (r.pallets_out || 0); }, 0);  var w1Items = inRecs.reduce(function(s, r) { return s + r.items - (r.items_out || 0); }, 0);  var st;  st = gid('s-total'); if (st) st.textContent = w1Total;  st = gid('fin-s-total'); if (st) st.textContent = w1Total;  st = gid('s-pallets'); if (st) st.textContent = w1Pallets;  st = gid('fin-s-pallets'); if (st) st.textContent = w1Pallets;  st = gid('s-items'); if (st) st.textContent = w1Items;  st = gid('fin-s-items'); if (st) st.textContent = w1Items;  
 // 冷库1统计（只统计入库记录且在库的）  
 var store1Recs = inRecsAll.filter(function(r) { return r.store === 1 && !r.dep; });  gid('stat-store1-count').textContent = store1Recs.length;  gid('stat-store1-pallets').textContent = store1Recs.reduce(function(s, r) { return s + r.pallets - (r.pallets_out || 0); }, 0);  gid('stat-store1-items').textContent = store1Recs.reduce(function(s, r) { return s + r.items - (r.items_out || 0); }, 0);  
 // 冷库2统计  

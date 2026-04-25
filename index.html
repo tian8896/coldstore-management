@@ -498,7 +498,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260425w1-supplier-role-repair" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260425w1-purchase-supplier-backfill" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -2282,7 +2282,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       </div>
       <div class="fg" style="grid-column:1 / -1;display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-top:10px;margin-top:4px;border-top:1px solid #e8e8e8">
         <div class="fg" style="margin:0"><label>净重 Net weight <span style="font-size:11px;color:#666;font-weight:400">(MT 吨)</span></label>
-          <input type="number" id="fp-net-mt" step="0.001" min="0" placeholder="Enter MT" autocomplete="off" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+          <input type="number" id="fp-net-mt" step="0.001" min="0" placeholder="Enter MT" autocomplete="off" oninput="fpRecalcTotalUsdFromPriceNet()" onchange="fpRecalcTotalUsdFromPriceNet()" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
         </div>
         <div class="fg" style="margin:0"><label>毛重 Gross weight <span style="font-size:11px;color:#666;font-weight:400">(MT 吨)</span></label>
           <input type="number" id="fp-gross-mt" step="0.001" min="0" placeholder="Enter MT" autocomplete="off" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
@@ -2296,7 +2296,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
               <option value="CIF">CIF</option>
               <option value="FOB">FOB</option>
             </select>
-            <input type="number" id="fp-unit-price-usd" step="0.01" min="0" placeholder="USD/MT" title="USD per metric ton" autocomplete="off" style="flex:1;min-width:160px;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+            <input type="number" id="fp-unit-price-usd" step="0.01" min="0" placeholder="USD/MT" title="USD per metric ton" autocomplete="off" oninput="fpRecalcTotalUsdFromPriceNet()" onchange="fpRecalcTotalUsdFromPriceNet()" style="flex:1;min-width:160px;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
           </div>
         </div>
         <div class="fg" style="margin:0"><label>总金额 Total amount <span style="font-size:11px;color:#666;font-weight:400">(USD)</span> <span style="font-size:11px;color:#0a6080;font-weight:700;font-family:var(--csm-font-en)">Net MT × unit — Auto</span></label>

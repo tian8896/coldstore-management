@@ -152,6 +152,7 @@ function updatePurchaseRecsFromData(data) {
   });
   renderPurchase();
   backfillPurchaseSeq();
+  csmScheduleW1PurchaseSupplierBackfill();
 }
 function updateSupplierRecsFromData(data, canMigrateStatus) {
   supplierRecs = [];
@@ -176,6 +177,7 @@ function updateSupplierRecsFromData(data, canMigrateStatus) {
     renderPurchase();
   }
   if (isSupplier) renderSupplierTable();
+  csmScheduleW1PurchaseSupplierBackfill();
 }
 function mergeSupplierScopedData() {
   var merged = {};
@@ -512,6 +514,144 @@ function resolveSupplierOwnerUidByName(supplierName) {
   }).catch(function(err) {
     console.error('resolve supplier owner uid failed', err);
     return '';
+  });
+}
+var csmW1SupplierBackfillTimer = null;
+var csmW1SupplierBackfillRunning = false;
+function csmScheduleW1PurchaseSupplierBackfill() {
+  if (!(isAdmin || isStaff) || !purchaseRef || !supplierRef) return;
+  if (csmW1SupplierBackfillTimer) clearTimeout(csmW1SupplierBackfillTimer);
+  csmW1SupplierBackfillTimer = setTimeout(csmBackfillW1PurchaseSupplierRecords, 900);
+}
+function csmMergeUniqueIds(a, b) {
+  var seen = {};
+  var out = [];
+  (Array.isArray(a) ? a : []).concat(Array.isArray(b) ? b : []).forEach(function(id) {
+    id = String(id || '').trim();
+    if (!id || seen[id]) return;
+    seen[id] = true;
+    out.push(id);
+  });
+  return out;
+}
+function csmCreateSupplierRecFromW1Purchases(rows, supplierRecId, ownerUid) {
+  rows = (rows || []).slice().sort(csmPurchaseRowCompareAsc);
+  var first = rows[0] || {};
+  var wp = supplierRecWeightPriceForPurchase(first);
+  var supplierItems = rows.map(function(r) {
+    return { product: r.product || '', qty: parseFloat(r.qty) || 0 };
+  });
+  var purchaseIds = rows.map(function(r) { return r.id; }).filter(function(id) { return !!id; });
+  var nowIso = new Date().toISOString();
+  return {
+    id: supplierRecId,
+    seq: first.seq || '',
+    cn: normalizeContainerNoForMatch(first.cn),
+    purchaseDate: first.purchaseDate || '',
+    purchaseTime: first.purchaseTime || '',
+    supplier: first.supplier || '',
+    product: supplierItems.map(function(item) { return item.product; }).join(' / '),
+    qty: supplierItems.reduce(function(sum, item) { return sum + (parseFloat(item.qty) || 0); }, 0),
+    items: supplierItems,
+    shipname: first.shipname || '',
+    shipCompany: first.shipCompany || '',
+    bl: String(first.bl || '').trim().toUpperCase(),
+    invoiceNumber: String(first.invoiceNumber || '').trim(),
+    etd: first.etd || '',
+    eta: first.eta || '',
+    pol: first.pol || '',
+    pod: first.pod || '',
+    remarks: String(first.remarks || '').trim(),
+    netWeightMt: wp.netWeightMt,
+    grossWeightMt: wp.grossWeightMt,
+    tradeTerm: wp.tradeTerm,
+    unitPriceUsdMt: wp.unitPriceUsdMt,
+    totalAmountUsd: wp.totalAmountUsd,
+    totalAmountAed: wp.totalAmountAed,
+    addedBy: currentUserEmail,
+    ownerUid: ownerUid || '',
+    addTime: nowIso,
+    status: 'confirmed',
+    confirmedBy: currentUserEmail,
+    confirmedAt: nowIso,
+    adoptedPurchaseId: purchaseIds[0] || '',
+    adoptedPurchaseIds: purchaseIds,
+    adoptedAt: nowIso,
+    source: 'w1_purchase_backfill'
+  };
+}
+function csmBackfillW1PurchaseSupplierRecords() {
+  if (csmW1SupplierBackfillRunning || !(isAdmin || isStaff) || !purchaseRef || !supplierRef) return;
+  var unlinked = (purchaseRecs || []).filter(function(r) {
+    return r && r.id && r.cn && !r.sourceSupplierRecId;
+  });
+  if (!unlinked.length) return;
+  csmW1SupplierBackfillRunning = true;
+  Promise.all([
+    purchaseRef.once('value'),
+    supplierRef.once('value')
+  ]).then(function(snaps) {
+    var purchasesRaw = snaps[0].val() || {};
+    var suppliersRaw = snaps[1].val() || {};
+    var supplierByCn = {};
+    Object.keys(suppliersRaw).forEach(function(id) {
+      var rec = Object.assign({}, suppliersRaw[id] || {});
+      rec.id = id;
+      var key = normalizeContainerNoForMatch(rec.cn);
+      if (key && !supplierByCn[key]) supplierByCn[key] = rec;
+    });
+    var groups = {};
+    Object.keys(purchasesRaw).forEach(function(id) {
+      var p = Object.assign({}, purchasesRaw[id] || {});
+      p.id = id;
+      if (!p.cn || p.sourceSupplierRecId) return;
+      var key = normalizeContainerNoForMatch(p.cn);
+      if (!key) return;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(p);
+    });
+    var keys = Object.keys(groups);
+    var chain = Promise.resolve();
+    var changed = 0;
+    keys.forEach(function(cnKey) {
+      chain = chain.then(function() {
+        var rows = groups[cnKey].filter(function(r) { return r && r.id; });
+        if (!rows.length) return null;
+        var existing = supplierByCn[cnKey];
+        if (existing && existing.id) {
+          var existingIds = csmMergeUniqueIds(existing.adoptedPurchaseIds || [], rows.map(function(r) { return r.id; }));
+          var tasks = rows.map(function(r) {
+            return purchaseRef.child(r.id).update({ sourceSupplierRecId: existing.id });
+          });
+          tasks.push(supplierRef.child(existing.id).update({
+            adoptedPurchaseId: existing.adoptedPurchaseId || existingIds[0] || '',
+            adoptedPurchaseIds: existingIds,
+            adoptedAt: existing.adoptedAt || new Date().toISOString()
+          }));
+          changed++;
+          return Promise.all(tasks);
+        }
+        var supplierName = String((rows[0] || {}).supplier || '').trim();
+        return resolveSupplierOwnerUidByName(supplierName).then(function(ownerUid) {
+          var supplierRecId = makeSupplierRecordId();
+          var supplierRec = csmCreateSupplierRecFromW1Purchases(rows, supplierRecId, ownerUid);
+          var tasks = rows.map(function(r) {
+            return purchaseRef.child(r.id).update({ sourceSupplierRecId: supplierRecId });
+          });
+          tasks.push(supplierRef.child(supplierRecId).set(supplierRec));
+          supplierByCn[cnKey] = supplierRec;
+          changed++;
+          return Promise.all(tasks);
+        });
+      });
+    });
+    return chain.then(function() {
+      if (changed) console.log('W1 purchase supplier backfill synced groups:', changed);
+    });
+  }).catch(function(err) {
+    console.error('W1 purchase supplier backfill failed', err);
+  }).then(function() {
+    csmW1SupplierBackfillRunning = false;
   });
 }
 // ============================================================

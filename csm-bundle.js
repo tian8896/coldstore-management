@@ -192,10 +192,20 @@ function supplierRecOwnedByCurrentUser(rec) {
 function updateSupplierUserNamesFromUsers(usersData) {
   var seen = {};
   var names = [];
+  function normalizeRoleValue(role) {
+    return String(role || '').toLowerCase().replace(/\s/g, '');
+  }
+  function fallbackSupplierNameFromUser(u) {
+    var name = String(u && (u.supplierName || u.name || u.displayName) || '').trim();
+    if (name) return name;
+    var email = String(u && u.email || '').trim();
+    if (!email || email.indexOf('@') < 0) return '';
+    return email.split('@')[0].replace(/[._-]+/g, ' ').trim();
+  }
   Object.keys(usersData || {}).forEach(function(uid) {
     var u = usersData[uid] || {};
-    if (String(u.role || '').toLowerCase() !== 'supplier') return;
-    var name = String(u.supplierName || '').trim();
+    if (normalizeRoleValue(u.role) !== 'supplier') return;
+    var name = fallbackSupplierNameFromUser(u);
     var key = name.toLowerCase();
     if (!name || seen[key]) return;
     seen[key] = true;
@@ -495,7 +505,7 @@ function resolveSupplierOwnerUidByName(supplierName) {
     var matches = [];
     Object.keys(users).forEach(function(uid) {
       var u = users[uid] || {};
-      if (String(u.role || '').toLowerCase() !== 'supplier') return;
+      if (String(u.role || '').toLowerCase().replace(/\s/g, '') !== 'supplier') return;
       if (String(u.supplierName || '').trim().toLowerCase() === key) matches.push(uid);
     });
     return matches.length === 1 ? matches[0] : '';
@@ -1919,7 +1929,7 @@ function renderUserMgmtList() {
       'pending': '<span style="background:#ffebee;color:#c62828;padding:2px 8px;border-radius:10px;font-size:12px">待审核</span>'
     }[user.role] || '<span style="color:#888">未知</span>';
     
-    var selectOptions = '<select id="role_' + user.uid + '" style="padding:5px;border-radius:4px;border:1px solid #ddd">';
+    var selectOptions = '<select id="role_' + user.uid + '" onchange="toggleUserMgmtSupplierNameInput(' + csmHtmlAttrJson(user.uid) + ',this.value)" style="padding:5px;border-radius:4px;border:1px solid #ddd">';
     selectOptions += '<option value="admin"' + (user.role === 'admin' ? ' selected' : '') + '>管理员</option>';
     selectOptions += '<option value="staff"' + (user.role === 'staff' ? ' selected' : '') + '>大丰收员工</option>';
     selectOptions += '<option value="logistics"' + (user.role === 'logistics' ? ' selected' : '') + '>物流公司</option>';
@@ -1927,9 +1937,9 @@ function renderUserMgmtList() {
     selectOptions += '<option value="pending"' + (user.role === 'pending' ? ' selected' : '') + '>待审核</option>';
     selectOptions += '</select>';
     
-    var supplierNameInput = user.role === 'supplier' 
-      ? '<input type="text" id="supplierName_' + user.uid + '" value="' + (user.supplierName || '') + '" style="padding:5px;width:120px;border:1px solid #ddd;border-radius:4px" placeholder="供应商名称">'
-      : '<span style="color:#aaa">-</span>';
+    var supplierNameInput =
+      '<input type="text" id="supplierName_' + user.uid + '" value="' + csmAttrEscape(user.supplierName || '') + '" style="padding:5px;width:160px;border:1px solid #ddd;border-radius:4px' + (user.role === 'supplier' ? '' : ';display:none') + '" placeholder="供应商名称">' +
+      '<span id="supplierNamePlaceholder_' + user.uid + '" style="color:#aaa' + (user.role === 'supplier' ? ';display:none' : '') + '">-</span>';
     
     html += '<tr style="border-bottom:1px solid #eee">';
     html += '<td style="padding:10px">' + (user.email || '-') + '</td>';
@@ -1946,6 +1956,12 @@ function renderUserMgmtList() {
   html += '</table>';
   container.innerHTML = html;
 }
+function toggleUserMgmtSupplierNameInput(uid, role) {
+  var input = document.getElementById('supplierName_' + uid);
+  var placeholder = document.getElementById('supplierNamePlaceholder_' + uid);
+  if (input) input.style.display = role === 'supplier' ? 'inline-block' : 'none';
+  if (placeholder) placeholder.style.display = role === 'supplier' ? 'none' : 'inline';
+}
 
 // 保存用户角色（独立弹窗 userMgmtModal）
 function saveUserRole(uid) {
@@ -1960,7 +1976,14 @@ function saveUserRole(uid) {
     var prev = snap.val() || {};
     var oldSn = String(prev.supplierName || '').trim();
     var updates = { role: role };
-    if (role === 'supplier' && supplierName) {
+    if (role === 'supplier') {
+      supplierName = supplierName || oldSn;
+      if (!supplierName) {
+        toast('供应商名称不能为空，请填写后保存', 'err');
+        var errReq = new Error('Supplier name is required');
+        errReq._csmHandled = true;
+        throw errReq;
+      }
       updates.supplierName = supplierName;
     } else if (role !== 'supplier') {
       updates.supplierName = '';
@@ -1974,6 +1997,7 @@ function saveUserRole(uid) {
     toast('✅ 用户角色已更新', 'ok');
     loadAllUsers();
   }).catch(function(e) {
+    if (e && e._csmHandled) return;
     toast('❌ 更新失败: ' + e.message, 'err');
   });
 }
@@ -3537,6 +3561,13 @@ function changeUserRole(uid) {
     var oldSn = String(prev.supplierName || '').trim();
     var updates = { role: newRole };
     if (newRole === 'supplier') {
+      newSn = newSn || oldSn;
+      if (!newSn) {
+        toast('供应商名称不能为空，请填写后保存', 'err');
+        var errReq = new Error('Supplier name is required');
+        errReq._csmHandled = true;
+        throw errReq;
+      }
       updates.supplierName = newSn;
     } else {
       updates.supplierName = '';
@@ -3550,6 +3581,7 @@ function changeUserRole(uid) {
     toast('✅ 用户角色已更新', 'ok');
     loadUserList();
   }).catch(function(error) {
+    if (error && error._csmHandled) return;
     console.error('Error updating role:', error);
     toast('❌ 更新失败', 'err');
   });

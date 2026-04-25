@@ -7684,6 +7684,15 @@ function csmFinWtBatchContainerNosDisplay(b) {
   });
   return out.length ? out.join(', ') : '—';
 }
+function csmFinPendingWtSetTheadListMode(listMode) {
+  var el = gid('fin-pending-wt-th-svc');
+  if (!el) return;
+  if (listMode === 'truck') {
+    el.innerHTML = 'Truck<br><span style="font-size:13px;color:#a1887f;font-weight:700">车工</span>';
+  } else {
+    el.innerHTML = 'Worker<br><span style="font-size:13px;color:#a1887f;font-weight:700">工人</span>';
+  }
+}
 function csmFinPendingComputeCategoryCounts() {
   var cPend = (customsFeeRequests || []).filter(function(r) { return String(r && r.status || 'pending') === 'pending'; });
   var wPend = (salesWtSettlements || []).filter(function(b) { return csmFinWtIsAwaitingPayment(b); });
@@ -7704,10 +7713,14 @@ function csmFinPendingComputeCategoryCounts() {
   });
   return counts;
 }
-function csmFinPendingBuildWtRowsHtml(pending) {
+function csmFinPendingBuildWtRowsHtml(pending, listMode) {
+  listMode = listMode === 'truck' ? 'truck' : 'worker';
   return pending.map(function(b) {
     var wN = (salesWorkers || []).find(function(x) { return x.id === b.filterWorkerId; });
+    var tN = (salesTrucks || []).find(function(x) { return x.id === b.filterTruckId; });
     var wLab = wN ? String(wN.name || '').trim() : (b.filterWorkerId ? '—' : 'All');
+    var tLab = tN ? String(tN.name || '').trim() : (b.filterTruckId ? '—' : 'All');
+    var svcLab = listMode === 'truck' ? tLab : wLab;
     var period = (b.dateStart || '—') + ' → ' + (b.dateEnd || '—');
     var gross = b.grossAed != null ? Number(b.grossAed) : 0;
     var cnSummary = csmEscapeHtml(csmFinWtBatchContainerNosDisplay(b));
@@ -7724,7 +7737,7 @@ function csmFinPendingBuildWtRowsHtml(pending) {
     return '<tr><td style="padding:10px 12px;font-size:12px">' + csmEscapeHtml(csmSalesFormatOrderCreated(b.createdAt)) + '</td>' +
       '<td style="padding:10px 12px;font-size:12px;max-width:160px;white-space:normal;word-break:break-all">' + by + '</td>' +
       '<td style="padding:10px 12px;font-size:11px;max-width:200px;white-space:normal">' + csmEscapeHtml(period) + '</td>' +
-      '<td style="padding:10px 12px">' + csmEscapeHtml(wLab) + '</td>' +
+      '<td style="padding:10px 12px">' + csmEscapeHtml(svcLab) + '</td>' +
       '<td style="padding:10px 12px;max-width:220px;white-space:normal;word-break:break-word;font-size:12px;font-family:var(--csm-font-en);font-weight:700">' + cnSummary + '</td>' +
       '<td style="padding:10px 12px;text-align:right">' + gross.toFixed(2) + '</td>' +
       '<td style="padding:10px 12px;white-space:normal">' + btnDetail + ' ' + btnApr + btnCustom + '</td></tr>' +
@@ -7822,13 +7835,15 @@ function renderFinPendingCategoryPanel() {
     } else {
       wPend = [];
     }
+    var wtListMode = k === 'wtTruck' ? 'truck' : 'worker';
+    try { csmFinPendingWtSetTheadListMode(wtListMode); } catch (eTh) {}
     if (twTb) {
       if (!wPend.length) {
         twTb.innerHTML = '';
         if (emptyEl) { emptyEl.style.display = 'block'; emptyEl.textContent = 'No items in this category. · 该分类下暂无待审批。'; }
       } else {
         if (emptyEl) emptyEl.style.display = 'none';
-        twTb.innerHTML = csmFinPendingBuildWtRowsHtml(wPend);
+        twTb.innerHTML = csmFinPendingBuildWtRowsHtml(wPend, wtListMode);
       }
     }
   } else {

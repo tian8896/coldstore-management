@@ -482,7 +482,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260423paymentapp-tab" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260425parking-fee-label" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -1140,7 +1140,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <button class="btn" onclick="filterPurchase()">确定 Confirm</button>
       <button class="btn btn-g" onclick="resetPurchaseSearch()">重置 Reset</button>
     </div>
-    <div class="tw csm-purchase-list-wrap"><table class="csm-purchase-table"><thead><tr><th>Seq No<br><span>序列号</span></th><th>Container<br><span>集装箱号</span></th><th>Supplier<br><span>供应商</span></th><th>Product<br><span>品名</span></th><th>Date<br><span>采购日期</span></th><th>POL<br><span>起运港</span></th><th>POD<br><span>目的港</span></th><th>Quantity<br><span>数量</span></th><th>Rem. Items<br><span>剩余件数</span></th><th>Demurrage<br><span>停柜费</span></th><th>Logistics<br><span>清关费</span></th><th>Cold Fee<br><span>冷藏费</span></th><th>Attestation<br><span>单据认证</span></th><th>Repack<br><span>翻包费</span></th><th>Waste<br><span>垃圾费</span></th><th>Other<br><span>其他</span></th><th>Total<br><span>合计</span></th><th>Action<br><span>操作</span></th></tr></thead><tbody id="tb-purchase"></tbody></table></div>
+    <div class="tw csm-purchase-list-wrap"><table class="csm-purchase-table"><thead><tr><th>Seq No<br><span>序列号</span></th><th>Container<br><span>集装箱号</span></th><th>Supplier<br><span>供应商</span></th><th>Product<br><span>品名</span></th><th>Date<br><span>采购日期</span></th><th>POL<br><span>起运港</span></th><th>POD<br><span>目的港</span></th><th>Quantity<br><span>数量</span></th><th>Rem. Items<br><span>剩余件数</span></th><th>parking<br><span>停柜费</span></th><th>Customs Clearance<br><span>清关费</span></th><th>Cold Fee<br><span>冷藏费</span></th><th>Attestation<br><span>单据认证</span></th><th>Repack<br><span>翻包费</span></th><th>Waste<br><span>垃圾费</span></th><th>Other<br><span>其他</span></th><th>Total<br><span>合计</span></th><th>Action<br><span>操作</span></th></tr></thead><tbody id="tb-purchase"></tbody></table></div>
     <div class="csm-w1-pager" id="w1-pager-purchase" style="display:none">
       <label for="w1-pager-purchase-size">Rows / page · 每页行数</label>
       <select id="w1-pager-purchase-size" onchange="csmW1SetPageSize('purchase', this.value)" title="Same container group stays together when possible · 同一集装箱主行与子行尽量同页">
@@ -1925,7 +1925,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       </section>
       <section class="fin-cn-recon-detail-block">
       <h4>Container expense / 费用明细</h4>
-      <p class="fin-cn-recon-detail-note">Worker / Truck (卸货送货及退换货) is listed first. Commission is on the row above 清关费 (Logistics). Other purchase fees are summed from all purchase rows under this container.</p>
+      <p class="fin-cn-recon-detail-note">Worker / Truck (卸货送货及退换货) is listed first. Commission is on the row above 清关费 (Customs clearance). Other purchase fees are summed from all purchase rows under this container.</p>
       <div class="tw tw-sales-dense"><table style="width:100%"><thead><tr>
       <th>Fee item<br><span style="font-size:11px;color:#888;font-weight:700">费用项目</span></th>
       <th style="text-align:right">Amount (AED)<br><span style="font-size:11px;color:#888;font-weight:700">金额</span></th>
@@ -2343,10 +2343,10 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <div class="fg"><label>数量 Qty</label>
       <input type="number" id="fe-qty" min="0">
     </div>
-    <div class="fg"><label>停柜费 Demurrage (AED)</label>
+    <div class="fg"><label>parking 停柜费 (AED)</label>
       <input type="number" id="fe-demurrage" min="0">
     </div>
-    <div class="fg"><label>清关费 Logistics (AED)</label>
+    <div class="fg"><label>清关费 Customs Clearance (AED)</label>
       <input type="number" id="fe-customs" min="0">
     </div>
     <div class="fg"><label>冷库费 Cold Fee (AED)</label>

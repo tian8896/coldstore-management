@@ -5225,8 +5225,8 @@ function csmFinCnSavePrimaryPurchaseMeta(cn, patch) {
 function csmFinCnExpenseBreakdown(cn) {
   var key = csmFinCnNormalize(cn);
   var purchaseFeeDefs = [
-    { key: 'demurrage', cn: '停柜费', en: 'Demurrage', source: 'Purchase records · 采购记录' },
-    { key: 'customs', cn: '清关费', en: 'Logistics', source: 'Purchase records · 采购记录' },
+    { key: 'demurrage', cn: '停柜费', en: 'parking', source: 'Purchase records · 采购记录' },
+    { key: 'customs', cn: '清关费', en: 'Customs clearance', source: 'Purchase records · 采购记录' },
     { key: 'coldFee', cn: '冷藏费', en: 'Cold Fee', source: 'Purchase records · 采购记录' },
     { key: 'attestation', cn: '单据认证', en: 'Attestation', source: 'Purchase records · 采购记录' },
     { key: 'repack', cn: '翻包费', en: 'Repack', source: 'Purchase records · 采购记录' },
@@ -5597,7 +5597,7 @@ function openFinCnReconDetailModal(el) {
     feeBody.innerHTML = feeData.rows.map(function(r) {
       var actionHtml = r.editable ? '<button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="openFinCnReconExpenseEditModal(' + csmHtmlAttrJson(cn) + ',' + csmHtmlAttrJson(r.key) + ')">Edit</button>' : '—';
       return '<tr>' +
-        '<td>' + csmEscapeHtml(r.en + '/' + r.cn) + '</td>' +
+        '<td>' + csmEscapeHtml(String(r.en || '').trim() + ' ' + String(r.cn || '').trim()) + '</td>' +
         '<td style="text-align:right;font-variant-numeric:tabular-nums">' + csmSalesRound2(r.amount).toFixed(2) + '</td>' +
         '<td style="white-space:nowrap">' + actionHtml + '</td>' +
       '</tr>';
@@ -5658,7 +5658,7 @@ function printFinCnReconDetailPdf() {
   parts.push('<table><thead><tr><th>Fee item / 费用项目</th><th class="num">Amount (AED)</th></tr></thead><tbody>');
   if (printableFeeRows.length) {
     printableFeeRows.forEach(function(r) {
-      parts.push('<tr><td>' + csmEscapeHtml(String(r.en || '') + '/' + String(r.cn || '')) + '</td><td class="num">' + csmSalesRound2(r.amount).toFixed(2) + '</td></tr>');
+      parts.push('<tr><td>' + csmEscapeHtml(String(r.en || '').trim() + ' ' + String(r.cn || '').trim()) + '</td><td class="num">' + csmSalesRound2(r.amount).toFixed(2) + '</td></tr>');
     });
   } else {
     parts.push('<tr><td colspan="2" style="text-align:center;color:#64748b">No fees</td></tr>');

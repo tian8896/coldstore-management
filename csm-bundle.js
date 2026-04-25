@@ -112,6 +112,7 @@ var pendingLoginError = null;var USERS_KEY = 'csm_users_v2';
 var activeDataListeners = [];
 var supplierOwnedSnapshot = {};
 var supplierNameSnapshot = {};
+var supplierUserNames = [];
 function bindValueListener(ref, handler) {
   if (!ref || typeof ref.on !== 'function') return;
   ref.on('value', handler);
@@ -124,6 +125,7 @@ function detachDataListeners() {
   activeDataListeners = [];
   supplierOwnedSnapshot = {};
   supplierNameSnapshot = {};
+  supplierUserNames = [];
 }
 function rebuildMergedRecs() {
   var data = {};
@@ -187,6 +189,39 @@ function supplierRecOwnedByCurrentUser(rec) {
   if (!rec.ownerUid && currentSupplierName && String(rec.supplier || '').trim() === String(currentSupplierName).trim()) return true;
   return false;
 }
+function updateSupplierUserNamesFromUsers(usersData) {
+  var seen = {};
+  var names = [];
+  Object.keys(usersData || {}).forEach(function(uid) {
+    var u = usersData[uid] || {};
+    if (String(u.role || '').toLowerCase() !== 'supplier') return;
+    var name = String(u.supplierName || '').trim();
+    var key = name.toLowerCase();
+    if (!name || seen[key]) return;
+    seen[key] = true;
+    names.push(name);
+  });
+  names.sort(function(a, b) { return String(a).localeCompare(String(b), 'en'); });
+  supplierUserNames = names;
+  try {
+    var pm = gid('purchaseModal');
+    if (pm && pm.classList.contains('sh') && typeof refreshFpSupplierSelect === 'function') {
+      refreshFpSupplierSelect((gid('fp-supplier') || {}).value || '');
+    }
+  } catch (e) {}
+}
+function pullSupplierUserNamesOnce() {
+  if (typeof firebase === 'undefined' || !firebase.database || !firebase.auth || !firebase.auth().currentUser) {
+    return Promise.resolve(supplierUserNames);
+  }
+  return firebase.database().ref('csm_users').once('value').then(function(snap) {
+    updateSupplierUserNamesFromUsers(snap.val() || {});
+    return supplierUserNames;
+  }).catch(function(err) {
+    console.error('pull supplier user names failed', err);
+    return supplierUserNames;
+  });
+}
 function attachDataListenersForRole() {
   detachDataListeners();
   primaryRecsVal = {};
@@ -212,6 +247,13 @@ function attachDataListenersForRole() {
     bindValueListener(supplierRef, function(snap) {
       updateSupplierRecsFromData(snap.val() || {}, isAdmin);
     });
+    try {
+      bindValueListener(firebase.database().ref('csm_users'), function(snap) {
+        updateSupplierUserNamesFromUsers(snap.val() || {});
+      });
+    } catch (eUserNamesListen) {
+      console.error('csm supplier user names listener', eUserNamesListen);
+    }
     if ((isAdmin || isStaff) && salesCustomersRef && salesOrdersRef) {
       bindValueListener(salesCustomersRef, function(snap) {
         salesCustomers = csmSalesObjToArr(snap.val(), false);
@@ -660,6 +702,7 @@ function refreshFpSupplierSelect(selectedValue) {
   }
   (settData.suppliers || []).forEach(addName);
   (supplierRecs || []).forEach(function(r) { addName(r && r.supplier); });
+  (supplierUserNames || []).forEach(addName);
   list.sort(function(a, b) { return String(a).localeCompare(String(b), 'en'); });
   if (el.tagName === 'SELECT') {
     var html = '<option value="">请选择供应商 / Select supplier</option>';
@@ -690,6 +733,11 @@ function refreshFpSupplierSelect(selectedValue) {
 }
 function showFpSupplierDropdown() {
   refreshFpSupplierSelect((gid('fp-supplier') || {}).value || '');
+  pullSupplierUserNamesOnce().then(function() {
+    refreshFpSupplierSelect((gid('fp-supplier') || {}).value || '');
+    var dd2 = gid('fp-supplier-list');
+    if (dd2) dd2.classList.add('show');
+  });
   var dd = gid('fp-supplier-list');
   if (dd) dd.classList.add('show');
 }

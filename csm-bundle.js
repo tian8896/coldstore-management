@@ -7654,6 +7654,36 @@ function csmFinWtBatchWorkerTruckSums(b) {
   });
   return { worker: csmSalesRound2(w), truck: csmSalesRound2(t) };
 }
+function csmFinWtBatchContainerNosDisplay(b) {
+  var seen = {};
+  var out = [];
+  function add(cn) {
+    cn = String(cn || '').trim();
+    if (!cn) return;
+    var u = cn.toUpperCase();
+    if (seen[u]) return;
+    seen[u] = true;
+    out.push(cn);
+  }
+  (b && b.linesSnapshot || []).forEach(function(L) {
+    add(L && L.containerNo);
+  });
+  if (out.length) return out.join(', ');
+  (b && b.lineKeys || []).forEach(function(k) {
+    var base = String(k || '').replace(/#w$|#t$/, '');
+    var m = base.match(/^([^:]+):(\d+)$/);
+    if (!m) return;
+    var oid = m[1];
+    var idx = parseInt(m[2], 10);
+    if (isNaN(idx)) return;
+    var o = (salesOrders || []).find(function(x) { return x && x.id === oid; });
+    if (!o) return;
+    var lines = csmSalesNormalizeLinesFromOrder(o);
+    var L = lines[idx];
+    if (L) add(L.containerNo);
+  });
+  return out.length ? out.join(', ') : '—';
+}
 function csmFinPendingComputeCategoryCounts() {
   var cPend = (customsFeeRequests || []).filter(function(r) { return String(r && r.status || 'pending') === 'pending'; });
   var wPend = (salesWtSettlements || []).filter(function(b) { return csmFinWtIsAwaitingPayment(b); });
@@ -7677,12 +7707,10 @@ function csmFinPendingComputeCategoryCounts() {
 function csmFinPendingBuildWtRowsHtml(pending) {
   return pending.map(function(b) {
     var wN = (salesWorkers || []).find(function(x) { return x.id === b.filterWorkerId; });
-    var tN = (salesTrucks || []).find(function(x) { return x.id === b.filterTruckId; });
     var wLab = wN ? String(wN.name || '').trim() : (b.filterWorkerId ? '—' : 'All');
-    var tLab = tN ? String(tN.name || '').trim() : (b.filterTruckId ? '—' : 'All');
     var period = (b.dateStart || '—') + ' → ' + (b.dateEnd || '—');
     var gross = b.grossAed != null ? Number(b.grossAed) : 0;
-    var nLines = (b.lineKeys || []).length;
+    var cnSummary = csmEscapeHtml(csmFinWtBatchContainerNosDisplay(b));
     var by = csmEscapeHtml(String(b.createdBy || '—'));
     var detailId = csmFinPendingDetailDomId(b.id);
     var canApr = csmFinWtCanConfirmPaid();
@@ -7696,11 +7724,11 @@ function csmFinPendingBuildWtRowsHtml(pending) {
     return '<tr><td style="padding:10px 12px;font-size:12px">' + csmEscapeHtml(csmSalesFormatOrderCreated(b.createdAt)) + '</td>' +
       '<td style="padding:10px 12px;font-size:12px;max-width:160px;white-space:normal;word-break:break-all">' + by + '</td>' +
       '<td style="padding:10px 12px;font-size:11px;max-width:200px;white-space:normal">' + csmEscapeHtml(period) + '</td>' +
-      '<td style="padding:10px 12px">' + csmEscapeHtml(wLab) + '</td><td style="padding:10px 12px">' + csmEscapeHtml(tLab) + '</td>' +
-      '<td style="padding:10px 12px;text-align:center">' + csmEscapeHtml(String(nLines)) + '</td>' +
+      '<td style="padding:10px 12px">' + csmEscapeHtml(wLab) + '</td>' +
+      '<td style="padding:10px 12px;max-width:220px;white-space:normal;word-break:break-word;font-size:12px;font-family:var(--csm-font-en);font-weight:700">' + cnSummary + '</td>' +
       '<td style="padding:10px 12px;text-align:right">' + gross.toFixed(2) + '</td>' +
       '<td style="padding:10px 12px;white-space:normal">' + btnDetail + ' ' + btnApr + btnCustom + '</td></tr>' +
-      '<tr id="' + detailId + '" class="fin-pending-detail" style="display:none"><td colspan="8" style="padding:12px 14px;border-bottom:1px solid #ffe0b2">' + csmFinWtPendingDetailInnerHtml(b) + '</td></tr>';
+      '<tr id="' + detailId + '" class="fin-pending-detail" style="display:none"><td colspan="7" style="padding:12px 14px;border-bottom:1px solid #ffe0b2">' + csmFinWtPendingDetailInnerHtml(b) + '</td></tr>';
   }).join('');
 }
 function csmFinPendingBuildCustomsRowsHtml(pending, lineKey) {

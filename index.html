@@ -63,9 +63,9 @@ body.csm-logistics-ui #logisticsView{min-width:0;width:100%;max-width:100%}
 .tc.ac{display:flex;flex-direction:column}
 .tw{overflow-x:auto;border:1px solid var(--bd);border-radius:6px;flex:1;min-width:0}
 /* 采购列表 Purchase：表格、字号略大、行距紧凑 */
-#tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table{width:100%;border-collapse:collapse;font-size:15px;line-height:1.18;font-family:var(--csm-font-en);font-weight:700}
-#tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table>thead>tr>th{padding:5px 10px 4px;font-size:14px;line-height:1.12;vertical-align:bottom;border-bottom:1px solid var(--bd);background:var(--bg2);color:var(--tx);font-family:var(--csm-font-en);font-weight:700;text-transform:none;letter-spacing:.02em}
-#tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table>tbody>tr>td{padding:3px 10px;font-size:15px;line-height:1.18;border-bottom:1px solid rgba(48,54,61,.18);vertical-align:middle}
+#tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table{width:100%;border-collapse:collapse;font-size:15px;line-height:1.1;font-family:var(--csm-font-en);font-weight:700}
+#tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table>thead>tr>th{padding:4px 10px 3px;font-size:14px;line-height:1.05;vertical-align:bottom;border-bottom:1px solid var(--bd);background:var(--bg2);color:var(--tx);font-family:var(--csm-font-en);font-weight:700;text-transform:none;letter-spacing:.02em}
+#tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table>tbody>tr>td{padding:2px 10px;font-size:15px;line-height:1.1;border-bottom:1px solid rgba(48,54,61,.18);vertical-align:middle}
 #tc-purchase .tw.csm-purchase-list-wrap table.csm-purchase-table>thead>tr>th span{font-size:11px;color:#666;font-weight:700;text-transform:none}
 /* Supplier portal purchase table: English Arial + bold + title case; 略大字号、紧凑行距 */
 #supplierView .tw table{width:100%;min-width:max-content;border-collapse:collapse;font-size:16px;line-height:1.14;font-family:var(--csm-font-en);font-weight:700}
@@ -498,7 +498,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260425supplier-w1-fallback-sync" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260425w1-purchase-table-dense" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {

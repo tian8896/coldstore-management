@@ -178,6 +178,7 @@ function updateSupplierRecsFromData(data, canMigrateStatus) {
   }
   if (isSupplier) renderSupplierTable();
   csmScheduleW1PurchaseSupplierBackfill();
+  csmScheduleSupplierOwnerUidRepair();
 }
 function mergeSupplierScopedData() {
   var merged = {};
@@ -194,20 +195,10 @@ function supplierRecOwnedByCurrentUser(rec) {
 function updateSupplierUserNamesFromUsers(usersData) {
   var seen = {};
   var names = [];
-  function normalizeRoleValue(role) {
-    return String(role || '').toLowerCase().replace(/\s/g, '');
-  }
-  function fallbackSupplierNameFromUser(u) {
-    var name = String(u && (u.supplierName || u.name || u.displayName) || '').trim();
-    if (name) return name;
-    var email = String(u && u.email || '').trim();
-    if (!email || email.indexOf('@') < 0) return '';
-    return email.split('@')[0].replace(/[._-]+/g, ' ').trim();
-  }
   Object.keys(usersData || {}).forEach(function(uid) {
     var u = usersData[uid] || {};
-    if (normalizeRoleValue(u.role) !== 'supplier') return;
-    var name = fallbackSupplierNameFromUser(u);
+    if (csmNormalizeRoleValue(u.role) !== 'supplier') return;
+    var name = csmFallbackSupplierNameFromUser(u);
     var key = name.toLowerCase();
     if (!name || seen[key]) return;
     seen[key] = true;
@@ -233,6 +224,48 @@ function pullSupplierUserNamesOnce() {
     console.error('pull supplier user names failed', err);
     return supplierUserNames;
   });
+}
+function csmNormalizeRoleValue(role) {
+  return String(role || '').toLowerCase().replace(/\s/g, '');
+}
+function csmNormalizeNameKey(name) {
+  return String(name || '').trim().toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '');
+}
+function csmEmailLocalName(email) {
+  email = String(email || '').trim();
+  if (!email || email.indexOf('@') < 0) return '';
+  return email.split('@')[0].replace(/[._-]+/g, ' ').trim();
+}
+function csmSupplierUserCandidateNames(u) {
+  u = u || {};
+  var names = [];
+  function add(v) {
+    v = String(v || '').trim();
+    if (v) names.push(v);
+  }
+  add(u.supplierName);
+  add(u.name);
+  add(u.displayName);
+  add(csmEmailLocalName(u.email));
+  return names;
+}
+function csmFallbackSupplierNameFromUser(u) {
+  var names = csmSupplierUserCandidateNames(u);
+  return names[0] || '';
+}
+function csmBuildSupplierUserMatchMap(usersData) {
+  var map = {};
+  Object.keys(usersData || {}).forEach(function(uid) {
+    var u = usersData[uid] || {};
+    if (csmNormalizeRoleValue(u.role) !== 'supplier') return;
+    csmSupplierUserCandidateNames(u).forEach(function(name) {
+      var key = csmNormalizeNameKey(name);
+      if (!key) return;
+      if (!map[key]) map[key] = [];
+      if (map[key].indexOf(uid) === -1) map[key].push(uid);
+    });
+  });
+  return map;
 }
 function attachDataListenersForRole() {
   detachDataListeners();
@@ -504,12 +537,8 @@ function resolveSupplierOwnerUidByName(supplierName) {
   if (!key || typeof firebase === 'undefined' || !firebase.database) return Promise.resolve('');
   return firebase.database().ref('csm_users').once('value').then(function(snap) {
     var users = snap.val() || {};
-    var matches = [];
-    Object.keys(users).forEach(function(uid) {
-      var u = users[uid] || {};
-      if (String(u.role || '').toLowerCase().replace(/\s/g, '') !== 'supplier') return;
-      if (String(u.supplierName || '').trim().toLowerCase() === key) matches.push(uid);
-    });
+    var map = csmBuildSupplierUserMatchMap(users);
+    var matches = map[csmNormalizeNameKey(key)] || [];
     return matches.length === 1 ? matches[0] : '';
   }).catch(function(err) {
     console.error('resolve supplier owner uid failed', err);
@@ -652,6 +681,45 @@ function csmBackfillW1PurchaseSupplierRecords() {
     console.error('W1 purchase supplier backfill failed', err);
   }).then(function() {
     csmW1SupplierBackfillRunning = false;
+  });
+}
+var csmSupplierOwnerRepairTimer = null;
+var csmSupplierOwnerRepairRunning = false;
+function csmScheduleSupplierOwnerUidRepair() {
+  if (!(isAdmin || isStaff) || !supplierRef || typeof firebase === 'undefined' || !firebase.database) return;
+  if (csmSupplierOwnerRepairTimer) clearTimeout(csmSupplierOwnerRepairTimer);
+  csmSupplierOwnerRepairTimer = setTimeout(csmRepairSupplierRecordOwnerUids, 1200);
+}
+function csmRepairSupplierRecordOwnerUids() {
+  if (csmSupplierOwnerRepairRunning || !(isAdmin || isStaff) || !supplierRef || typeof firebase === 'undefined' || !firebase.database) return;
+  csmSupplierOwnerRepairRunning = true;
+  Promise.all([
+    firebase.database().ref('csm_users').once('value'),
+    supplierRef.once('value')
+  ]).then(function(snaps) {
+    var users = snaps[0].val() || {};
+    var recsRaw = snaps[1].val() || {};
+    var matchMap = csmBuildSupplierUserMatchMap(users);
+    var updates = {};
+    var count = 0;
+    Object.keys(recsRaw).forEach(function(id) {
+      var rec = recsRaw[id] || {};
+      if (rec.ownerUid) return;
+      var key = csmNormalizeNameKey(rec.supplier);
+      if (!key) return;
+      var matched = matchMap[key] || [];
+      if (matched.length !== 1) return;
+      updates['csm_supplier_recs/' + id + '/ownerUid'] = matched[0];
+      count++;
+    });
+    if (!count) return null;
+    return firebase.database().ref().update(updates).then(function() {
+      console.log('Supplier ownerUid auto-repaired:', count);
+    });
+  }).catch(function(err) {
+    console.error('Supplier ownerUid auto-repair failed', err);
+  }).then(function() {
+    csmSupplierOwnerRepairRunning = false;
   });
 }
 // ============================================================

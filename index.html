@@ -498,7 +498,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260425fin-pending-extra-tiles" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260425company-fin-voucher" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -1533,6 +1533,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <button type="button" class="btn btn-g" id="company-fin-btn-tax" onclick="swCompanyFinView('tax')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">VAT &amp; Corporate Tax <span style="font-size:11px;opacity:.9;font-family:var(--csm-font-en);font-weight:700">增值税与企业所得税</span></button>
         <button type="button" class="btn btn-g" id="company-fin-btn-pending" onclick="swCompanyFinView('pending')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Pending approvals <span style="font-size:11px;opacity:.9;font-family:var(--csm-font-en);font-weight:700">待审批项目</span> <span id="company-fin-pending-badge" style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;border:1px solid currentColor;font-size:11px;font-family:var(--csm-font-en);font-weight:700;line-height:1">0</span></button>
         <button type="button" class="btn btn-g" id="company-fin-btn-paymentapp" onclick="swCompanyFinView('paymentapp')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Payment application <span style="font-size:11px;opacity:.9;font-family:var(--csm-font-en);font-weight:700">付款申请</span></button>
+        <button type="button" class="btn btn-g" id="company-fin-btn-voucher" onclick="swCompanyFinView('voucher')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Voucher <span style="font-size:11px;opacity:.9;font-family:var(--csm-font-en);font-weight:700">凭证</span></button>
       </div>
 
       <div id="company-fin-panel-dashboard">
@@ -1754,6 +1755,16 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           <div style="border:1px dashed #93c5fd;border-radius:10px;padding:18px;background:#ffffff">
             <div style="font-size:14px;color:#1e3a8a;font-family:var(--csm-font-en);font-weight:700;margin-bottom:6px">Payment application workspace</div>
             <div style="font-size:13px;color:#64748b;line-height:1.7;font-family:var(--csm-font-en);font-weight:700">Next step can place Worker / Truck / Customs payment requests, approval status, and payment batch summaries here.</div>
+          </div>
+        </div>
+      </div>
+      <div id="company-fin-panel-voucher" style="display:none">
+        <div style="border:1px solid #c7d2fe;border-radius:12px;padding:18px 20px;background:linear-gradient(180deg,#f5f3ff,#ffffff);box-shadow:0 1px 6px rgba(0,0,0,.05)">
+          <h3 style="margin:0 0 8px;font-family:var(--csm-font-en);font-weight:800;color:#0f172a">Voucher · 凭证</h3>
+          <p style="margin:0 0 14px;font-size:13px;line-height:1.7;color:#475569;font-family:var(--csm-font-en);font-weight:700">Reserved for payment vouchers, signed receipts, and attachment summaries tied to bank and payment runs. · 此区域预留给付款凭证、签收单据及与银行流水/付款批次的归集展示。</p>
+          <div style="border:1px dashed #a5b4fc;border-radius:10px;padding:18px;background:#ffffff">
+            <div style="font-size:14px;color:#312e81;font-family:var(--csm-font-en);font-weight:700;margin-bottom:6px">Voucher workspace</div>
+            <div style="font-size:13px;color:#64748b;line-height:1.7;font-family:var(--csm-font-en);font-weight:700">You can later list voucher numbers, payees, dates, and links to source requests from Payment application and pending approvals.</div>
           </div>
         </div>
       </div>

@@ -5462,7 +5462,7 @@ function csmFinBuildWorkspaceState() {
   };
 }
 function swCompanyFinView(view) {
-  var views = ['dashboard', 'gl', 'detail', 'cashbank', 'tax', 'pending', 'paymentapp'];
+  var views = ['dashboard', 'gl', 'detail', 'cashbank', 'tax', 'pending', 'paymentapp', 'voucher'];
   if (isStaff) {
     companyFinView = 'pending';
   } else {

@@ -647,22 +647,60 @@ function refreshAllPolPodDropdowns(selectedPol, selectedPod) {
 }
 function refreshFpSupplierSelect(selectedValue) {
   var el = gid('fp-supplier');
-  if (!el || el.tagName !== 'SELECT') return;
+  if (!el) return;
   var current = String(selectedValue != null ? selectedValue : el.value || '').trim();
-  var list = (settData.suppliers || []).slice().sort(function(a, b) { return String(a).localeCompare(String(b), 'en'); });
-  var html = '<option value="">请选择供应商 / Select supplier</option>';
-  list.forEach(function(name) {
+  var seen = {};
+  var list = [];
+  function addName(name) {
     var n = String(name || '').trim();
-    if (!n) return;
-    var esc = n.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    var selected = current && current.toLowerCase() === n.toLowerCase() ? ' selected' : '';
-    html += '<option value="' + esc + '"' + selected + '>' + esc + '</option>';
-  });
-  if (current && list.every(function(n) { return String(n).trim().toLowerCase() !== current.toLowerCase(); })) {
-    var escC = current.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    html += '<option value="' + escC + '" selected>' + escC + '（旧值）</option>';
+    var k = n.toLowerCase();
+    if (!n || seen[k]) return;
+    seen[k] = true;
+    list.push(n);
   }
-  el.innerHTML = html;
+  (settData.suppliers || []).forEach(addName);
+  (supplierRecs || []).forEach(function(r) { addName(r && r.supplier); });
+  list.sort(function(a, b) { return String(a).localeCompare(String(b), 'en'); });
+  if (el.tagName === 'SELECT') {
+    var html = '<option value="">请选择供应商 / Select supplier</option>';
+    list.forEach(function(name) {
+      var esc = String(name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      var selected = current && current.toLowerCase() === String(name).toLowerCase() ? ' selected' : '';
+      html += '<option value="' + esc + '"' + selected + '>' + esc + '</option>';
+    });
+    if (current && list.every(function(n) { return String(n).trim().toLowerCase() !== current.toLowerCase(); })) {
+      var escC = current.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      html += '<option value="' + escC + '" selected>' + escC + '（旧值）</option>';
+    }
+    el.innerHTML = html;
+    return;
+  }
+  el.value = current;
+  var dd = gid('fp-supplier-list');
+  if (!dd) return;
+  if (!list.length) {
+    dd.innerHTML = '<div class="csm-fp-supplier-empty">暂无供应商，请先在设置中添加 / No suppliers</div>';
+    return;
+  }
+  var html2 = '';
+  list.forEach(function(name) {
+    html2 += '<div class="csm-fp-supplier-opt" onmousedown="chooseFpSupplier(' + csmHtmlAttrJson(name) + ');return false;">' + csmEscapeHtml(name) + '</div>';
+  });
+  dd.innerHTML = html2;
+}
+function showFpSupplierDropdown() {
+  refreshFpSupplierSelect((gid('fp-supplier') || {}).value || '');
+  var dd = gid('fp-supplier-list');
+  if (dd) dd.classList.add('show');
+}
+function hideFpSupplierDropdown() {
+  var dd = gid('fp-supplier-list');
+  if (dd) dd.classList.remove('show');
+}
+function chooseFpSupplier(name) {
+  var el = gid('fp-supplier');
+  if (el) el.value = String(name || '').trim();
+  hideFpSupplierDropdown();
 }
 function fpUpdateAedFromUsd() {
   var uEl = gid('fp-total-usd');

@@ -309,6 +309,14 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 #purchaseModal .mdl.csm-purchase-mdl .csm-purchase-mdl-body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:0 26px;position:relative;z-index:0}
 #purchaseModal .mdl.csm-purchase-mdl .brow{flex-shrink:0;margin:0;padding:14px 26px 20px}
 .mov option{font-weight:600!important}
+#purchaseModal .csm-fp-supplier-wrap{position:relative;display:flex;align-items:stretch;width:100%;gap:0}
+#purchaseModal #fp-supplier{flex:1 1 auto;min-width:0;background:#fff;color:#111;cursor:pointer;border-radius:4px 0 0 4px!important}
+#purchaseModal .csm-fp-supplier-btn{flex:0 0 44px;border:1px solid #ddd;border-left:none;border-radius:0 4px 4px 0;background:#f8fafc;color:#111;cursor:pointer;font-family:var(--csm-font-en);font-weight:700}
+#purchaseModal .csm-fp-supplier-dd{position:absolute;left:0;right:0;top:calc(100% + 3px);z-index:50;display:none;max-height:260px;overflow-y:auto;background:#fff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 10px 24px rgba(15,23,42,.18)}
+#purchaseModal .csm-fp-supplier-dd.show{display:block}
+#purchaseModal .csm-fp-supplier-opt{padding:10px 12px;cursor:pointer;font-size:14px;color:#111;border-bottom:1px solid #f1f5f9}
+#purchaseModal .csm-fp-supplier-opt:hover{background:#e8f4ff;color:#0066cc}
+#purchaseModal .csm-fp-supplier-empty{padding:12px;color:#64748b;font-size:13px}
 /* EDITABLE TABLE */
 .edt{width:70px;background:var(--bg4);border:1px solid var(--bd);border-radius:3px;padding:4px 6px;color:var(--tx);font-family:var(--csm-font-en);font-size:13px;font-weight:700;text-align:right;outline:none}
 .edt:focus{border-color:var(--ac);background:#fff}
@@ -490,7 +498,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260425w1-purchase-sync-supplier" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260425w1-custom-supplier-dropdown" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -2217,9 +2225,11 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <h3>🛒 新增采购记录 / Add Purchase Record</h3>
     <div class="csm-purchase-mdl-sticky">
       <div class="fg"><label>供应商 Supplier *</label>
-        <select id="fp-supplier" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;cursor:pointer">
-          <option value="">请选择供应商 / Select supplier</option>
-        </select>
+        <div class="csm-fp-supplier-wrap">
+          <input type="text" id="fp-supplier" readonly placeholder="请选择供应商 / Select supplier" onclick="showFpSupplierDropdown()" onfocus="showFpSupplierDropdown()" onblur="setTimeout(hideFpSupplierDropdown,180)" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700" autocomplete="off">
+          <button type="button" class="csm-fp-supplier-btn" onclick="showFpSupplierDropdown()" tabindex="-1">▾</button>
+          <div id="fp-supplier-list" class="csm-fp-supplier-dd"></div>
+        </div>
       </div>
     </div>
     <div class="csm-purchase-mdl-body">

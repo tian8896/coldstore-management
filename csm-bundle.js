@@ -112,6 +112,7 @@ var pendingLoginError = null;var USERS_KEY = 'csm_users_v2';
 var activeDataListeners = [];
 var supplierOwnedSnapshot = {};
 var supplierNameSnapshot = {};
+var supplierPurchaseSnapshot = {};
 var supplierUserNames = [];
 function bindValueListener(ref, handler) {
   if (!ref || typeof ref.on !== 'function') return;
@@ -125,6 +126,7 @@ function detachDataListeners() {
   activeDataListeners = [];
   supplierOwnedSnapshot = {};
   supplierNameSnapshot = {};
+  supplierPurchaseSnapshot = {};
   supplierUserNames = [];
 }
 function rebuildMergedRecs() {
@@ -184,6 +186,18 @@ function mergeSupplierScopedData() {
   var merged = {};
   Object.keys(supplierOwnedSnapshot || {}).forEach(function(k) { merged[k] = supplierOwnedSnapshot[k]; });
   Object.keys(supplierNameSnapshot || {}).forEach(function(k) { merged[k] = supplierNameSnapshot[k]; });
+  var cnSeen = {};
+  Object.keys(merged).forEach(function(k) {
+    var key = normalizeContainerNoForMatch(merged[k] && merged[k].cn);
+    if (key) cnSeen[key] = true;
+  });
+  Object.keys(supplierPurchaseSnapshot || {}).forEach(function(k) {
+    var rec = supplierPurchaseSnapshot[k] || {};
+    var key = normalizeContainerNoForMatch(rec.cn);
+    if (key && cnSeen[key]) return;
+    if (key) cnSeen[key] = true;
+    merged[k] = rec;
+  });
   updateSupplierRecsFromData(merged, false);
 }
 function mergeSupplierFallbackData(raw) {
@@ -191,6 +205,32 @@ function mergeSupplierFallbackData(raw) {
     var rec = Object.assign({}, raw[k] || {});
     rec.id = k;
     if (csmSupplierRecordMatchesCurrentUser(rec)) supplierNameSnapshot[k] = raw[k];
+  });
+  mergeSupplierScopedData();
+}
+function mergeSupplierPurchaseFallbackData(raw) {
+  var groups = {};
+  Object.keys(raw || {}).forEach(function(k) {
+    var rec = Object.assign({}, raw[k] || {});
+    rec.id = k;
+    if (!rec.cn || !csmSupplierRecordMatchesCurrentUser(rec)) return;
+    var cnKey = normalizeContainerNoForMatch(rec.cn);
+    if (!cnKey) return;
+    if (!groups[cnKey]) groups[cnKey] = [];
+    groups[cnKey].push(rec);
+  });
+  Object.keys(groups).forEach(function(cnKey) {
+    var rows = groups[cnKey].slice().sort(csmPurchaseRowCompareAsc);
+    var linkedId = '';
+    rows.some(function(r) {
+      linkedId = String(r.sourceSupplierRecId || '').trim();
+      return !!linkedId;
+    });
+    var virtualId = linkedId || ('w1_' + cnKey.replace(/[^A-Z0-9_-]/g, '_'));
+    var supplierRec = csmCreateSupplierRecFromW1Purchases(rows, virtualId, currentUser || '');
+    supplierRec.source = linkedId ? 'w1_purchase_linked_fallback' : 'w1_purchase_virtual_fallback';
+    supplierRec.ownerUid = currentUser || supplierRec.ownerUid || '';
+    supplierPurchaseSnapshot[virtualId] = supplierRec;
   });
   mergeSupplierScopedData();
 }
@@ -428,6 +468,29 @@ function attachDataListenersForRole() {
         console.error('csm supplier fallback listener', eSupFallback);
       }
     }
+    if (purchaseRef && (currentSupplierName || (currentSupplierAliases && currentSupplierAliases.length))) {
+      try {
+        var pAliasSeen = {};
+        var pAliases = (currentSupplierAliases || []).slice();
+        if (currentSupplierName) pAliases.push(currentSupplierName);
+        pAliases.forEach(function(alias) {
+          alias = String(alias || '').trim();
+          var aliasKey = csmNormalizeNameKey(alias);
+          if (!alias || !aliasKey || pAliasSeen[aliasKey]) return;
+          pAliasSeen[aliasKey] = true;
+          bindValueListener(purchaseRef.orderByChild('supplier').equalTo(alias), function(snap) {
+            mergeSupplierPurchaseFallbackData(snap.val() || {});
+          });
+        });
+        purchaseRef.once('value').then(function(snap) {
+          mergeSupplierPurchaseFallbackData(snap.val() || {});
+        }).catch(function(err) {
+          console.error('csm supplier purchase fallback read', err);
+        });
+      } catch (ePurFallback) {
+        console.error('csm supplier purchase fallback listener', ePurFallback);
+      }
+    }
   }
   try {
     if (settingsMetaRef && firebase.auth && firebase.auth().currentUser) {
@@ -615,6 +678,15 @@ function csmMergeUniqueIds(a, b) {
   });
   return out;
 }
+function csmSameStringArray(a, b) {
+  a = Array.isArray(a) ? a.map(function(x) { return String(x || ''); }) : [];
+  b = Array.isArray(b) ? b.map(function(x) { return String(x || ''); }) : [];
+  if (a.length !== b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
 function csmCreateSupplierRecFromW1Purchases(rows, supplierRecId, ownerUid) {
   rows = (rows || []).slice().sort(csmPurchaseRowCompareAsc);
   var first = rows[0] || {};
@@ -663,10 +735,10 @@ function csmCreateSupplierRecFromW1Purchases(rows, supplierRecId, ownerUid) {
 }
 function csmBackfillW1PurchaseSupplierRecords() {
   if (csmW1SupplierBackfillRunning || !(isAdmin || isStaff) || !purchaseRef || !supplierRef) return;
-  var unlinked = (purchaseRecs || []).filter(function(r) {
-    return r && r.id && r.cn && !r.sourceSupplierRecId;
+  var candidates = (purchaseRecs || []).filter(function(r) {
+    return r && r.id && r.cn;
   });
-  if (!unlinked.length) return;
+  if (!candidates.length) return;
   csmW1SupplierBackfillRunning = true;
   Promise.all([
     purchaseRef.once('value'),
@@ -685,7 +757,7 @@ function csmBackfillW1PurchaseSupplierRecords() {
     Object.keys(purchasesRaw).forEach(function(id) {
       var p = Object.assign({}, purchasesRaw[id] || {});
       p.id = id;
-      if (!p.cn || p.sourceSupplierRecId) return;
+      if (!p.cn) return;
       var key = normalizeContainerNoForMatch(p.cn);
       if (!key) return;
       if (!groups[key]) groups[key] = [];
@@ -698,21 +770,34 @@ function csmBackfillW1PurchaseSupplierRecords() {
       chain = chain.then(function() {
         var rows = groups[cnKey].filter(function(r) { return r && r.id; });
         if (!rows.length) return null;
-        var existing = supplierByCn[cnKey];
+        var linkedExisting = null;
+        rows.some(function(r) {
+          var sid = String(r.sourceSupplierRecId || '').trim();
+          if (sid && suppliersRaw[sid]) {
+            linkedExisting = Object.assign({ id: sid }, suppliersRaw[sid] || {});
+            return true;
+          }
+          return false;
+        });
+        var existing = linkedExisting || supplierByCn[cnKey];
         if (existing && existing.id) {
           var existingIds = csmMergeUniqueIds(existing.adoptedPurchaseIds || [], rows.map(function(r) { return r.id; }));
           var existingSupplierName = String(existing.supplier || (rows[0] || {}).supplier || '').trim();
           return resolveSupplierOwnerUidByName(existingSupplierName).then(function(ownerUid) {
-            var tasks = rows.map(function(r) {
+            var tasks = rows.filter(function(r) {
+              return String(r.sourceSupplierRecId || '').trim() !== existing.id;
+            }).map(function(r) {
               return purchaseRef.child(r.id).update({ sourceSupplierRecId: existing.id });
             });
-            var supplierPatch = {
-              adoptedPurchaseId: existing.adoptedPurchaseId || existingIds[0] || '',
-              adoptedPurchaseIds: existingIds,
-              adoptedAt: existing.adoptedAt || new Date().toISOString()
-            };
+            var supplierPatch = {};
+            var adoptedPurchaseId = existing.adoptedPurchaseId || existingIds[0] || '';
+            if (String(existing.adoptedPurchaseId || '') !== adoptedPurchaseId) supplierPatch.adoptedPurchaseId = adoptedPurchaseId;
+            if (!csmSameStringArray(existing.adoptedPurchaseIds || [], existingIds)) supplierPatch.adoptedPurchaseIds = existingIds;
+            if (!existing.adoptedAt) supplierPatch.adoptedAt = new Date().toISOString();
             if (ownerUid && existing.ownerUid !== ownerUid) supplierPatch.ownerUid = ownerUid;
-            tasks.push(supplierRef.child(existing.id).update(supplierPatch));
+            if (Object.keys(supplierPatch).length) tasks.push(supplierRef.child(existing.id).update(supplierPatch));
+            if (!tasks.length) return null;
+            supplierByCn[cnKey] = Object.assign({}, existing, supplierPatch);
             changed++;
             return Promise.all(tasks);
           });

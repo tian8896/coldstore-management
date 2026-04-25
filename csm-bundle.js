@@ -111,6 +111,7 @@ var currentMainSuite = 'w1';
 var pendingLoginError = null;var USERS_KEY = 'csm_users_v2';
 var activeDataListeners = [];
 var supplierOwnedSnapshot = {};
+var supplierNameSnapshot = {};
 function bindValueListener(ref, handler) {
   if (!ref || typeof ref.on !== 'function') return;
   ref.on('value', handler);
@@ -122,6 +123,7 @@ function detachDataListeners() {
   });
   activeDataListeners = [];
   supplierOwnedSnapshot = {};
+  supplierNameSnapshot = {};
 }
 function rebuildMergedRecs() {
   var data = {};
@@ -176,6 +178,7 @@ function updateSupplierRecsFromData(data, canMigrateStatus) {
 function mergeSupplierScopedData() {
   var merged = {};
   Object.keys(supplierOwnedSnapshot || {}).forEach(function(k) { merged[k] = supplierOwnedSnapshot[k]; });
+  Object.keys(supplierNameSnapshot || {}).forEach(function(k) { merged[k] = supplierNameSnapshot[k]; });
   updateSupplierRecsFromData(merged, false);
 }
 function supplierRecOwnedByCurrentUser(rec) {
@@ -273,6 +276,16 @@ function attachDataListenersForRole() {
         });
       } catch (eSupListen) {
         console.error('csm supplier scoped listener', eSupListen);
+      }
+    }
+    if (supplierRef && currentSupplierName) {
+      try {
+        bindValueListener(supplierRef.orderByChild('supplier').equalTo(String(currentSupplierName).trim()), function(snap) {
+          supplierNameSnapshot = snap.val() || {};
+          mergeSupplierScopedData();
+        });
+      } catch (eSupNameListen) {
+        console.error('csm supplier name listener', eSupNameListen);
       }
     }
   }
@@ -408,6 +421,46 @@ function createPurchaseRecordFromSupplierRec(rec, id, item) {
 }
 function makePurchaseRecordId() {
   return 'pur_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+function makeSupplierRecordId() {
+  return 'sp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+function normalizeContainerNoForMatch(cn) {
+  return String(cn || '').trim().toUpperCase();
+}
+function supplierCnExistsLocal(cn) {
+  var key = normalizeContainerNoForMatch(cn);
+  if (!key) return false;
+  return (supplierRecs || []).some(function(r) {
+    return normalizeContainerNoForMatch(r && r.cn) === key;
+  });
+}
+function supplierCnExistsRemote(cn) {
+  var key = normalizeContainerNoForMatch(cn);
+  if (!key) return Promise.resolve(false);
+  if (!supplierRef || typeof supplierRef.orderByChild !== 'function') {
+    return Promise.resolve(supplierCnExistsLocal(key));
+  }
+  return supplierRef.orderByChild('cn').equalTo(key).once('value').then(function(snap) {
+    return snap && snap.exists ? snap.exists() : false;
+  });
+}
+function resolveSupplierOwnerUidByName(supplierName) {
+  var key = String(supplierName || '').trim().toLowerCase();
+  if (!key || typeof firebase === 'undefined' || !firebase.database) return Promise.resolve('');
+  return firebase.database().ref('csm_users').once('value').then(function(snap) {
+    var users = snap.val() || {};
+    var matches = [];
+    Object.keys(users).forEach(function(uid) {
+      var u = users[uid] || {};
+      if (String(u.role || '').toLowerCase() !== 'supplier') return;
+      if (String(u.supplierName || '').trim().toLowerCase() === key) matches.push(uid);
+    });
+    return matches.length === 1 ? matches[0] : '';
+  }).catch(function(err) {
+    console.error('resolve supplier owner uid failed', err);
+    return '';
+  });
 }
 // ============================================================
 // SEQUENCE NUMBER GENERATOR
@@ -2924,22 +2977,84 @@ function addPurchase() {
     toast('请至少添加一个品名', 'err');
     return;
   }
-  items.forEach(function(rec) {
-    var rid = rec.id;
+  if (supplierCnExistsLocal(cn)) {
+    toast('⚠️ 该集装箱号已在供应商界面录入 / Already entered', 'err');
+    return;
+  }
+  function writeW1PurchaseAndSupplierRecord() {
+    var supplierRecId = makeSupplierRecordId();
+    var purchaseIds = items.map(function(rec) { return rec.id; });
+    var dateForSeq = purchaseDate ? new Date(purchaseDate + 'T00:00:00') : null;
     generateSeq(function(seq) {
-      rec.seq = seq;
-      if (purchaseRef) {
-        purchaseRef.child(rid).set(rec).then(function() {
-          console.log('Saved:', rid, 'seq:', seq);
-        }).catch(function(e) {
-          console.error('Error:', e);
+      resolveSupplierOwnerUidByName(supplier).then(function(ownerUid) {
+        var nowIso = new Date().toISOString();
+        var supplierItems = items.map(function(rec) {
+          return { product: rec.product || '', qty: rec.qty || 0 };
         });
-      }
-    }, purchaseDate ? new Date(purchaseDate + 'T00:00:00') : null);
+        var supplierRec = {
+          id: supplierRecId,
+          seq: seq,
+          cn: cn,
+          purchaseDate: purchaseDate,
+          purchaseTime: purchaseTimeNorm,
+          supplier: supplier,
+          product: supplierItems.map(function(item) { return item.product; }).join(' / '),
+          qty: supplierItems.reduce(function(sum, item) { return sum + (parseFloat(item.qty) || 0); }, 0),
+          items: supplierItems,
+          shipname: shipname,
+          shipCompany: shipCompany,
+          bl: bl,
+          invoiceNumber: invoiceNumber,
+          etd: etd,
+          eta: eta,
+          pol: polW1,
+          pod: podW1,
+          remarks: remarks,
+          netWeightMt: wpForm.netWeightMt === '' ? '' : wpForm.netWeightMt,
+          grossWeightMt: wpForm.grossWeightMt === '' ? '' : wpForm.grossWeightMt,
+          tradeTerm: wpForm.tradeTerm,
+          unitPriceUsdMt: wpForm.unitPriceUsdMt === '' ? '' : wpForm.unitPriceUsdMt,
+          totalAmountUsd: wpForm.totalAmountUsd === '' ? '' : wpForm.totalAmountUsd,
+          totalAmountAed: wpForm.totalAmountAed === '' ? '' : wpForm.totalAmountAed,
+          addedBy: currentUserEmail,
+          ownerUid: ownerUid,
+          addTime: nowIso,
+          status: 'confirmed',
+          confirmedBy: currentUserEmail,
+          confirmedAt: nowIso,
+          adoptedPurchaseId: purchaseIds[0] || '',
+          adoptedPurchaseIds: purchaseIds,
+          adoptedAt: nowIso,
+          source: 'w1_purchase'
+        };
+        var writes = [];
+        items.forEach(function(rec) {
+          rec.seq = seq;
+          rec.sourceSupplierRecId = supplierRecId;
+          if (purchaseRef) writes.push(purchaseRef.child(rec.id).set(rec));
+        });
+        if (supplierRef) writes.push(supplierRef.child(supplierRecId).set(supplierRec));
+        Promise.all(writes).then(function() {
+          clPurchaseModal();
+          renderPurchase();
+          toast('✅ 已添加 ' + items.length + ' 条采购记录，并同步到供应商界面', 'ok');
+        }).catch(function(e) {
+          console.error('Save W1 purchase with supplier sync failed:', e);
+          toast('❌ 保存失败: ' + (e && e.message ? e.message : e), 'err');
+        });
+      });
+    }, dateForSeq);
+  }
+  supplierCnExistsRemote(cn).then(function(exists) {
+    if (exists) {
+      toast('⚠️ 该集装箱号已在供应商界面录入 / Already entered', 'err');
+      return;
+    }
+    writeW1PurchaseAndSupplierRecord();
+  }).catch(function(err) {
+    console.error('supplier cn duplicate check failed', err);
+    toast('❌ 无法检查供应商界面是否已录入，请稍后再试', 'err');
   });
-  clPurchaseModal();
-  renderPurchase();
-  toast('✅ 已添加 ' + items.length + ' 条采购记录', 'ok');
 }
 // 添加品名行
 function addPurchaseItem() {  purchaseItemRowCounter++;  var rowId = purchaseItemRowCounter;  var newRow = document.createElement('tr');  newRow.className = 'purchase-item-row';  newRow.innerHTML =    '<td style="padding:4px;border:1px solid #ddd;vertical-align:middle">' + htmlPurchaseItemProductSelect(rowId, '') + '</td>' +    '<td style="padding:4px;border:1px solid #ddd;vertical-align:middle"><input type="number" class="item-qty csm-pi-qty" value="0" min="0" placeholder="实际装货数量" title="输入实际装货数量 / Enter actual loaded quantity"></td>' +    '<td style="padding:4px;border:1px solid #ddd;text-align:center"><button type="button" class="abtn x" onclick="removePurchaseItem(this)" style="color:#ff4444;font-size:16px">×</button></td>';  document.getElementById('purchaseItemsBody').appendChild(newRow);}

@@ -214,6 +214,7 @@ function updateSupplierUserNamesFromUsers(usersData) {
   });
   names.sort(function(a, b) { return String(a).localeCompare(String(b), 'en'); });
   supplierUserNames = names;
+  try { csmScheduleSupplierOwnerUidRepair(); } catch (eRepair) {}
   try {
     var pm = gid('purchaseModal');
     if (pm && pm.classList.contains('sh') && typeof refreshFpSupplierSelect === 'function') {
@@ -694,16 +695,21 @@ function csmBackfillW1PurchaseSupplierRecords() {
         var existing = supplierByCn[cnKey];
         if (existing && existing.id) {
           var existingIds = csmMergeUniqueIds(existing.adoptedPurchaseIds || [], rows.map(function(r) { return r.id; }));
-          var tasks = rows.map(function(r) {
-            return purchaseRef.child(r.id).update({ sourceSupplierRecId: existing.id });
+          var existingSupplierName = String(existing.supplier || (rows[0] || {}).supplier || '').trim();
+          return resolveSupplierOwnerUidByName(existingSupplierName).then(function(ownerUid) {
+            var tasks = rows.map(function(r) {
+              return purchaseRef.child(r.id).update({ sourceSupplierRecId: existing.id });
+            });
+            var supplierPatch = {
+              adoptedPurchaseId: existing.adoptedPurchaseId || existingIds[0] || '',
+              adoptedPurchaseIds: existingIds,
+              adoptedAt: existing.adoptedAt || new Date().toISOString()
+            };
+            if (ownerUid && existing.ownerUid !== ownerUid) supplierPatch.ownerUid = ownerUid;
+            tasks.push(supplierRef.child(existing.id).update(supplierPatch));
+            changed++;
+            return Promise.all(tasks);
           });
-          tasks.push(supplierRef.child(existing.id).update({
-            adoptedPurchaseId: existing.adoptedPurchaseId || existingIds[0] || '',
-            adoptedPurchaseIds: existingIds,
-            adoptedAt: existing.adoptedAt || new Date().toISOString()
-          }));
-          changed++;
-          return Promise.all(tasks);
         }
         var supplierName = String((rows[0] || {}).supplier || '').trim();
         return resolveSupplierOwnerUidByName(supplierName).then(function(ownerUid) {
@@ -749,9 +755,9 @@ function csmRepairSupplierRecordOwnerUids() {
     var count = 0;
     Object.keys(recsRaw).forEach(function(id) {
       var rec = recsRaw[id] || {};
-      if (rec.ownerUid) return;
       var matchedUid = csmFindUniqueSupplierUserForName(rec.supplier, matchMap);
       if (!matchedUid) return;
+      if (rec.ownerUid === matchedUid) return;
       updates['csm_supplier_recs/' + id + '/ownerUid'] = matchedUid;
       count++;
     });

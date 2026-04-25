@@ -3036,6 +3036,13 @@ function afterUnifiedSettingsApplied() {
   try {
     if (isSupplier && typeof renderSupplierTable === 'function') renderSupplierTable();
   } catch (e3) {}
+  try {
+    var pm = gid('purchaseModal');
+    var fps = gid('fp-supplier');
+    if (pm && pm.classList.contains('sh') && fps && typeof refreshFpSupplierSelect === 'function') {
+      refreshFpSupplierSelect(String(fps.value || '').trim());
+    }
+  } catch (e4) {}
 }
 function pullUnifiedSettingsOnce() {
   if (!settingsMetaRef || !firebase.auth || !firebase.auth().currentUser) {

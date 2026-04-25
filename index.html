@@ -301,6 +301,14 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 #purchaseModal #purchaseItemsTable .csm-pi-product{font-size:12px;line-height:1.22;padding:4px 6px;width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:3px;background:#fff;color:#111;font-weight:700}
 #supplierModal #supplierItemsTable .csm-pi-qty,
 #purchaseModal #purchaseItemsTable .csm-pi-qty{font-size:15px;line-height:1.2;font-family:var(--csm-font-en);font-weight:700;padding:10px 12px;min-height:42px;width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:4px;text-align:center;background:#fff;color:#111}
+/* W1 新增采购：供应商等原生 select 放在 overflow 内时，各浏览器下拉里层易被裁剪/无法点选；主体内滚动、顶部供应商固定 */
+#purchaseModal .mdl.csm-purchase-mdl{overflow:hidden;display:flex;flex-direction:column;max-height:85vh;padding:0;width:700px;max-width:92vw;box-sizing:border-box}
+#purchaseModal .mdl.csm-purchase-mdl > h3{flex-shrink:0;margin:0;padding:20px 26px 10px}
+#purchaseModal .mdl.csm-purchase-mdl .csm-purchase-mdl-sticky{flex-shrink:0;padding:0 26px 12px;position:relative;z-index:2}
+#purchaseModal .mdl.csm-purchase-mdl .csm-purchase-mdl-sticky .fg{margin-bottom:0}
+#purchaseModal .mdl.csm-purchase-mdl .csm-purchase-mdl-body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:0 26px;position:relative;z-index:0}
+#purchaseModal .mdl.csm-purchase-mdl .brow{flex-shrink:0;margin:0;padding:14px 26px 20px}
+.mov option{font-weight:600!important}
 /* EDITABLE TABLE */
 .edt{width:70px;background:var(--bg4);border:1px solid var(--bd);border-radius:3px;padding:4px 6px;color:var(--tx);font-family:var(--csm-font-en);font-size:13px;font-weight:700;text-align:right;outline:none}
 .edt:focus{border-color:var(--ac);background:#fff}
@@ -482,7 +490,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260425parking-fee-label" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260425w1-purchase-supplier-select" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -2205,14 +2213,17 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 </div>
 
 <div class="mov" id="purchaseModal">
-  <div class="mdl" style="width:700px;max-height:85vh;overflow-y:auto">
+  <div class="mdl csm-purchase-mdl" style="box-shadow:0 0 40px var(--ac15)">
     <h3>🛒 新增采购记录 / Add Purchase Record</h3>
-    <div class="supplier-modal-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div class="fg" style="grid-column:1 / -1"><label>供应商 Supplier *</label>
-        <select id="fp-supplier" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+    <div class="csm-purchase-mdl-sticky">
+      <div class="fg"><label>供应商 Supplier *</label>
+        <select id="fp-supplier" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;cursor:pointer">
           <option value="">请选择供应商 / Select supplier</option>
         </select>
       </div>
+    </div>
+    <div class="csm-purchase-mdl-body">
+    <div class="supplier-modal-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div class="fg"><label>集装箱号 Container No. *</label>
         <input type="text" id="fp-cn" placeholder="输入集装箱号码" maxlength="11" style="text-transform:uppercase;width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-family:var(--csm-font-en);font-weight:700" autocomplete="off">
       </div>
@@ -2314,7 +2325,8 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <textarea id="fp-remark" rows="3" maxlength="2000" placeholder="选填；将保存到采购记录，并在集装箱详情弹窗中显示 / Optional; shown in container details" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;resize:vertical;font-family:var(--csm-font-en);font-weight:700"></textarea>
       </div>
     </div>
-    <div class="brow" style="margin-top:14px">
+    </div>
+    <div class="brow" style="margin-top:0">
       <button class="btn btn-s" onclick="addPurchase()">✓ 提交 Submit</button>
       <button class="btn btn-g" onclick="clPurchaseModal()">取消 Cancel</button>
     </div>

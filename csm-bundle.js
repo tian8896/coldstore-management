@@ -195,10 +195,7 @@ function mergeSupplierFallbackData(raw) {
   mergeSupplierScopedData();
 }
 function supplierRecOwnedByCurrentUser(rec) {
-  if (!rec) return false;
-  if (rec.ownerUid && currentUser && rec.ownerUid === currentUser) return true;
-  if (!rec.ownerUid && currentSupplierName && String(rec.supplier || '').trim() === String(currentSupplierName).trim()) return true;
-  return false;
+  return csmSupplierRecordMatchesCurrentUser(rec);
 }
 function updateSupplierUserNamesFromUsers(usersData) {
   var seen = {};
@@ -401,11 +398,20 @@ function attachDataListenersForRole() {
         console.error('csm supplier scoped listener', eSupListen);
       }
     }
-    if (supplierRef && currentSupplierName) {
+    if (supplierRef && (currentSupplierName || (currentSupplierAliases && currentSupplierAliases.length))) {
       try {
-        bindValueListener(supplierRef.orderByChild('supplier').equalTo(String(currentSupplierName).trim()), function(snap) {
-          supplierNameSnapshot = snap.val() || {};
-          mergeSupplierScopedData();
+        var aliasSeen = {};
+        var aliases = (currentSupplierAliases || []).slice();
+        if (currentSupplierName) aliases.push(currentSupplierName);
+        aliases.forEach(function(alias) {
+          alias = String(alias || '').trim();
+          var aliasKey = csmNormalizeNameKey(alias);
+          if (!alias || !aliasKey || aliasSeen[aliasKey]) return;
+          aliasSeen[aliasKey] = true;
+          bindValueListener(supplierRef.orderByChild('supplier').equalTo(alias), function(snap) {
+            supplierNameSnapshot = Object.assign({}, supplierNameSnapshot || {}, snap.val() || {});
+            mergeSupplierScopedData();
+          });
         });
       } catch (eSupNameListen) {
         console.error('csm supplier name listener', eSupNameListen);
@@ -3984,15 +3990,7 @@ function migrateSupplierRecordOwners() {
   ]).then(function(snaps) {
     var users = snaps[0].val() || {};
     var recsData = snaps[1].val() || {};
-    var supplierMap = {};
-    Object.keys(users).forEach(function(uid) {
-      var user = users[uid] || {};
-      if (String(user.role || '').toLowerCase() !== 'supplier') return;
-      var name = String(user.supplierName || '').trim().toLowerCase();
-      if (!name) return;
-      if (!supplierMap[name]) supplierMap[name] = [];
-      supplierMap[name].push(uid);
-    });
+    var supplierMap = csmBuildSupplierUserMatchMap(users);
     var updates = {};
     var migrated = 0;
     var alreadyOk = 0;
@@ -4001,16 +3999,22 @@ function migrateSupplierRecordOwners() {
     var skippedAmbiguous = 0;
     Object.keys(recsData).forEach(function(id) {
       var rec = recsData[id] || {};
-      if (rec.ownerUid) {
-        alreadyOk++;
-        return;
-      }
-      var supplierName = String(rec.supplier || '').trim().toLowerCase();
+      var supplierName = String(rec.supplier || '').trim();
       if (!supplierName) {
         skippedNoName++;
         return;
       }
-      var matched = supplierMap[supplierName] || [];
+      var matchedUid = csmFindUniqueSupplierUserForName(supplierName, supplierMap);
+      if (matchedUid && rec.ownerUid === matchedUid) {
+        alreadyOk++;
+        return;
+      }
+      if (matchedUid) {
+        updates['csm_supplier_recs/' + id + '/ownerUid'] = matchedUid;
+        migrated++;
+        return;
+      }
+      var matched = supplierMap[csmNormalizeNameKey(supplierName)] || [];
       if (matched.length === 1) {
         updates['csm_supplier_recs/' + id + '/ownerUid'] = matched[0];
         migrated++;

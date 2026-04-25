@@ -7637,8 +7637,25 @@ function csmFinPendingAllCategoryDefs() {
     { key: 'wtWorker', kind: 'wt', section: 'worker', cn: '卸货费', en: 'Worker' },
     { key: 'wtTruck', kind: 'wt', section: 'worker', cn: '送货费', en: 'Truck' },
     { key: 'wasteCharge', kind: 'customs', cn: '垃圾处理费', en: 'Waste charge' },
-    { key: 'other', kind: 'customs', cn: '其他费用', en: 'Other charge' }
+    { key: 'other', kind: 'customs', cn: '其他费用', en: 'Other charge' },
+    { key: 'customsBillConfirm', kind: 'placeholder', section: 'extra', tag: 'Soon', cn: '清关费账单确认', en: 'Customs bill confirm' },
+    { key: 'supplierPayment', kind: 'placeholder', section: 'extra', tag: 'Soon', cn: '供应商付款', en: 'Supplier payment' }
   ];
+}
+function csmFinPendingPlaceholderText(key) {
+  if (key === 'customsBillConfirm') {
+    return {
+      lead: 'Customs clearance fee bill confirmation will be connected here in a future update. When live, you can match bills, confirm amounts, and route approvals in this queue.',
+      zh: '清关费账单确认：下一版本将在此对接清关费账单、对账与审批流程。'
+    };
+  }
+  if (key === 'supplierPayment') {
+    return {
+      lead: 'Supplier payment requests that need approval will be listed here in a future update, linked to accounts payable and payment batches.',
+      zh: '供应商付款：下一版本将在此汇总待审批的供应商付款，并与应付、付款批处理衔接。'
+    };
+  }
+  return { lead: '—', zh: '—' };
 }
 function csmFinWtBatchUnallocated(b) {
   if (!b || !csmFinWtIsAwaitingPayment(b)) return false;
@@ -7797,12 +7814,16 @@ function renderFinPendingCategoryPanel() {
     if (wWrap) wWrap.style.display = 'none';
     if (cWrap) cWrap.style.display = 'none';
     if (emptyEl) emptyEl.style.display = 'none';
+    var ph0 = gid('fin-pending-placeholder-wrap');
+    if (ph0) ph0.style.display = 'none';
     return;
   }
   var def = csmFinPendingAllCategoryDefs().find(function(d) { return d.key === k; });
   if (!def) {
     finPendingSelectedCategoryKey = null;
     panel.style.display = 'none';
+    var phX = gid('fin-pending-placeholder-wrap');
+    if (phX) phX.style.display = 'none';
     return;
   }
   var titleParts = def.tag
@@ -7812,11 +7833,17 @@ function renderFinPendingCategoryPanel() {
   if (subEl) {
     if (k === 'wtAll') {
       subEl.textContent = 'All pending Worker/Truck settlement batches in queue. · 当前队列内全部待审批的装卸结算批次。';
+    } else if (def.kind === 'placeholder') {
+      subEl.textContent = 'Reserved for a future data connection. · 预留入口，将接入对账/付款流程。';
     } else {
       subEl.textContent = (def.kind === 'wt' ? 'Worker / Truck settlement' : 'Customs fee request') + ' / ' + (def.kind === 'wt' ? '装卸结算待审批' : '清关费用待审批');
     }
   }
+  var phWrap = gid('fin-pending-placeholder-wrap');
+  var phLead = gid('fin-pending-placeholder-lead');
+  var phZh = gid('fin-pending-placeholder-zh');
   if (def.kind === 'wt') {
+    if (phWrap) phWrap.style.display = 'none';
     if (cWrap) cWrap.style.display = 'none';
     if (wWrap) wWrap.style.display = 'block';
     if (emptyEl) emptyEl.style.display = 'none';
@@ -7846,7 +7873,17 @@ function renderFinPendingCategoryPanel() {
         twTb.innerHTML = csmFinPendingBuildWtRowsHtml(wPend, wtListMode);
       }
     }
+  } else if (def.kind === 'placeholder') {
+    if (wWrap) wWrap.style.display = 'none';
+    if (cWrap) cWrap.style.display = 'none';
+    if (phWrap) phWrap.style.display = 'block';
+    if (emptyEl) emptyEl.style.display = 'none';
+    panel.style.display = 'block';
+    var ptxt = csmFinPendingPlaceholderText(k);
+    if (phLead) phLead.textContent = ptxt.lead || '—';
+    if (phZh) phZh.textContent = ptxt.zh || '—';
   } else {
+    if (phWrap) phWrap.style.display = 'none';
     if (wWrap) wWrap.style.display = 'none';
     if (cWrap) cWrap.style.display = 'block';
     panel.style.display = 'block';
@@ -7875,6 +7912,10 @@ function csmFinPendingRenderOneTile(m, counts) {
     bd = sel ? '2px solid #e65100' : '1px solid #ffb74d';
     bg = sel ? 'linear-gradient(135deg,#fff3e0,#fffde7)' : 'linear-gradient(180deg,#fff8e1,#fff)';
   }
+  if (m.kind === 'placeholder') {
+    bd = sel ? '2px solid #475569' : '1px solid #cbd5e1';
+    bg = sel ? 'linear-gradient(135deg,#e2e8f0,#fff)' : 'linear-gradient(180deg,#f8fafc,#fff)';
+  }
   var wFirst = m.section === 'worker' && m.key === 'wtAll';
   var wBand = wFirst ? 'border-left:3px solid #ffb74d;border-radius:0 8px 8px 0;padding-left:5px;margin-left:2px;' : '';
   var line1 = m.tag
@@ -7896,7 +7937,8 @@ function renderFinPendingModuleBadges() {
   var beforeW = all.filter(function(m) { return m.kind === 'customs' && ['logistics', 'coldFee', 'attestation', 'repack', 'waste'].indexOf(m.key) !== -1; });
   var workerB = all.filter(function(m) { return m.section === 'worker'; });
   var afterW = all.filter(function(m) { return m.kind === 'customs' && (m.key === 'wasteCharge' || m.key === 'other'); });
-  var rowHtml = [].concat(beforeW, workerB, afterW).map(function(m) {
+  var extraB = all.filter(function(m) { return m.kind === 'placeholder'; });
+  var rowHtml = [].concat(beforeW, workerB, afterW, extraB).map(function(m) {
     return csmFinPendingRenderOneTile(m, counts);
   }).join('');
   wrap.innerHTML =

@@ -8755,7 +8755,11 @@ function buildSalesOrderLineEditorRow(line) {
     buildSalesOrderLineCnCellHtml(cn) +
     '<td style="padding:6px 8px;vertical-align:middle"><select class="sol-pr csm-product-select" onchange="salesOrderLineProductChanged(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box">' +
     buildSalesOrderLineProductOptionsForCn(String(cn || '').trim().toUpperCase(), pr) + '</select></td>' +
-    '<td style="padding:6px 8px;vertical-align:middle"><div class="sol-qty-rem" style="font-size:11px;color:#0f766e;margin-bottom:4px;font-family:var(--csm-font-en);font-weight:700">Remaining / 剩余: —</div><input type="number" class="sol-qty" min="0.01" step="any" value="' + csmEscapeHtml(String(qty)) + '" oninput="salesOrderLineQtyChanged(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box"></td>' +
+    '<td style="padding:6px 8px;vertical-align:middle">' +
+    '<div class="csm-sol-qty-wrap">' +
+    '<input type="number" class="sol-qty" min="0.01" step="any" value="' + csmEscapeHtml(String(qty)) + '" oninput="salesOrderLineQtyChanged(this)">' +
+    '<div class="sol-qty-rem">Remaining / 剩余: —</div>' +
+    '</div></td>' +
     '<td style="padding:6px 8px;vertical-align:middle"><input type="number" class="sol-price-incl" min="0" step="any" value="' + (inclVal === '' ? '' : csmEscapeHtml(inclVal)) + '" oninput="salesOrderLinePriceSync(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box" title="Unit including 5% VAT \u2014 other column auto-fills"></td>' +
     '<td style="padding:6px 8px;vertical-align:middle"><input type="number" class="sol-price-excl" min="0" step="any" value="' + (exclVal === '' ? '' : csmEscapeHtml(exclVal)) + '" oninput="salesOrderLinePriceSync(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box" title="Unit before 5% VAT \u2014 other column auto-fills"></td>' +
     '<td style="padding:6px 4px;vertical-align:middle;text-align:center"><button type="button" class="abtn x" onclick="salesOrderRemoveLine(this)" title="Remove line">\u00d7</button></td>' +

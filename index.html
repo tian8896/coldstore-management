@@ -203,6 +203,9 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 #sales-order-modal .csm-sol-svc-fields .sol-worker-qty,
 #sales-order-modal .csm-sol-svc-fields .sol-truck-qty{flex:0 0 118px!important;width:118px!important;min-width:108px!important;max-width:136px!important;box-sizing:border-box;padding:6px 8px!important;border:1px solid #ccc!important;border-radius:4px!important}
 #sales-order-modal .csm-sol-cn-wrap{position:relative;width:100%}
+#sales-order-modal .csm-sol-qty-wrap{display:flex;flex-direction:row;align-items:center;gap:10px 12px;flex-wrap:wrap}
+#sales-order-modal .csm-sol-qty-wrap .sol-qty{flex:0 0 auto;width:140px;min-width:128px;max-width:220px;padding:8px 12px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box}
+#sales-order-modal .csm-sol-qty-wrap .sol-qty-rem{flex:1 1 160px;min-width:140px;margin:0;font-size:11px;line-height:1.35;font-family:var(--csm-font-en);font-weight:700;color:#0f766e}
 /* Sales order modal — line table & service row labels: Arial + bold + title case (no uppercase) */
 #sales-order-modal table.csm-sales-order-lines-table > thead > tr > th{font-family:var(--csm-font-en);font-weight:700;text-transform:none;letter-spacing:.02em}
 #sales-order-modal table.csm-sales-order-lines-table > thead > tr > th .csm-so-line-th-sub{font-family:var(--csm-font-en);font-weight:700;font-size:11px;color:#555}
@@ -498,7 +501,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260426w1-tab-sales-first" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260426sales-order-modal-qty" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -2128,7 +2131,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 </div>
 
 <div class="mov" id="sales-order-modal">
-  <div class="mdl" style="width:760px;max-width:96vw;max-height:85vh;overflow-y:auto">
+  <div class="mdl" style="width:min(920px,96vw);max-width:96vw;max-height:85vh;overflow-y:auto">
     <h3 style="text-transform:none;letter-spacing:.5px;font-family:var(--csm-font-en);font-weight:700">销售订单 <span style="font-family:var(--csm-font-en);font-weight:700">Sales Order</span></h3>
     <input type="hidden" id="sales-order-id">
     <div class="fg"><label>订单号 Order No.</label><div id="sales-order-order-no-display" style="padding:10px 12px;background:#f5f5f5;border:1px solid #ddd;border-radius:5px;font-weight:700">—</div></div>
@@ -2143,7 +2146,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <div class="fg"><label>Order lines * <span style="font-size:12px;color:#666;font-weight:700">(container + product + qty + unit price per line — all required to save)</span></label>
       <div style="border:1px solid #ddd;border-radius:6px;margin-top:6px;overflow:visible">
         <table class="csm-sales-order-lines-table" style="width:100%;border-collapse:collapse;font-size:13px;font-family:var(--csm-font-en);font-weight:700;table-layout:fixed">
-          <thead><tr style="background:#f5f5f5"><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:22%">Container</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:22%">Product</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:10%">Qty</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:18%;font-size:12px">Include VAT<br><span class="csm-so-line-th-sub">(AED)</span></th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:18%;font-size:12px">Exclude VAT<br><span class="csm-so-line-th-sub">(AED)</span></th><th style="width:44px;padding:6px 4px;border-bottom:1px solid #ddd"></th></tr></thead>
+          <thead><tr style="background:#f5f5f5"><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:20%">Container</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:20%">Product</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:16%">Qty</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:17%;font-size:12px">Include VAT<br><span class="csm-so-line-th-sub">(AED)</span></th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:17%;font-size:12px">Exclude VAT<br><span class="csm-so-line-th-sub">(AED)</span></th><th style="width:44px;padding:6px 4px;border-bottom:1px solid #ddd"></th></tr></thead>
           <tbody id="sales-order-lines-body"></tbody>
         </table>
       </div>

@@ -5633,6 +5633,59 @@ function renderCompanyFinTaxPanels(state) {
       '<div style="margin-top:10px;color:#64748b">Use this as a framework placeholder; final Corporate Tax rules, adjustments and exemptions should be configured in finance settings before filing.</div>';
   }
 }
+function renderCompanyFinVoucherPanels(state) {
+  function journalRowHtml(j) {
+    var debit = 0;
+    var credit = 0;
+    (j.lines || []).forEach(function(line) {
+      debit += csmFinNum(line.debit);
+      credit += csmFinNum(line.credit);
+    });
+    return (
+      '<tr>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7;font-family:var(--csm-font-en);font-weight:700">' +
+      csmEscapeHtml(j.voucherNo) +
+      '</td>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7;font-family:var(--csm-font-en);font-weight:700">' +
+      csmEscapeHtml(csmSalesFormatOrderCreated(j.journalDate)) +
+      '</td>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7;font-family:var(--csm-font-en);font-weight:700">' +
+      csmEscapeHtml(j.description) +
+      '</td>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7;text-align:right;font-family:var(--csm-font-en);font-weight:700">' +
+      csmFinFmt(debit) +
+      '</td>' +
+      '<td style="padding:8px 10px;border-top:1px solid #eef2f7;text-align:right;font-family:var(--csm-font-en);font-weight:700">' +
+      csmFinFmt(credit) +
+      '</td>' +
+      '</tr>'
+    );
+  }
+  var payTb = gid('tb-company-fin-voucher-payment');
+  var recTb = gid('tb-company-fin-voucher-receipt');
+  var paySum = gid('company-fin-voucher-payment-summary');
+  var recSum = gid('company-fin-voucher-receipt-summary');
+  if (!payTb && !recTb) return;
+  var journals = (state && state.journals) || [];
+  var payList = journals.filter(function(j) {
+    return String(j.voucherNo || '').indexOf('PV-') === 0;
+  });
+  var recList = journals.filter(function(j) {
+    return String(j.voucherNo || '').indexOf('RV-') === 0;
+  });
+  if (paySum) paySum.textContent = payList.length + ' voucher(s)';
+  if (recSum) recSum.textContent = recList.length + ' voucher(s)';
+  if (payTb) {
+    payTb.innerHTML = payList.length
+      ? payList.map(journalRowHtml).join('')
+      : '<tr><td colspan="5" style="text-align:center;padding:16px;color:#94a3b8;font-family:var(--csm-font-en);font-weight:700">No payment vouchers yet.</td></tr>';
+  }
+  if (recTb) {
+    recTb.innerHTML = recList.length
+      ? recList.map(journalRowHtml).join('')
+      : '<tr><td colspan="5" style="text-align:center;padding:16px;color:#94a3b8;font-family:var(--csm-font-en);font-weight:700">No receipt vouchers yet.</td></tr>';
+  }
+}
 function renderCompanyFinancialWorkspace() {
   csmSyncRoleFromWindow();
   var root = gid('suiteCompanyFinancial');
@@ -5649,6 +5702,7 @@ function renderCompanyFinancialWorkspace() {
   renderCompanyFinDetailFilter(state);
   renderCompanyFinCashBankPanels(state);
   renderCompanyFinTaxPanels(state);
+  renderCompanyFinVoucherPanels(state);
   renderCompanyFinancialPending();
   renderCompanyFinancialPendingCustoms();
   if (!isStaff) {

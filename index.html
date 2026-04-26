@@ -498,7 +498,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260425company-fin-voucher" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260426voucher-pay-receipt" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -1759,12 +1759,48 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         </div>
       </div>
       <div id="company-fin-panel-voucher" style="display:none">
-        <div style="border:1px solid #c7d2fe;border-radius:12px;padding:18px 20px;background:linear-gradient(180deg,#f5f3ff,#ffffff);box-shadow:0 1px 6px rgba(0,0,0,.05)">
-          <h3 style="margin:0 0 8px;font-family:var(--csm-font-en);font-weight:800;color:#0f172a">Voucher · 凭证</h3>
-          <p style="margin:0 0 14px;font-size:13px;line-height:1.7;color:#475569;font-family:var(--csm-font-en);font-weight:700">Reserved for payment vouchers, signed receipts, and attachment summaries tied to bank and payment runs. · 此区域预留给付款凭证、签收单据及与银行流水/付款批次的归集展示。</p>
-          <div style="border:1px dashed #a5b4fc;border-radius:10px;padding:18px;background:#ffffff">
-            <div style="font-size:14px;color:#312e81;font-family:var(--csm-font-en);font-weight:700;margin-bottom:6px">Voucher workspace</div>
-            <div style="font-size:13px;color:#64748b;line-height:1.7;font-family:var(--csm-font-en);font-weight:700">You can later list voucher numbers, payees, dates, and links to source requests from Payment application and pending approvals.</div>
+        <div style="margin-bottom:14px">
+          <h3 style="margin:0 0 6px;font-family:var(--csm-font-en);font-weight:800;color:#0f172a">Voucher · 凭证</h3>
+          <p style="margin:0;font-size:13px;line-height:1.7;color:#475569;font-family:var(--csm-font-en);font-weight:700">Payment vouchers (PV) list settled payouts; receipt vouchers (RV) list customer collections posted from receipts. · <span style="font-family:var(--csm-font-en);font-weight:700">付款凭证</span>对应工人/车队结算付款（PV）；<span style="font-family:var(--csm-font-en);font-weight:700">收款凭证</span>对应客户收款入账（RV）。</p>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
+          <div style="border:1px solid #fecaca;border-radius:12px;padding:16px 18px;background:linear-gradient(180deg,#fff1f2,#ffffff);box-shadow:0 1px 6px rgba(0,0,0,.05)">
+            <div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:10px">
+              <h4 style="margin:0;font-family:var(--csm-font-en);font-weight:800;color:#991b1b;font-size:16px">Payment voucher · 付款凭证</h4>
+              <span id="company-fin-voucher-payment-summary" style="font-size:12px;color:#64748b;font-family:var(--csm-font-en);font-weight:700"></span>
+            </div>
+            <p style="margin:0 0 12px;font-size:12px;line-height:1.6;color:#78716c;font-family:var(--csm-font-en);font-weight:700">Worker / truck settlement payouts (bank). · 装卸与车队已付结算批次。</p>
+            <div class="tw" style="overflow-x:auto;border:1px solid #fecdd3;border-radius:10px;background:#fff">
+              <table style="width:100%;border-collapse:collapse;font-size:13px">
+                <thead><tr style="background:#fff1f2">
+                  <th style="padding:8px 10px;text-align:left;font-family:var(--csm-font-en);font-weight:700">Voucher<br><span style="font-size:11px;color:#b91c1c;font-weight:700">凭证号</span></th>
+                  <th style="padding:8px 10px;text-align:left;font-family:var(--csm-font-en);font-weight:700">Date<br><span style="font-size:11px;color:#b91c1c;font-weight:700">日期</span></th>
+                  <th style="padding:8px 10px;text-align:left;font-family:var(--csm-font-en);font-weight:700">Description<br><span style="font-size:11px;color:#b91c1c;font-weight:700">摘要</span></th>
+                  <th style="padding:8px 10px;text-align:right;font-family:var(--csm-font-en);font-weight:700">Debit<br><span style="font-size:11px;color:#b91c1c;font-weight:700">借方</span></th>
+                  <th style="padding:8px 10px;text-align:right;font-family:var(--csm-font-en);font-weight:700">Credit<br><span style="font-size:11px;color:#b91c1c;font-weight:700">贷方</span></th>
+                </tr></thead>
+                <tbody id="tb-company-fin-voucher-payment"></tbody>
+              </table>
+            </div>
+          </div>
+          <div style="border:1px solid #86efac;border-radius:12px;padding:16px 18px;background:linear-gradient(180deg,#f0fdf4,#ffffff);box-shadow:0 1px 6px rgba(0,0,0,.05)">
+            <div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:10px">
+              <h4 style="margin:0;font-family:var(--csm-font-en);font-weight:800;color:#166534;font-size:16px">Receipt voucher · 收款凭证</h4>
+              <span id="company-fin-voucher-receipt-summary" style="font-size:12px;color:#64748b;font-family:var(--csm-font-en);font-weight:700"></span>
+            </div>
+            <p style="margin:0 0 12px;font-size:12px;line-height:1.6;color:#3f6212;font-family:var(--csm-font-en);font-weight:700">Customer receipt postings (cash / bank / AR clearance). · 客户收款及核销应收。</p>
+            <div class="tw" style="overflow-x:auto;border:1px solid #bbf7d0;border-radius:10px;background:#fff">
+              <table style="width:100%;border-collapse:collapse;font-size:13px">
+                <thead><tr style="background:#f0fdf4">
+                  <th style="padding:8px 10px;text-align:left;font-family:var(--csm-font-en);font-weight:700">Voucher<br><span style="font-size:11px;color:#15803d;font-weight:700">凭证号</span></th>
+                  <th style="padding:8px 10px;text-align:left;font-family:var(--csm-font-en);font-weight:700">Date<br><span style="font-size:11px;color:#15803d;font-weight:700">日期</span></th>
+                  <th style="padding:8px 10px;text-align:left;font-family:var(--csm-font-en);font-weight:700">Description<br><span style="font-size:11px;color:#15803d;font-weight:700">摘要</span></th>
+                  <th style="padding:8px 10px;text-align:right;font-family:var(--csm-font-en);font-weight:700">Debit<br><span style="font-size:11px;color:#15803d;font-weight:700">借方</span></th>
+                  <th style="padding:8px 10px;text-align:right;font-family:var(--csm-font-en);font-weight:700">Credit<br><span style="font-size:11px;color:#15803d;font-weight:700">贷方</span></th>
+                </tr></thead>
+                <tbody id="tb-company-fin-voucher-receipt"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

@@ -1454,6 +1454,7 @@ function switchMainSuite(mode) {
     if (typeof renderCompanyFinancialPendingCustoms === 'function') renderCompanyFinancialPendingCustoms();
     if (typeof renderCompanyFinancialWorkspace === 'function') renderCompanyFinancialWorkspace();
   }
+  if (mode === 'w1' && typeof csmW1SyncCheckinCheckoutRail === 'function') csmW1SyncCheckinCheckoutRail();
 }
 try { window.switchMainSuite = switchMainSuite; } catch (eSw) {}
 function setSupplierPortalLayout(active) {
@@ -3287,7 +3288,17 @@ function selectColdStore(n) {  currentColdStore = n;  csmW1PagerState.records.pa
 // ============================================================
 // TAB SWITCH
 // ============================================================
-function swTab(tab) {  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('ac'); });  document.querySelectorAll('.tc').forEach(function(t) { t.classList.remove('ac'); });  var tabNames = ['sales', 'purchase', 'records', 'checkout', 'stats', 'sales_finance'];  var idx = tabNames.indexOf(tab);  if (idx < 0) idx = 0;  var tabs = document.querySelectorAll('.tab');  if (tabs[idx]) tabs[idx].classList.add('ac');  var panel = document.getElementById('tc-' + tab);  if (panel) panel.classList.add('ac');  if (tab === 'sales') { try { refreshSalesUi(); swSalesSub(salesSubView || 'dash'); } catch (eS) {} }  if (tab === 'sales_finance') { try { renderFinCnReconTable(); } catch (eR) {} }}
+function csmW1SyncCheckinCheckoutRail() {
+  try {
+    var w1cc = gid('w1-left-checkin-checkout');
+    if (!w1cc) return;
+    var active = document.querySelector('#suiteWarehouse1 .tc.ac');
+    var id = active && active.id;
+    var key = id && id.indexOf('tc-') === 0 ? id.slice(3) : '';
+    w1cc.style.display = key === 'sales' ? 'none' : '';
+  } catch (e) {}
+}
+function swTab(tab) {  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('ac'); });  document.querySelectorAll('.tc').forEach(function(t) { t.classList.remove('ac'); });  var tabNames = ['sales', 'purchase', 'records', 'checkout', 'stats', 'sales_finance'];  var idx = tabNames.indexOf(tab);  if (idx < 0) idx = 0;  var tabs = document.querySelectorAll('.tab');  if (tabs[idx]) tabs[idx].classList.add('ac');  var panel = document.getElementById('tc-' + tab);  if (panel) panel.classList.add('ac');  csmW1SyncCheckinCheckoutRail();  if (tab === 'sales') { try { refreshSalesUi(); swSalesSub(salesSubView || 'dash'); } catch (eS) {} }  if (tab === 'sales_finance') { try { renderFinCnReconTable(); } catch (eR) {} }}
 // ============================================================
 // PURCHASE RECORDS
 // ============================================================

@@ -192,6 +192,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 #sales-worker-truck-modal.sh{z-index:1100}
 #sales-order-upwt-modal.sh{z-index:1100}
 #fin-cn-misc-pay-modal.sh{z-index:1100}
+#fin-cn-misc-pay-modal .csm-fin-cn-misc-wrap{position:relative;width:100%}
 /* Container reconciliation: line edit above any other overlay (Details closed when opening edit; z-index is a safety net) */
 #fin-cn-recon-line-edit-modal.sh{z-index:10050}
 /* Sales order modal line editor: worker/truck row must wrap; qty needs fixed flex basis */
@@ -502,7 +503,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260426fin-cn-misc-pay-app" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260426fin-cn-misc-cn-combo" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -2065,8 +2066,14 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <select id="fin-cn-misc-fee-type" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></select>
     </div>
     <div class="fg"><label style="font-family:var(--csm-font-en);font-weight:700">Container No. · 集装箱号</label>
-      <select id="fin-cn-misc-cn" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></select>
-      <p style="margin:6px 0 0;font-size:11px;color:#64748b;font-family:var(--csm-font-en);font-weight:700">Only containers from confirmed W1 purchase records. · 仅可选择已确认的采购集装箱。</p>
+      <div class="csm-fin-cn-misc-wrap">
+        <input type="hidden" id="fin-cn-misc-cn-val" value="">
+        <input type="text" id="fin-cn-misc-cn-search" autocomplete="off" placeholder="Type to search — pick from list · 输入模糊搜索后下拉选择"
+          oninput="csmFinMiscCnSearchInput(this)" onfocus="csmFinMiscCnSearchFocus(this)" onblur="csmFinMiscCnSearchBlurSoon(this)"
+          style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;text-transform:uppercase;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box">
+        <div id="fin-cn-misc-cn-dd" class="csm-sales-cust-dd" style="display:none" role="listbox"></div>
+      </div>
+      <p style="margin:6px 0 0;font-size:11px;color:#64748b;font-family:var(--csm-font-en);font-weight:700">Only confirmed W1 purchase containers; type part of the CN to filter. · 仅已确认采购柜号；输入部分箱号筛选下拉。</p>
     </div>
     <div class="fg"><label style="font-family:var(--csm-font-en);font-weight:700">Amount (AED) · 金额</label>
       <input type="number" id="fin-cn-misc-amount" step="0.01" min="0.01" placeholder="0.00" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">

@@ -8077,6 +8077,100 @@ function csmFinCnMiscPayReceiverRefresh() {
     if (sel) salesFillPaymentReceiverSelect(sel, sel.value || '');
   } catch (eR) {}
 }
+function csmFinMiscCnFilterList(queryUpper) {
+  var q = String(queryUpper || '').trim().toUpperCase();
+  var list = csmFinConfirmedContainerList();
+  if (!q) return list.slice(0, 100);
+  return list.filter(function(cn) {
+    return cn.indexOf(q) >= 0;
+  }).slice(0, 100);
+}
+function csmFinMiscCnRenderDd(inputEl) {
+  var dd = gid('fin-cn-misc-cn-dd');
+  if (!dd || !inputEl) return;
+  var q = String(inputEl.value || '').trim().toUpperCase();
+  var hits = csmFinMiscCnFilterList(q);
+  if (!hits.length) {
+    dd.innerHTML =
+      '<div style="padding:10px;color:#888;font-size:12px;font-family:var(--csm-font-en);font-weight:700">No matching confirmed container · \u65e0\u5339\u914d\u5df2\u786e\u8ba4\u67dc\u53f7</div>';
+    dd.style.display = 'block';
+    return;
+  }
+  dd.innerHTML = hits
+    .map(function(cn) {
+      return (
+        '<button type="button" class="csm-sales-cust-item" data-cn="' +
+        w1EscAttr(cn) +
+        '" onmousedown="event.preventDefault();csmFinMiscCnDdPick(this)">' +
+        w1EscHtml(cn) +
+        '</button>'
+      );
+    })
+    .join('');
+  dd.style.display = 'block';
+}
+function csmFinMiscCnDdPick(btn) {
+  var cn = btn && btn.getAttribute('data-cn');
+  csmFinMiscCnApplyPick(cn);
+}
+function csmFinMiscCnApplyPick(cn) {
+  var cnU = String(cn || '').trim().toUpperCase();
+  var hid = gid('fin-cn-misc-cn-val');
+  var inp = gid('fin-cn-misc-cn-search');
+  var dd = gid('fin-cn-misc-cn-dd');
+  if (hid) hid.value = cnU;
+  if (inp) inp.value = cnU;
+  if (dd) {
+    dd.style.display = 'none';
+    dd.innerHTML = '';
+  }
+}
+function csmFinMiscCnSearchInput(el) {
+  var hid = gid('fin-cn-misc-cn-val');
+  var curU = (hid && hid.value || '').trim().toUpperCase();
+  var ty = String(el.value || '').trim().toUpperCase();
+  if (hid && curU && ty !== curU) hid.value = '';
+  if (!ty && hid) hid.value = '';
+  csmFinMiscCnRenderDd(el);
+}
+function csmFinMiscCnSearchFocus(el) {
+  csmFinMiscCnRenderDd(el);
+}
+function csmFinMiscCnSearchBlurResolve(el) {
+  var hid = gid('fin-cn-misc-cn-val');
+  if (hid && hid.value) return;
+  var q = String(el.value || '').trim().toUpperCase();
+  if (!q) return;
+  var list = csmFinConfirmedContainerList();
+  if (list.indexOf(q) >= 0) {
+    csmFinMiscCnApplyPick(q);
+    return;
+  }
+  var fuzzy = list.filter(function(c) {
+    return c.indexOf(q) >= 0;
+  });
+  if (fuzzy.length === 1) csmFinMiscCnApplyPick(fuzzy[0]);
+}
+function csmFinMiscCnSearchBlurSoon(el) {
+  setTimeout(function() {
+    var dd = gid('fin-cn-misc-cn-dd');
+    if (dd) dd.style.display = 'none';
+    csmFinMiscCnSearchBlurResolve(el);
+  }, 200);
+}
+function csmFinMiscCnResolveSubmittedCn() {
+  var cn = String((gid('fin-cn-misc-cn-val') || {}).value || '').trim().toUpperCase();
+  if (cn) return cn;
+  var q = String((gid('fin-cn-misc-cn-search') || {}).value || '').trim().toUpperCase();
+  if (!q) return '';
+  var list = csmFinConfirmedContainerList();
+  if (list.indexOf(q) >= 0) return q;
+  var fuzzy = list.filter(function(c) {
+    return c.indexOf(q) >= 0;
+  });
+  if (fuzzy.length === 1) return fuzzy[0];
+  return '';
+}
 function openFinCnMiscPaymentModal() {
   if (!(isAdmin || isStaff)) {
     toast('Admin or staff only · 仅管理员或员工', 'err');
@@ -8089,7 +8183,6 @@ function openFinCnMiscPaymentModal() {
   var m = gid('fin-cn-misc-pay-modal');
   if (!m) return;
   var feeSel = gid('fin-cn-misc-fee-type');
-  var cnSel = gid('fin-cn-misc-cn');
   if (feeSel) {
     feeSel.innerHTML = csmFinPaymentAppMiscFeeDefs()
       .map(function(d) {
@@ -8097,15 +8190,14 @@ function openFinCnMiscPaymentModal() {
       })
       .join('');
   }
-  if (cnSel) {
-    var cns = csmFinConfirmedContainerList();
-    cnSel.innerHTML =
-      '<option value="">\u2014 Select container / \u9009\u62e9\u96c6\u88c5\u7bb1</option>' +
-      cns
-        .map(function(c) {
-          return '<option value="' + csmAttrEscape(c) + '">' + csmEscapeHtml(c) + '</option>';
-        })
-        .join('');
+  var hid = gid('fin-cn-misc-cn-val');
+  var cinp = gid('fin-cn-misc-cn-search');
+  var dd = gid('fin-cn-misc-cn-dd');
+  if (hid) hid.value = '';
+  if (cinp) cinp.value = '';
+  if (dd) {
+    dd.style.display = 'none';
+    dd.innerHTML = '';
   }
   salesFillPaymentReceiverSelect(gid('fin-cn-misc-payee'), '');
   var amt = gid('fin-cn-misc-amount');
@@ -8119,6 +8211,11 @@ function openFinCnMiscPaymentModal() {
 function clFinCnMiscPaymentModal() {
   var m = gid('fin-cn-misc-pay-modal');
   if (m) m.classList.remove('sh');
+  var dd = gid('fin-cn-misc-cn-dd');
+  if (dd) {
+    dd.style.display = 'none';
+    dd.innerHTML = '';
+  }
 }
 function csmFinSubmitCnMiscPaymentApplication() {
   if (!(isAdmin || isStaff)) {
@@ -8130,7 +8227,7 @@ function csmFinSubmitCnMiscPaymentApplication() {
     return;
   }
   var feeKey = String((gid('fin-cn-misc-fee-type') || {}).value || '').trim();
-  var cn = String((gid('fin-cn-misc-cn') || {}).value || '').trim().toUpperCase();
+  var cn = csmFinMiscCnResolveSubmittedCn();
   var amt = parseFloat((gid('fin-cn-misc-amount') || {}).value);
   var method = String((gid('fin-cn-misc-pay-method') || {}).value || 'cash');
   var payeeId = String((gid('fin-cn-misc-payee') || {}).value || '').trim();
@@ -8208,6 +8305,10 @@ try { window.openFinCnMiscPaymentModal = openFinCnMiscPaymentModal; } catch (eOm
 try { window.clFinCnMiscPaymentModal = clFinCnMiscPaymentModal; } catch (eCm) {}
 try { window.csmFinSubmitCnMiscPaymentApplication = csmFinSubmitCnMiscPaymentApplication; } catch (eSu) {}
 try { window.csmFinCnMiscPayReceiverRefresh = csmFinCnMiscPayReceiverRefresh; } catch (ePr) {}
+try { window.csmFinMiscCnSearchInput = csmFinMiscCnSearchInput; } catch (eM1) {}
+try { window.csmFinMiscCnSearchFocus = csmFinMiscCnSearchFocus; } catch (eM2) {}
+try { window.csmFinMiscCnSearchBlurSoon = csmFinMiscCnSearchBlurSoon; } catch (eM3) {}
+try { window.csmFinMiscCnDdPick = csmFinMiscCnDdPick; } catch (eM4) {}
 function renderCompanyFinancialPendingCustoms() {
   var countEl = gid('fin-pending-customs-count');
   var pending = (customsFeeRequests || []).filter(function(r) {

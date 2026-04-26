@@ -8058,11 +8058,17 @@ function csmFinPaymentAppMiscFeeDefs() {
     { key: 'other', cn: '其他费用', en: 'Other' }
   ];
 }
+function csmFinPurchaseRowEligibleForMiscCnPicker(p) {
+  if (!p) return false;
+  var st = String(p.status || '').trim().toLowerCase();
+  if (st === 'draft' || st === 'submitted' || st === 'cancelled') return false;
+  return true;
+}
 function csmFinConfirmedContainerList() {
   var seen = {};
   var out = [];
   (purchaseRecs || []).forEach(function(p) {
-    if (!p || String(p.status || '') !== 'confirmed') return;
+    if (!csmFinPurchaseRowEligibleForMiscCnPicker(p)) return;
     var cn = String(p.cn || '').trim().toUpperCase();
     if (!cn || cn.length < 2 || seen[cn]) return;
     seen[cn] = true;
@@ -8071,10 +8077,36 @@ function csmFinConfirmedContainerList() {
   out.sort();
   return out;
 }
+function csmFinMiscPayeeOptionsInnerHtml(selectedId) {
+  selectedId = selectedId != null ? String(selectedId) : '';
+  var opts = '<option value="">\u2014 Payee / \u6536\u6b3e\u4eba</option>';
+  (salesPaymentReceivers || []).forEach(function(p) {
+    var vid = String(p.id || '');
+    var sel = vid === selectedId ? ' selected' : '';
+    opts += '<option value="' + csmAttrEscape(vid) + '"' + sel + '>' + csmEscapeHtml(p.name || vid) + '</option>';
+  });
+  if (
+    selectedId &&
+    !(salesPaymentReceivers || []).some(function(p) {
+      return String(p.id) === selectedId;
+    })
+  ) {
+    opts += '<option value="' + csmAttrEscape(selectedId) + '" selected>' + csmEscapeHtml(selectedId) + '</option>';
+  }
+  return opts;
+}
+function csmFinMiscRefreshAllLinePayeeSelects() {
+  var tb = gid('fin-cn-misc-lines-body');
+  if (!tb) return;
+  tb.querySelectorAll('select.fin-misc-line-payee').forEach(function(sel) {
+    var cur = String(sel.value || '').trim();
+    sel.innerHTML = csmFinMiscPayeeOptionsInnerHtml(cur);
+    if (cur) sel.value = cur;
+  });
+}
 function csmFinCnMiscPayReceiverRefresh() {
   try {
-    var sel = gid('fin-cn-misc-payee');
-    if (sel) salesFillPaymentReceiverSelect(sel, sel.value || '');
+    csmFinMiscRefreshAllLinePayeeSelects();
   } catch (eR) {}
 }
 function csmFinMiscFeeLineSelectOptionsHtml(selectedKey) {
@@ -8093,9 +8125,10 @@ function csmFinMiscFeeLineSelectOptionsHtml(selectedKey) {
   });
   return opts;
 }
-function csmFinMiscFeeLineRowHtml(feeKey, amountStr, lineNote) {
+function csmFinMiscFeeLineRowHtml(feeKey, amountStr, payeeId, lineNote) {
   feeKey = String(feeKey || '').trim();
   amountStr = amountStr != null && amountStr !== '' ? String(amountStr) : '';
+  payeeId = payeeId != null ? String(payeeId) : '';
   lineNote = String(lineNote || '');
   return (
     '<tr class="csm-fin-misc-line-row">' +
@@ -8105,6 +8138,9 @@ function csmFinMiscFeeLineRowHtml(feeKey, amountStr, lineNote) {
     '<td style="padding:6px 8px;vertical-align:middle"><input type="number" class="fin-misc-line-amt" step="0.01" min="0" placeholder="AED" value="' +
     csmAttrEscape(amountStr) +
     '" style="width:100%;padding:6px 8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box"></td>' +
+    '<td style="padding:6px 8px;vertical-align:middle"><select class="fin-misc-line-payee" style="width:100%;min-width:160px;padding:6px 8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box">' +
+    csmFinMiscPayeeOptionsInnerHtml(payeeId) +
+    '</select></td>' +
     '<td style="padding:6px 8px;vertical-align:middle"><input type="text" class="fin-misc-line-note" maxlength="200" placeholder="Optional" value="' +
     csmAttrEscape(lineNote) +
     '" style="width:100%;padding:6px 8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box"></td>' +
@@ -8116,12 +8152,14 @@ function csmFinMiscResetFeeLines() {
   var tb = gid('fin-cn-misc-lines-body');
   if (!tb) return;
   tb.innerHTML =
-    csmFinMiscFeeLineRowHtml('', '', '') + csmFinMiscFeeLineRowHtml('', '', '') + csmFinMiscFeeLineRowHtml('', '', '');
+    csmFinMiscFeeLineRowHtml('', '', '', '') +
+    csmFinMiscFeeLineRowHtml('', '', '', '') +
+    csmFinMiscFeeLineRowHtml('', '', '', '');
 }
 function csmFinMiscAddFeeLineRow() {
   var tb = gid('fin-cn-misc-lines-body');
   if (!tb) return;
-  tb.insertAdjacentHTML('beforeend', csmFinMiscFeeLineRowHtml('', '', ''));
+  tb.insertAdjacentHTML('beforeend', csmFinMiscFeeLineRowHtml('', '', '', ''));
 }
 function csmFinMiscRemoveFeeLineRow(btn) {
   var tb = gid('fin-cn-misc-lines-body');
@@ -8149,7 +8187,7 @@ function csmFinMiscCnRenderDd(inputEl) {
   var hits = csmFinMiscCnFilterList(q);
   if (!hits.length) {
     dd.innerHTML =
-      '<div style="padding:10px;color:#888;font-size:12px;font-family:var(--csm-font-en);font-weight:700">No matching confirmed container · \u65e0\u5339\u914d\u5df2\u786e\u8ba4\u67dc\u53f7</div>';
+      '<div style="padding:10px;color:#888;font-size:12px;font-family:var(--csm-font-en);font-weight:700">No matching W1 purchase CN · \u65e0\u5339\u914d\u91c7\u8d2d\u67dc\u53f7</div>';
     dd.style.display = 'block';
     return;
   }
@@ -8249,7 +8287,6 @@ function openFinCnMiscPaymentModal() {
     dd.innerHTML = '';
   }
   csmFinMiscResetFeeLines();
-  salesFillPaymentReceiverSelect(gid('fin-cn-misc-payee'), '');
   var pm = gid('fin-cn-misc-pay-method');
   if (pm) pm.value = 'cash';
   var nt = gid('fin-cn-misc-note');
@@ -8276,26 +8313,13 @@ function csmFinSubmitCnMiscPaymentApplication() {
   }
   var cn = csmFinMiscCnResolveSubmittedCn();
   var method = String((gid('fin-cn-misc-pay-method') || {}).value || 'cash');
-  var payeeId = String((gid('fin-cn-misc-payee') || {}).value || '').trim();
   var note = String((gid('fin-cn-misc-note') || {}).value || '').trim();
   if (!cn) {
     toast('Select container · 请选择集装箱', 'err');
     return;
   }
   if (csmFinConfirmedContainerList().indexOf(cn) === -1) {
-    toast('Container must be a confirmed purchase CN · 须为已确认采购柜号', 'err');
-    return;
-  }
-  if (!payeeId) {
-    toast('Select payee · 请选择收款人', 'err');
-    return;
-  }
-  var payee = salesPaymentReceivers.find(function(x) {
-    return String(x.id) === payeeId;
-  });
-  var payeeName = payee ? String(payee.name || '').trim() : '';
-  if (!payeeName) {
-    toast('Invalid payee · 收款人无效', 'err');
+    toast('Container must exist in W1 purchase list · \u67dc\u53f7\u987b\u5728 W1 \u91c7\u8d2d\u5217\u8868\u4e2d', 'err');
     return;
   }
   if (method !== 'cash' && method !== 'cheque') method = 'cash';
@@ -8306,16 +8330,36 @@ function csmFinSubmitCnMiscPaymentApplication() {
     allowedKeys[d.key] = true;
   });
   var items = [];
-  lineRows.forEach(function(tr) {
+  for (var li = 0; li < lineRows.length; li++) {
+    var tr = lineRows[li];
     var fk = String((tr.querySelector('.fin-misc-line-fee') || {}).value || '').trim();
     var am = parseFloat((tr.querySelector('.fin-misc-line-amt') || {}).value);
+    var pid = String((tr.querySelector('.fin-misc-line-payee') || {}).value || '').trim();
     var ln = String((tr.querySelector('.fin-misc-line-note') || {}).value || '').trim();
-    if (!fk || !allowedKeys[fk]) return;
-    if (!(am > 0) || !isFinite(am)) return;
-    items.push({ feeKey: fk, amount: csmSalesRound2(am), lineNote: ln });
-  });
+    if (!fk || !allowedKeys[fk]) continue;
+    if (!(am > 0) || !isFinite(am)) continue;
+    if (!pid) {
+      toast('Select payee on each fee line · \u6bcf\u884c\u8d39\u7528\u8bf7\u9009\u6536\u6b3e\u4eba', 'err');
+      return;
+    }
+    var payee = salesPaymentReceivers.find(function(x) {
+      return String(x.id) === pid;
+    });
+    var payeeName = payee ? String(payee.name || '').trim() : '';
+    if (!payeeName) {
+      toast('Invalid payee on a line · \u67d0\u884c\u6536\u6b3e\u4eba\u65e0\u6548', 'err');
+      return;
+    }
+    items.push({
+      feeKey: fk,
+      amount: csmSalesRound2(am),
+      lineNote: ln,
+      payeeId: pid,
+      payeeName: payeeName
+    });
+  }
   if (!items.length) {
-    toast('Add at least one fee line (type + amount) · \u8bf7\u81f3\u5c11\u586b\u4e00\u884c\u8d39\u7528\u4e0e\u91d1\u989d', 'err');
+    toast('Add at least one fee line (type + amount + payee) · \u8bf7\u81f3\u5c11\u586b\u4e00\u884c\u8d39\u7528\u3001\u91d1\u989d\u4e0e\u6536\u6b3e\u4eba', 'err');
     return;
   }
   var nowIso = new Date().toISOString();
@@ -8342,8 +8386,8 @@ function csmFinSubmitCnMiscPaymentApplication() {
       cn: cn,
       lines: lines,
       payMethod: method,
-      payeeId: payeeId,
-      payeeName: payeeName,
+      payeeId: it.payeeId,
+      payeeName: it.payeeName,
       refNo: 'PA-' + dateShort + '-' + batchSuffix + '-' + String(idx + 1),
       bl: '',
       applicationNote: appNote,

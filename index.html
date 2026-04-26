@@ -193,6 +193,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 #sales-order-upwt-modal.sh{z-index:1100}
 #fin-cn-misc-pay-modal.sh{z-index:1100}
 #fin-cn-misc-pay-modal .csm-fin-cn-misc-wrap{position:relative;width:100%}
+#fin-cn-misc-pay-modal #fin-cn-misc-cn-dd{z-index:1200}
 /* Container reconciliation: line edit above any other overlay (Details closed when opening edit; z-index is a safety net) */
 #fin-cn-recon-line-edit-modal.sh{z-index:10050}
 /* Sales order modal line editor: worker/truck row must wrap; qty needs fixed flex basis */
@@ -503,7 +504,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260426fin-cn-misc-multi-lines2" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260426fin-cn-misc-cn-payee-lines" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -2062,7 +2063,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 <div class="mov" id="fin-cn-misc-pay-modal">
   <div class="mdl" style="width:min(760px,96vw);max-height:92vh;overflow-y:auto">
     <h3 style="font-family:var(--csm-font-en);font-weight:700;text-transform:none;margin-bottom:10px">Container misc. fee payment · 集装箱杂费付款</h3>
-    <p style="margin:0 0 14px;font-size:12px;line-height:1.55;color:#64748b;font-family:var(--csm-font-en);font-weight:700">Pick one container, then add one or more fee lines (same payee &amp; method for all). · 先选<strong>一个</strong>集装箱，再在本柜下录入多行费用；收款人与付款方式对本批明细共用。</p>
+    <p style="margin:0 0 14px;font-size:12px;line-height:1.55;color:#64748b;font-family:var(--csm-font-en);font-weight:700">Pick one container from the W1 purchase list, then add fee lines — each line has its own payee; payment method is shared. · 先从<strong>Warehouse1 采购列表</strong>选一个柜号，再填多行费用；<strong>每行单独选收款人</strong>，付款方式整单共用。</p>
     <div class="fg"><label style="font-family:var(--csm-font-en);font-weight:700">Container No. · 集装箱号</label>
       <div class="csm-fin-cn-misc-wrap">
         <input type="hidden" id="fin-cn-misc-cn-val" value="">
@@ -2071,7 +2072,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;text-transform:uppercase;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box">
         <div id="fin-cn-misc-cn-dd" class="csm-sales-cust-dd" style="display:none" role="listbox"></div>
       </div>
-      <p style="margin:6px 0 0;font-size:11px;color:#64748b;font-family:var(--csm-font-en);font-weight:700">Only confirmed W1 purchase containers; type part of the CN to filter. · 仅已确认采购柜号；输入部分箱号筛选下拉。</p>
+      <p style="margin:6px 0 0;font-size:11px;color:#64748b;font-family:var(--csm-font-en);font-weight:700">Uses container numbers from the W1 purchase table; type part of the CN to filter. · 柜号来自 W1 采购表；输入部分箱号筛选下拉。</p>
     </div>
     <div class="fg" style="margin-bottom:8px"><label style="font-family:var(--csm-font-en);font-weight:700;display:block;margin-bottom:6px">Fee lines · 费用明细</label>
       <div class="tw" style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:8px;background:#fafafa">
@@ -2079,25 +2080,23 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           <thead><tr style="background:#f1f5f9">
             <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0">Fee type · 费用项目</th>
             <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;width:120px">Amount · 金额</th>
-            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;min-width:140px">Line note · 行备注</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;min-width:160px">Payee · 收款人</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;min-width:120px">Line note · 行备注</th>
             <th style="padding:8px 6px;text-align:center;border-bottom:1px solid #e2e8f0;width:44px"></th>
           </tr></thead>
           <tbody id="fin-cn-misc-lines-body"></tbody>
         </table>
       </div>
-      <button type="button" class="btn btn-s" onclick="csmFinMiscAddFeeLineRow()" style="margin-top:8px;font-family:var(--csm-font-en);font-weight:700;text-transform:none">+ Add line · 增加一行</button>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px">
+        <button type="button" class="btn btn-s" onclick="csmFinMiscAddFeeLineRow()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">+ Add line · 增加一行</button>
+        <button type="button" class="btn btn-s" onclick="openSalesPaymentReceiversModal()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Edit payees · 编辑收款人</button>
+      </div>
     </div>
     <div class="fg"><label style="font-family:var(--csm-font-en);font-weight:700">Payment method · 付款方式</label>
       <select id="fin-cn-misc-pay-method" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
         <option value="cash">Cash · 现金</option>
         <option value="cheque">Cheque · 支票</option>
       </select>
-    </div>
-    <div class="fg"><label style="font-family:var(--csm-font-en);font-weight:700">Payee · 收款人</label>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-        <select id="fin-cn-misc-payee" style="flex:1;min-width:200px;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></select>
-        <button type="button" class="btn btn-s" onclick="openSalesPaymentReceiversModal()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Edit payees · 编辑收款人</button>
-      </div>
     </div>
     <div class="fg"><label style="font-family:var(--csm-font-en);font-weight:700">Note (optional) · 备注</label>
       <input type="text" id="fin-cn-misc-note" maxlength="500" placeholder="Optional" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">

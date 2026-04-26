@@ -91,6 +91,14 @@
           ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || (root.child('csm_users').child(auth.uid).child('role').val() == 'staff' && ((!data.exists() && newData.child('status').val() == 'pending') || (data.exists() && data.child('status').val() == 'pending' && newData.child('status').val() == 'pending'))))"
         }
       }
+    },
+    "csm_fin": {
+      "pending_customs_fees": {
+        ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff')",
+        "$reqId": {
+          ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || (root.child('csm_users').child(auth.uid).child('role').val() == 'staff' && !data.exists() && newData.child('status').val() == 'pending'))"
+        }
+      }
     }
   }
 }

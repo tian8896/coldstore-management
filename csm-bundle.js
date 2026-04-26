@@ -8037,8 +8037,177 @@ function csmFinCustomsSummaryText(r) {
     var v = csmFinNum(lines[d.key]);
     if (v > 0) parts.push(d.en + ' ' + v.toFixed(2));
   });
-  return parts.length ? parts.join(' · ') : '—';
+  var base = parts.length ? parts.join(' · ') : '—';
+  if (r && r.payeeName) {
+    base += ' · Payee: ' + String(r.payeeName);
+  }
+  if (r && r.payMethod) {
+    base += ' · ' + (String(r.payMethod) === 'cheque' ? 'Cheque' : 'Cash');
+  }
+  if (r && r.applicationNote) {
+    base += ' · ' + String(r.applicationNote).slice(0, 80);
+  }
+  return base;
 }
+function csmFinPaymentAppMiscFeeDefs() {
+  return [
+    { key: 'logistics', cn: '停柜费', en: 'Demurrage / parking' },
+    { key: 'repack', cn: '单据认证', en: 'Document attestation' },
+    { key: 'waste', cn: '翻包费', en: 'Repack' },
+    { key: 'wasteCharge', cn: '垃圾处理费', en: 'Waste handling' },
+    { key: 'other', cn: '其他费用', en: 'Other' }
+  ];
+}
+function csmFinConfirmedContainerList() {
+  var seen = {};
+  var out = [];
+  (purchaseRecs || []).forEach(function(p) {
+    if (!p || String(p.status || '') !== 'confirmed') return;
+    var cn = String(p.cn || '').trim().toUpperCase();
+    if (!cn || cn.length < 2 || seen[cn]) return;
+    seen[cn] = true;
+    out.push(cn);
+  });
+  out.sort();
+  return out;
+}
+function csmFinCnMiscPayReceiverRefresh() {
+  try {
+    var sel = gid('fin-cn-misc-payee');
+    if (sel) salesFillPaymentReceiverSelect(sel, sel.value || '');
+  } catch (eR) {}
+}
+function openFinCnMiscPaymentModal() {
+  if (!(isAdmin || isStaff)) {
+    toast('Admin or staff only · 仅管理员或员工', 'err');
+    return;
+  }
+  if (!customsFeePendingRef) {
+    toast('Database not connected · 数据库未连接', 'err');
+    return;
+  }
+  var m = gid('fin-cn-misc-pay-modal');
+  if (!m) return;
+  var feeSel = gid('fin-cn-misc-fee-type');
+  var cnSel = gid('fin-cn-misc-cn');
+  if (feeSel) {
+    feeSel.innerHTML = csmFinPaymentAppMiscFeeDefs()
+      .map(function(d) {
+        return '<option value="' + csmAttrEscape(d.key) + '">' + csmEscapeHtml(d.cn + ' / ' + d.en) + '</option>';
+      })
+      .join('');
+  }
+  if (cnSel) {
+    var cns = csmFinConfirmedContainerList();
+    cnSel.innerHTML =
+      '<option value="">\u2014 Select container / \u9009\u62e9\u96c6\u88c5\u7bb1</option>' +
+      cns
+        .map(function(c) {
+          return '<option value="' + csmAttrEscape(c) + '">' + csmEscapeHtml(c) + '</option>';
+        })
+        .join('');
+  }
+  salesFillPaymentReceiverSelect(gid('fin-cn-misc-payee'), '');
+  var amt = gid('fin-cn-misc-amount');
+  if (amt) amt.value = '';
+  var pm = gid('fin-cn-misc-pay-method');
+  if (pm) pm.value = 'cash';
+  var nt = gid('fin-cn-misc-note');
+  if (nt) nt.value = '';
+  m.classList.add('sh');
+}
+function clFinCnMiscPaymentModal() {
+  var m = gid('fin-cn-misc-pay-modal');
+  if (m) m.classList.remove('sh');
+}
+function csmFinSubmitCnMiscPaymentApplication() {
+  if (!(isAdmin || isStaff)) {
+    toast('Not allowed', 'err');
+    return;
+  }
+  if (!customsFeePendingRef) {
+    toast('Database not connected', 'err');
+    return;
+  }
+  var feeKey = String((gid('fin-cn-misc-fee-type') || {}).value || '').trim();
+  var cn = String((gid('fin-cn-misc-cn') || {}).value || '').trim().toUpperCase();
+  var amt = parseFloat((gid('fin-cn-misc-amount') || {}).value);
+  var method = String((gid('fin-cn-misc-pay-method') || {}).value || 'cash');
+  var payeeId = String((gid('fin-cn-misc-payee') || {}).value || '').trim();
+  var note = String((gid('fin-cn-misc-note') || {}).value || '').trim();
+  var allowed = csmFinPaymentAppMiscFeeDefs().some(function(d) {
+    return d.key === feeKey;
+  });
+  if (!allowed) {
+    toast('Select a fee type · 请选择费用项目', 'err');
+    return;
+  }
+  if (!cn) {
+    toast('Select container · 请选择集装箱', 'err');
+    return;
+  }
+  if (csmFinConfirmedContainerList().indexOf(cn) === -1) {
+    toast('Container must be a confirmed purchase CN · 须为已确认采购柜号', 'err');
+    return;
+  }
+  if (!(amt > 0) || !isFinite(amt)) {
+    toast('Enter amount (AED) · 请输入金额', 'err');
+    return;
+  }
+  if (!payeeId) {
+    toast('Select payee · 请选择收款人', 'err');
+    return;
+  }
+  var payee = salesPaymentReceivers.find(function(x) {
+    return String(x.id) === payeeId;
+  });
+  var payeeName = payee ? String(payee.name || '').trim() : '';
+  if (!payeeName) {
+    toast('Invalid payee · 收款人无效', 'err');
+    return;
+  }
+  if (method !== 'cash' && method !== 'cheque') method = 'cash';
+  var lines = {};
+  csmFinCustomsFeeTypeDefs().forEach(function(d) {
+    lines[d.key] = 0;
+  });
+  lines[feeKey] = csmSalesRound2(amt);
+  var nowIso = new Date().toISOString();
+  var rec = {
+    status: 'pending',
+    source: 'payment_application_cn_misc',
+    feeLineKey: feeKey,
+    containerNo: cn,
+    cn: cn,
+    lines: lines,
+    payMethod: method,
+    payeeId: payeeId,
+    payeeName: payeeName,
+    refNo: 'PA-' + nowIso.slice(0, 10).replace(/-/g, '') + '-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
+    bl: '',
+    applicationNote: note,
+    createdAt: nowIso,
+    submittedAt: nowIso,
+    submittedBy: currentUserEmail || currentUser || '',
+    createdBy: currentUserEmail || currentUser || ''
+  };
+  customsFeePendingRef
+    .push(rec)
+    .then(function() {
+      toast('Submitted — see Pending by fee category · 已提交，请在待审批对应费用下查看', 'ok');
+      clFinCnMiscPaymentModal();
+      try {
+        renderCompanyFinancialWorkspace();
+      } catch (eW) {}
+    })
+    .catch(function(e) {
+      toast(e.message || String(e), 'err');
+    });
+}
+try { window.openFinCnMiscPaymentModal = openFinCnMiscPaymentModal; } catch (eOm) {}
+try { window.clFinCnMiscPaymentModal = clFinCnMiscPaymentModal; } catch (eCm) {}
+try { window.csmFinSubmitCnMiscPaymentApplication = csmFinSubmitCnMiscPaymentApplication; } catch (eSu) {}
+try { window.csmFinCnMiscPayReceiverRefresh = csmFinCnMiscPayReceiverRefresh; } catch (ePr) {}
 function renderCompanyFinancialPendingCustoms() {
   var countEl = gid('fin-pending-customs-count');
   var pending = (customsFeeRequests || []).filter(function(r) {
@@ -8287,6 +8456,9 @@ function openSalesPaymentReceiversModal() {
 function clSalesPaymentReceiversModal() {
   var m = gid('sales-payment-receivers-modal');
   if (m) m.classList.remove('sh');
+  try {
+    if (typeof csmFinCnMiscPayReceiverRefresh === 'function') csmFinCnMiscPayReceiverRefresh();
+  } catch (eFinPr) {}
 }
 function addSalesPaymentReceiver() {
   if (!salesPaymentReceiversRef) { toast('Database not connected', 'err'); return; }

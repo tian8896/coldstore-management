@@ -191,6 +191,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 #sales-payment-receivers-modal.sh{z-index:1100}
 #sales-worker-truck-modal.sh{z-index:1100}
 #sales-order-upwt-modal.sh{z-index:1100}
+#fin-cn-misc-pay-modal.sh{z-index:1100}
 /* Container reconciliation: line edit above any other overlay (Details closed when opening edit; z-index is a safety net) */
 #fin-cn-recon-line-edit-modal.sh{z-index:10050}
 /* Sales order modal line editor: worker/truck row must wrap; qty needs fixed flex basis */
@@ -501,7 +502,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260426w1-sales-hide-left" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260426fin-cn-misc-pay-app" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -1754,10 +1755,11 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <div id="company-fin-panel-paymentapp" style="display:none">
         <div style="border:1px solid #bfdbfe;border-radius:12px;padding:18px 20px;background:linear-gradient(180deg,#eff6ff,#ffffff);box-shadow:0 1px 6px rgba(0,0,0,.05)">
           <h3 style="margin:0 0 8px;font-family:var(--csm-font-en);font-weight:800;color:#0f172a">Payment application · 付款申请</h3>
-          <p style="margin:0 0 14px;font-size:13px;line-height:1.7;color:#475569;font-family:var(--csm-font-en);font-weight:700">This page is reserved for centralized payment application workflow and summaries. · 此页面预留给统一的付款申请流程与汇总展示。</p>
-          <div style="border:1px dashed #93c5fd;border-radius:10px;padding:18px;background:#ffffff">
-            <div style="font-size:14px;color:#1e3a8a;font-family:var(--csm-font-en);font-weight:700;margin-bottom:6px">Payment application workspace</div>
-            <div style="font-size:13px;color:#64748b;line-height:1.7;font-family:var(--csm-font-en);font-weight:700">Next step can place Worker / Truck / Customs payment requests, approval status, and payment batch summaries here.</div>
+          <p style="margin:0 0 16px;font-size:13px;line-height:1.7;color:#475569;font-family:var(--csm-font-en);font-weight:700">Submit payment requests here; approved items follow the same pending queue as customs-related fees. · 在此提交付款申请；通过后进入与清关杂费相同的待审批队列（按费用分类展示）。</p>
+          <div style="border:1px solid #93c5fd;border-radius:10px;padding:16px 18px;background:#ffffff">
+            <h4 style="margin:0 0 8px;font-family:var(--csm-font-en);font-weight:800;color:#1e3a8a;font-size:15px">Container miscellaneous fees · 集装箱杂费付款</h4>
+            <p style="margin:0 0 12px;font-size:12px;line-height:1.65;color:#64748b;font-family:var(--csm-font-en);font-weight:700">Demurrage / parking, document attestation, repack, waste handling, and other charges — each line must reference a <strong>confirmed</strong> purchase container (W1). · 停柜费、单据认证、翻包费、垃圾处理费、其他费用；集装箱须为 Warehouse 1 已确认采购柜号。</p>
+            <button type="button" class="btn btn-s" onclick="openFinCnMiscPaymentModal()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">New application · 新建申请</button>
           </div>
         </div>
       </div>
@@ -2052,6 +2054,41 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <div class="brow">
       <button type="button" class="btn btn-s" onclick="saveFinCnReconExpenseEdit()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Save</button>
       <button type="button" class="btn btn-g" onclick="clFinCnReconExpenseEditModal(true)" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="mov" id="fin-cn-misc-pay-modal">
+  <div class="mdl" style="width:min(520px,96vw);max-height:90vh;overflow-y:auto">
+    <h3 style="font-family:var(--csm-font-en);font-weight:700;text-transform:none;margin-bottom:12px">Container misc. fee payment · 集装箱杂费付款</h3>
+    <div class="fg"><label style="font-family:var(--csm-font-en);font-weight:700">Fee type · 费用项目</label>
+      <select id="fin-cn-misc-fee-type" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></select>
+    </div>
+    <div class="fg"><label style="font-family:var(--csm-font-en);font-weight:700">Container No. · 集装箱号</label>
+      <select id="fin-cn-misc-cn" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></select>
+      <p style="margin:6px 0 0;font-size:11px;color:#64748b;font-family:var(--csm-font-en);font-weight:700">Only containers from confirmed W1 purchase records. · 仅可选择已确认的采购集装箱。</p>
+    </div>
+    <div class="fg"><label style="font-family:var(--csm-font-en);font-weight:700">Amount (AED) · 金额</label>
+      <input type="number" id="fin-cn-misc-amount" step="0.01" min="0.01" placeholder="0.00" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+    </div>
+    <div class="fg"><label style="font-family:var(--csm-font-en);font-weight:700">Payment method · 付款方式</label>
+      <select id="fin-cn-misc-pay-method" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+        <option value="cash">Cash · 现金</option>
+        <option value="cheque">Cheque · 支票</option>
+      </select>
+    </div>
+    <div class="fg"><label style="font-family:var(--csm-font-en);font-weight:700">Payee · 收款人</label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+        <select id="fin-cn-misc-payee" style="flex:1;min-width:200px;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></select>
+        <button type="button" class="btn btn-s" onclick="openSalesPaymentReceiversModal()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Edit payees · 编辑收款人</button>
+      </div>
+    </div>
+    <div class="fg"><label style="font-family:var(--csm-font-en);font-weight:700">Note (optional) · 备注</label>
+      <input type="text" id="fin-cn-misc-note" maxlength="500" placeholder="Optional" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+    </div>
+    <div class="brow" style="flex-wrap:wrap;gap:8px">
+      <button type="button" class="btn btn-p" onclick="csmFinSubmitCnMiscPaymentApplication()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Submit · 提交</button>
+      <button type="button" class="btn btn-g" onclick="clFinCnMiscPaymentModal()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Cancel · 取消</button>
     </div>
   </div>
 </div>

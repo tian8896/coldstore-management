@@ -8077,6 +8077,63 @@ function csmFinCnMiscPayReceiverRefresh() {
     if (sel) salesFillPaymentReceiverSelect(sel, sel.value || '');
   } catch (eR) {}
 }
+function csmFinMiscFeeLineSelectOptionsHtml(selectedKey) {
+  selectedKey = String(selectedKey || '').trim();
+  var opts = '<option value="">\u2014 Fee / \u8d39\u7528</option>';
+  csmFinPaymentAppMiscFeeDefs().forEach(function(d) {
+    var sel = d.key === selectedKey ? ' selected' : '';
+    opts +=
+      '<option value="' +
+      csmAttrEscape(d.key) +
+      '"' +
+      sel +
+      '>' +
+      csmEscapeHtml(d.cn + ' / ' + d.en) +
+      '</option>';
+  });
+  return opts;
+}
+function csmFinMiscFeeLineRowHtml(feeKey, amountStr, lineNote) {
+  feeKey = String(feeKey || '').trim();
+  amountStr = amountStr != null && amountStr !== '' ? String(amountStr) : '';
+  lineNote = String(lineNote || '');
+  return (
+    '<tr class="csm-fin-misc-line-row">' +
+    '<td style="padding:6px 8px;vertical-align:middle"><select class="fin-misc-line-fee" style="width:100%;min-width:200px;padding:6px 8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box">' +
+    csmFinMiscFeeLineSelectOptionsHtml(feeKey) +
+    '</select></td>' +
+    '<td style="padding:6px 8px;vertical-align:middle"><input type="number" class="fin-misc-line-amt" step="0.01" min="0" placeholder="AED" value="' +
+    csmAttrEscape(amountStr) +
+    '" style="width:100%;padding:6px 8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box"></td>' +
+    '<td style="padding:6px 8px;vertical-align:middle"><input type="text" class="fin-misc-line-note" maxlength="200" placeholder="Optional" value="' +
+    csmAttrEscape(lineNote) +
+    '" style="width:100%;padding:6px 8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box"></td>' +
+    '<td style="padding:6px 4px;vertical-align:middle;text-align:center"><button type="button" class="abtn x" onclick="csmFinMiscRemoveFeeLineRow(this)" title="Remove" style="font-size:16px;line-height:1">\u00d7</button></td>' +
+    '</tr>'
+  );
+}
+function csmFinMiscResetFeeLines() {
+  var tb = gid('fin-cn-misc-lines-body');
+  if (!tb) return;
+  tb.innerHTML =
+    csmFinMiscFeeLineRowHtml('', '', '') + csmFinMiscFeeLineRowHtml('', '', '') + csmFinMiscFeeLineRowHtml('', '', '');
+}
+function csmFinMiscAddFeeLineRow() {
+  var tb = gid('fin-cn-misc-lines-body');
+  if (!tb) return;
+  tb.insertAdjacentHTML('beforeend', csmFinMiscFeeLineRowHtml('', '', ''));
+}
+function csmFinMiscRemoveFeeLineRow(btn) {
+  var tb = gid('fin-cn-misc-lines-body');
+  if (!tb) return;
+  var rows = tb.querySelectorAll('tr.csm-fin-misc-line-row');
+  if (rows.length <= 1) {
+    toast('Keep at least one line · \u81f3\u5c11\u4fdd\u7559\u4e00\u884c', 'err');
+    return;
+  }
+  var tr = btn && btn.closest && btn.closest('tr');
+  if (tr) tr.remove();
+}
 function csmFinMiscCnFilterList(queryUpper) {
   var q = String(queryUpper || '').trim().toUpperCase();
   var list = csmFinConfirmedContainerList();
@@ -8182,14 +8239,6 @@ function openFinCnMiscPaymentModal() {
   }
   var m = gid('fin-cn-misc-pay-modal');
   if (!m) return;
-  var feeSel = gid('fin-cn-misc-fee-type');
-  if (feeSel) {
-    feeSel.innerHTML = csmFinPaymentAppMiscFeeDefs()
-      .map(function(d) {
-        return '<option value="' + csmAttrEscape(d.key) + '">' + csmEscapeHtml(d.cn + ' / ' + d.en) + '</option>';
-      })
-      .join('');
-  }
   var hid = gid('fin-cn-misc-cn-val');
   var cinp = gid('fin-cn-misc-cn-search');
   var dd = gid('fin-cn-misc-cn-dd');
@@ -8199,9 +8248,8 @@ function openFinCnMiscPaymentModal() {
     dd.style.display = 'none';
     dd.innerHTML = '';
   }
+  csmFinMiscResetFeeLines();
   salesFillPaymentReceiverSelect(gid('fin-cn-misc-payee'), '');
-  var amt = gid('fin-cn-misc-amount');
-  if (amt) amt.value = '';
   var pm = gid('fin-cn-misc-pay-method');
   if (pm) pm.value = 'cash';
   var nt = gid('fin-cn-misc-note');
@@ -8226,29 +8274,16 @@ function csmFinSubmitCnMiscPaymentApplication() {
     toast('Database not connected', 'err');
     return;
   }
-  var feeKey = String((gid('fin-cn-misc-fee-type') || {}).value || '').trim();
   var cn = csmFinMiscCnResolveSubmittedCn();
-  var amt = parseFloat((gid('fin-cn-misc-amount') || {}).value);
   var method = String((gid('fin-cn-misc-pay-method') || {}).value || 'cash');
   var payeeId = String((gid('fin-cn-misc-payee') || {}).value || '').trim();
   var note = String((gid('fin-cn-misc-note') || {}).value || '').trim();
-  var allowed = csmFinPaymentAppMiscFeeDefs().some(function(d) {
-    return d.key === feeKey;
-  });
-  if (!allowed) {
-    toast('Select a fee type · 请选择费用项目', 'err');
-    return;
-  }
   if (!cn) {
     toast('Select container · 请选择集装箱', 'err');
     return;
   }
   if (csmFinConfirmedContainerList().indexOf(cn) === -1) {
     toast('Container must be a confirmed purchase CN · 须为已确认采购柜号', 'err');
-    return;
-  }
-  if (!(amt > 0) || !isFinite(amt)) {
-    toast('Enter amount (AED) · 请输入金额', 'err');
     return;
   }
   if (!payeeId) {
@@ -8264,34 +8299,71 @@ function csmFinSubmitCnMiscPaymentApplication() {
     return;
   }
   if (method !== 'cash' && method !== 'cheque') method = 'cash';
-  var lines = {};
-  csmFinCustomsFeeTypeDefs().forEach(function(d) {
-    lines[d.key] = 0;
+  var tb = gid('fin-cn-misc-lines-body');
+  var lineRows = tb ? tb.querySelectorAll('tr.csm-fin-misc-line-row') : [];
+  var allowedKeys = {};
+  csmFinPaymentAppMiscFeeDefs().forEach(function(d) {
+    allowedKeys[d.key] = true;
   });
-  lines[feeKey] = csmSalesRound2(amt);
+  var items = [];
+  lineRows.forEach(function(tr) {
+    var fk = String((tr.querySelector('.fin-misc-line-fee') || {}).value || '').trim();
+    var am = parseFloat((tr.querySelector('.fin-misc-line-amt') || {}).value);
+    var ln = String((tr.querySelector('.fin-misc-line-note') || {}).value || '').trim();
+    if (!fk || !allowedKeys[fk]) return;
+    if (!(am > 0) || !isFinite(am)) return;
+    items.push({ feeKey: fk, amount: csmSalesRound2(am), lineNote: ln });
+  });
+  if (!items.length) {
+    toast('Add at least one fee line (type + amount) · \u8bf7\u81f3\u5c11\u586b\u4e00\u884c\u8d39\u7528\u4e0e\u91d1\u989d', 'err');
+    return;
+  }
   var nowIso = new Date().toISOString();
-  var rec = {
-    status: 'pending',
-    source: 'payment_application_cn_misc',
-    feeLineKey: feeKey,
-    containerNo: cn,
-    cn: cn,
-    lines: lines,
-    payMethod: method,
-    payeeId: payeeId,
-    payeeName: payeeName,
-    refNo: 'PA-' + nowIso.slice(0, 10).replace(/-/g, '') + '-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
-    bl: '',
-    applicationNote: note,
-    createdAt: nowIso,
-    submittedAt: nowIso,
-    submittedBy: currentUserEmail || currentUser || '',
-    createdBy: currentUserEmail || currentUser || ''
-  };
-  customsFeePendingRef
-    .push(rec)
+  var batchId = 'PAB-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+  var dateShort = nowIso.slice(0, 10).replace(/-/g, '');
+  var batchSuffix = batchId.replace(/^PAB-/, '').slice(-8).toUpperCase();
+  var tasks = items.map(function(it, idx) {
+    var lines = {};
+    csmFinCustomsFeeTypeDefs().forEach(function(d) {
+      lines[d.key] = 0;
+    });
+    lines[it.feeKey] = it.amount;
+    var noteParts = [];
+    if (note) noteParts.push(note);
+    if (it.lineNote) noteParts.push(it.lineNote);
+    var appNote = noteParts.join(' \u00b7 ');
+    var rec = {
+      status: 'pending',
+      source: 'payment_application_cn_misc',
+      feeLineKey: it.feeKey,
+      applicationBatchId: batchId,
+      applicationLineIndex: idx + 1,
+      containerNo: cn,
+      cn: cn,
+      lines: lines,
+      payMethod: method,
+      payeeId: payeeId,
+      payeeName: payeeName,
+      refNo: 'PA-' + dateShort + '-' + batchSuffix + '-' + String(idx + 1),
+      bl: '',
+      applicationNote: appNote,
+      createdAt: nowIso,
+      submittedAt: nowIso,
+      submittedBy: currentUserEmail || currentUser || '',
+      createdBy: currentUserEmail || currentUser || ''
+    };
+    return customsFeePendingRef.push(rec);
+  });
+  Promise.all(tasks)
     .then(function() {
-      toast('Submitted — see Pending by fee category · 已提交，请在待审批对应费用下查看', 'ok');
+      toast(
+        'Submitted ' +
+          items.length +
+          ' line(s) — check Pending by fee · \u5df2\u63d0\u4ea4 ' +
+          items.length +
+          ' \u6761\uff0c\u5f85\u5ba1\u6279\u6309\u8d39\u7528\u5206\u7c7b\u67e5\u770b',
+        'ok'
+      );
       clFinCnMiscPaymentModal();
       try {
         renderCompanyFinancialWorkspace();
@@ -8309,6 +8381,8 @@ try { window.csmFinMiscCnSearchInput = csmFinMiscCnSearchInput; } catch (eM1) {}
 try { window.csmFinMiscCnSearchFocus = csmFinMiscCnSearchFocus; } catch (eM2) {}
 try { window.csmFinMiscCnSearchBlurSoon = csmFinMiscCnSearchBlurSoon; } catch (eM3) {}
 try { window.csmFinMiscCnDdPick = csmFinMiscCnDdPick; } catch (eM4) {}
+try { window.csmFinMiscAddFeeLineRow = csmFinMiscAddFeeLineRow; } catch (eM5) {}
+try { window.csmFinMiscRemoveFeeLineRow = csmFinMiscRemoveFeeLineRow; } catch (eM6) {}
 function renderCompanyFinancialPendingCustoms() {
   var countEl = gid('fin-pending-customs-count');
   var pending = (customsFeeRequests || []).filter(function(r) {

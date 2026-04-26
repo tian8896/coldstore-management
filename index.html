@@ -503,7 +503,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260426fin-cn-misc-cn-combo" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260426fin-cn-misc-multi-lines2" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -2060,11 +2060,9 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 </div>
 
 <div class="mov" id="fin-cn-misc-pay-modal">
-  <div class="mdl" style="width:min(520px,96vw);max-height:90vh;overflow-y:auto">
-    <h3 style="font-family:var(--csm-font-en);font-weight:700;text-transform:none;margin-bottom:12px">Container misc. fee payment · 集装箱杂费付款</h3>
-    <div class="fg"><label style="font-family:var(--csm-font-en);font-weight:700">Fee type · 费用项目</label>
-      <select id="fin-cn-misc-fee-type" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></select>
-    </div>
+  <div class="mdl" style="width:min(760px,96vw);max-height:92vh;overflow-y:auto">
+    <h3 style="font-family:var(--csm-font-en);font-weight:700;text-transform:none;margin-bottom:10px">Container misc. fee payment · 集装箱杂费付款</h3>
+    <p style="margin:0 0 14px;font-size:12px;line-height:1.55;color:#64748b;font-family:var(--csm-font-en);font-weight:700">Pick one container, then add one or more fee lines (same payee &amp; method for all). · 先选<strong>一个</strong>集装箱，再在本柜下录入多行费用；收款人与付款方式对本批明细共用。</p>
     <div class="fg"><label style="font-family:var(--csm-font-en);font-weight:700">Container No. · 集装箱号</label>
       <div class="csm-fin-cn-misc-wrap">
         <input type="hidden" id="fin-cn-misc-cn-val" value="">
@@ -2075,8 +2073,19 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       </div>
       <p style="margin:6px 0 0;font-size:11px;color:#64748b;font-family:var(--csm-font-en);font-weight:700">Only confirmed W1 purchase containers; type part of the CN to filter. · 仅已确认采购柜号；输入部分箱号筛选下拉。</p>
     </div>
-    <div class="fg"><label style="font-family:var(--csm-font-en);font-weight:700">Amount (AED) · 金额</label>
-      <input type="number" id="fin-cn-misc-amount" step="0.01" min="0.01" placeholder="0.00" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+    <div class="fg" style="margin-bottom:8px"><label style="font-family:var(--csm-font-en);font-weight:700;display:block;margin-bottom:6px">Fee lines · 费用明细</label>
+      <div class="tw" style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:8px;background:#fafafa">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:var(--csm-font-en);font-weight:700">
+          <thead><tr style="background:#f1f5f9">
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0">Fee type · 费用项目</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;width:120px">Amount · 金额</th>
+            <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;min-width:140px">Line note · 行备注</th>
+            <th style="padding:8px 6px;text-align:center;border-bottom:1px solid #e2e8f0;width:44px"></th>
+          </tr></thead>
+          <tbody id="fin-cn-misc-lines-body"></tbody>
+        </table>
+      </div>
+      <button type="button" class="btn btn-s" onclick="csmFinMiscAddFeeLineRow()" style="margin-top:8px;font-family:var(--csm-font-en);font-weight:700;text-transform:none">+ Add line · 增加一行</button>
     </div>
     <div class="fg"><label style="font-family:var(--csm-font-en);font-weight:700">Payment method · 付款方式</label>
       <select id="fin-cn-misc-pay-method" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">

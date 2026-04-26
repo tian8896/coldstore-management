@@ -498,7 +498,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260426voucher-pay-receipt" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260426w1-tab-sales-first" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -1139,11 +1139,11 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 
 <div class="right">
   <div class="tabs">
+    <div class="tab" onclick="swTab('sales')">📑 销售记录 Sales</div>
     <div class="tab ac" onclick="swTab('purchase')">🛒 采购记录 Purchase</div>
     <div class="tab" onclick="swTab('records')">📋 库存记录 Records</div>
     <div class="tab" onclick="swTab('checkout')">📤 出库记录 Checkout</div>
     <div class="tab" onclick="swTab('stats')">📊 统计报表 Stats</div>
-    <div class="tab" onclick="swTab('sales')">📑 销售记录 Sales</div>
     <div class="tab" onclick="swTab('sales_finance')">💼 财务记录 Finance</div>
   </div>
 

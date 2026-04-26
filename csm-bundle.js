@@ -3287,7 +3287,7 @@ function selectColdStore(n) {  currentColdStore = n;  csmW1PagerState.records.pa
 // ============================================================
 // TAB SWITCH
 // ============================================================
-function swTab(tab) {  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('ac'); });  document.querySelectorAll('.tc').forEach(function(t) { t.classList.remove('ac'); });  var tabNames = ['purchase', 'records', 'checkout', 'stats', 'sales', 'sales_finance'];  var idx = tabNames.indexOf(tab);  if (idx < 0) idx = 0;  var tabs = document.querySelectorAll('.tab');  if (tabs[idx]) tabs[idx].classList.add('ac');  var panel = document.getElementById('tc-' + tab);  if (panel) panel.classList.add('ac');  if (tab === 'sales') { try { refreshSalesUi(); swSalesSub(salesSubView || 'dash'); } catch (eS) {} }  if (tab === 'sales_finance') { try { renderFinCnReconTable(); } catch (eR) {} }}
+function swTab(tab) {  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('ac'); });  document.querySelectorAll('.tc').forEach(function(t) { t.classList.remove('ac'); });  var tabNames = ['sales', 'purchase', 'records', 'checkout', 'stats', 'sales_finance'];  var idx = tabNames.indexOf(tab);  if (idx < 0) idx = 0;  var tabs = document.querySelectorAll('.tab');  if (tabs[idx]) tabs[idx].classList.add('ac');  var panel = document.getElementById('tc-' + tab);  if (panel) panel.classList.add('ac');  if (tab === 'sales') { try { refreshSalesUi(); swSalesSub(salesSubView || 'dash'); } catch (eS) {} }  if (tab === 'sales_finance') { try { renderFinCnReconTable(); } catch (eR) {} }}
 // ============================================================
 // PURCHASE RECORDS
 // ============================================================
@@ -6534,7 +6534,7 @@ function swSalesSub(view) {
   } else {
     try {
       var tbs = document.querySelectorAll('.tab');
-      tbs.forEach(function(t, i) { t.classList.toggle('ac', i === 4); });
+      tbs.forEach(function(t, i) { t.classList.toggle('ac', i === 0); });
     } catch (eTopTab) {}
   }
 }

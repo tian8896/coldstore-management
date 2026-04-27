@@ -211,9 +211,10 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 #sales-order-modal .csm-sol-svc-fields .sol-worker-qty,
 #sales-order-modal .csm-sol-svc-fields .sol-truck-qty{flex:0 0 118px!important;width:118px!important;min-width:108px!important;max-width:136px!important;box-sizing:border-box;padding:6px 8px!important;border:1px solid #ccc!important;border-radius:4px!important}
 #sales-order-modal .csm-sol-cn-wrap{position:relative;width:100%}
-#sales-order-modal .csm-sol-qty-wrap{display:flex;flex-direction:row;align-items:center;gap:10px 12px;flex-wrap:wrap}
+/* Qty column: remaining hint above the qty input (not beside / not under the field) */
+#sales-order-modal .csm-sol-qty-wrap{display:flex;flex-direction:column;align-items:flex-start;align-self:flex-start;gap:5px;max-width:100%;box-sizing:border-box}
+#sales-order-modal .csm-sol-qty-wrap .sol-qty-rem{flex:0 0 auto;width:100%;max-width:220px;margin:0;font-size:11px;line-height:1.35;font-family:var(--csm-font-en);font-weight:700;color:#0f766e}
 #sales-order-modal .csm-sol-qty-wrap .sol-qty{flex:0 0 auto;width:140px;min-width:128px;max-width:220px;padding:8px 12px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box}
-#sales-order-modal .csm-sol-qty-wrap .sol-qty-rem{flex:1 1 160px;min-width:140px;margin:0;font-size:11px;line-height:1.35;font-family:var(--csm-font-en);font-weight:700;color:#0f766e}
 /* Sales order modal — line table & service row labels: Arial + bold + title case (no uppercase) */
 #sales-order-modal table.csm-sales-order-lines-table > thead > tr > th{font-family:var(--csm-font-en);font-weight:700;text-transform:none;letter-spacing:.02em}
 #sales-order-modal table.csm-sales-order-lines-table > thead > tr > th .csm-so-line-th-sub{font-family:var(--csm-font-en);font-weight:700;font-size:11px;color:#555}
@@ -509,7 +510,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260427w1-pager-always" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260427wt-paymentapp" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -1300,7 +1301,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   </div>
 
   <div class="tc" id="tc-sales">
-    <p style="font-size:13px;color:#555;margin:0 0 12px;line-height:1.6">销售系统：客户信息、集装箱销售订单、付款状态与财务统计。订单<strong>确认</strong>后，在「财务统计」中查看已确认订单明细与装卸结算。集装箱对账单请打开顶部「财务记录」标签。</p>
+    <p style="font-size:13px;color:#555;margin:0 0 12px;line-height:1.6">销售系统：客户信息、集装箱销售订单、付款状态与财务统计。订单<strong>确认</strong>后，在「财务统计」中查看已确认订单明细；<strong>工人/车队装卸结算</strong>请在公司财务 → <strong>付款申请</strong>中操作。集装箱对账单请打开顶部「财务记录」标签。</p>
     <div class="csm-sales-subnav" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;border-bottom:1px solid #e0e0e0;padding-bottom:10px">
       <button type="button" class="btn btn-g" id="sales-sub-btn-orders" onclick="swSalesSub('orders')">销售订单 <span class="csm-sales-subnav-en">Orders</span></button>
       <button type="button" class="btn btn-s" id="sales-sub-btn-dash" onclick="swSalesSub('dash')">财务统计 <span class="csm-sales-subnav-en">Dashboard</span></button>
@@ -1327,11 +1328,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         </div>
       </div>
       <div style="margin-top:20px;padding-top:20px;border-top:1px solid #e0e0e0">
-        <p style="font-size:14px;font-weight:bold;margin:0 0 12px;font-family:var(--csm-font-en);color:#333">Finance detail · 财务明细</p>
-        <div class="brow csm-fin-subnav" style="flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px">
-          <button type="button" class="btn btn-s" id="fin-sub-btn-orders" onclick="swFinSub('orders')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Order lines <span style="font-size:11px;color:#e3f2fd;font-weight:700">已确认订单</span></button>
-          <button type="button" class="btn btn-g" id="fin-sub-btn-wt" onclick="swFinSub('wt')" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Worker / Truck <span style="font-size:11px;opacity:.9;font-weight:700">装卸结算</span></button>
-        </div>
+        <p style="font-size:14px;font-weight:bold;margin:0 0 12px;font-family:var(--csm-font-en);color:#333">Finance detail · 财务明细 <span style="font-size:12px;color:#666;font-weight:700">（已确认订单行）</span></p>
         <div id="fin-panel-orders">
     <p style="font-size:13px;color:#555;margin:0 0 12px">以下为<strong>已确认</strong>销售订单的财务视图（自动生成）。</p>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:16px">
@@ -1367,64 +1364,6 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       </label>
       <span id="sales-finance-pager-nav" class="csm-sales-pager-nav"></span>
     </div>
-        </div>
-        <div id="fin-panel-wt" style="display:none">
-      <p style="font-size:13px;color:#555;margin:0 0 12px;font-family:var(--csm-font-en);font-weight:700">Search <strong>confirmed</strong> orders by fee type, filter, and time. Choose <strong>Worker</strong> to list and pay unload fees only, or <strong>Truck</strong> for delivery fees only. · 先选费用类型，再选工人或车、时间范围。</p>
-      <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:14px">
-        <div class="fg" style="margin:0;min-width:200px"><label style="font-family:var(--csm-font-en);font-weight:700">Fee type · 费用类型</label>
-          <select id="fin-wt-fee-type" onchange="csmFinWtOnFeeTypeChange()" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
-            <option value="worker">Worker (unload) · 卸货费</option>
-            <option value="truck">Truck (delivery) · 送货费</option>
-          </select>
-        </div>
-        <div class="fg" id="fin-wt-worker-wrap" style="margin:0;min-width:160px"><label style="font-family:var(--csm-font-en);font-weight:700">Worker</label>
-          <select id="fin-wt-worker" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></select></div>
-        <div class="fg" id="fin-wt-truck-wrap" style="margin:0;min-width:160px;display:none"><label style="font-family:var(--csm-font-en);font-weight:700">Truck</label>
-          <select id="fin-wt-truck" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></select></div>
-        <div class="fg" style="margin:0"><label style="font-family:var(--csm-font-en);font-weight:700">Start</label>
-          <input type="datetime-local" id="fin-wt-start" style="padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></div>
-        <div class="fg" style="margin:0"><label style="font-family:var(--csm-font-en);font-weight:700">End</label>
-          <input type="datetime-local" id="fin-wt-end" style="padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></div>
-        <button type="button" class="btn btn-s" onclick="csmFinWtRunSearch()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Search</button>
-      </div>
-      <div class="tw tw-sales-dense" style="margin-bottom:14px">
-        <table id="fin-wt-results-table" class="csm-wt-fee-worker"><thead><tr>
-          <th>Sel</th>
-          <th>Pay status</th>
-          <th>Order No.</th>
-          <th>Order time</th>
-          <th>Customer</th>
-          <th>Container</th>
-          <th>Product</th>
-          <th class="fin-wt-col-w" style="text-align:right">Worker Qty</th>
-          <th class="fin-wt-col-w" style="text-align:right">Worker (AED)</th>
-          <th class="fin-wt-col-t" style="text-align:right">Truck Qty</th>
-          <th class="fin-wt-col-t" style="text-align:right">Truck (AED)</th>
-          <th style="text-align:right">Line total (AED)</th>
-        </tr></thead><tbody id="fin-wt-results-tbody"></tbody></table>
-      </div>
-      <div class="brow" style="flex-wrap:wrap;align-items:center;margin-bottom:18px">
-        <button type="button" class="btn btn-s" onclick="csmFinWtSubmitPending()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Submit payment request</button>
-        <span style="font-size:13px;color:#666;font-family:var(--csm-font-en);font-weight:700" id="fin-wt-selection-hint"></span>
-      </div>
-      <h4 style="font-family:var(--csm-font-en);font-weight:700;margin:0 0 8px;font-size:15px">Payment records (Worker / Truck)</h4>
-      <div class="tw tw-sales-dense">
-        <table><thead><tr>
-          <th>Created</th>
-          <th>Period</th>
-          <th>Type</th>
-          <th>Worker</th>
-          <th>Truck</th>
-          <th>Lines</th>
-          <th style="text-align:right">Gross (AED)</th>
-          <th style="text-align:right">Discount</th>
-          <th style="text-align:right">Paid (AED)</th>
-          <th>Status</th>
-          <th>Paid at</th>
-          <th>Actions</th>
-        </tr></thead><tbody id="fin-wt-settlements-tbody"></tbody></table>
-      </div>
-      <p style="font-size:11px;color:#888;margin-top:10px">Firebase: <code style="font-size:11px">csm_sales_w1/wt_settlements</code> — allow read/write for admin (and staff submit if desired).</p>
         </div>
       </div>
     </div>
@@ -1762,7 +1701,68 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <div id="company-fin-panel-paymentapp" style="display:none">
         <div style="border:1px solid #bfdbfe;border-radius:12px;padding:18px 20px;background:linear-gradient(180deg,#eff6ff,#ffffff);box-shadow:0 1px 6px rgba(0,0,0,.05)">
           <h3 style="margin:0 0 8px;font-family:var(--csm-font-en);font-weight:800;color:#0f172a">Payment application · 付款申请</h3>
-          <p style="margin:0 0 16px;font-size:13px;line-height:1.7;color:#475569;font-family:var(--csm-font-en);font-weight:700">Submit payment requests here; approved items follow the same pending queue as customs-related fees. · 在此提交付款申请；通过后进入与清关杂费相同的待审批队列（按费用分类展示）。</p>
+          <p style="margin:0 0 16px;font-size:13px;line-height:1.7;color:#475569;font-family:var(--csm-font-en);font-weight:700">Submit payment requests here: <strong>Worker / Truck</strong> loading &amp; delivery fees, and <strong>container miscellaneous</strong> charges. Approved items enter the same pending queue (by category). · 在此提交付款申请：含<strong>工人/车队装卸与送货</strong>费用，以及<strong>集装箱杂费</strong>；审批队列与清关杂费相同（按分类展示）。</p>
+          <div style="border:1px solid #c4b5fd;border-radius:10px;padding:16px 18px;background:#ffffff;margin-bottom:16px;box-shadow:0 1px 4px rgba(76,29,149,.06)">
+            <h4 style="margin:0 0 8px;font-family:var(--csm-font-en);font-weight:800;color:#4c1d95;font-size:15px">Worker / Truck · 工人与车队装卸结算</h4>
+            <p style="margin:0 0 12px;font-size:12px;line-height:1.65;color:#64748b;font-family:var(--csm-font-en);font-weight:700">Search <strong>confirmed</strong> orders by fee type, filter, and time. <strong>Worker</strong> = unload fees only; <strong>Truck</strong> = delivery fees only. · 先选费用类型，再选工人或车、时间范围，检索后可选行并提交付款申请、查看付款记录。</p>
+            <div id="fin-panel-wt">
+      <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:14px">
+        <div class="fg" style="margin:0;min-width:200px"><label style="font-family:var(--csm-font-en);font-weight:700">Fee type · 费用类型</label>
+          <select id="fin-wt-fee-type" onchange="csmFinWtOnFeeTypeChange()" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
+            <option value="worker">Worker (unload) · 卸货费</option>
+            <option value="truck">Truck (delivery) · 送货费</option>
+          </select>
+        </div>
+        <div class="fg" id="fin-wt-worker-wrap" style="margin:0;min-width:160px"><label style="font-family:var(--csm-font-en);font-weight:700">Worker</label>
+          <select id="fin-wt-worker" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></select></div>
+        <div class="fg" id="fin-wt-truck-wrap" style="margin:0;min-width:160px;display:none"><label style="font-family:var(--csm-font-en);font-weight:700">Truck</label>
+          <select id="fin-wt-truck" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></select></div>
+        <div class="fg" style="margin:0"><label style="font-family:var(--csm-font-en);font-weight:700">Start</label>
+          <input type="datetime-local" id="fin-wt-start" style="padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></div>
+        <div class="fg" style="margin:0"><label style="font-family:var(--csm-font-en);font-weight:700">End</label>
+          <input type="datetime-local" id="fin-wt-end" style="padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></div>
+        <button type="button" class="btn btn-s" onclick="csmFinWtRunSearch()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Search</button>
+      </div>
+      <div class="tw tw-sales-dense" style="margin-bottom:14px">
+        <table id="fin-wt-results-table" class="csm-wt-fee-worker"><thead><tr>
+          <th>Sel</th>
+          <th>Pay status</th>
+          <th>Order No.</th>
+          <th>Order time</th>
+          <th>Customer</th>
+          <th>Container</th>
+          <th>Product</th>
+          <th class="fin-wt-col-w" style="text-align:right">Worker Qty</th>
+          <th class="fin-wt-col-w" style="text-align:right">Worker (AED)</th>
+          <th class="fin-wt-col-t" style="text-align:right">Truck Qty</th>
+          <th class="fin-wt-col-t" style="text-align:right">Truck (AED)</th>
+          <th style="text-align:right">Line total (AED)</th>
+        </tr></thead><tbody id="fin-wt-results-tbody"></tbody></table>
+      </div>
+      <div class="brow" style="flex-wrap:wrap;align-items:center;margin-bottom:18px">
+        <button type="button" class="btn btn-s" onclick="csmFinWtSubmitPending()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Submit payment request</button>
+        <span style="font-size:13px;color:#666;font-family:var(--csm-font-en);font-weight:700" id="fin-wt-selection-hint"></span>
+      </div>
+      <h4 style="font-family:var(--csm-font-en);font-weight:700;margin:0 0 8px;font-size:15px">Payment records (Worker / Truck)</h4>
+      <div class="tw tw-sales-dense">
+        <table><thead><tr>
+          <th>Created</th>
+          <th>Period</th>
+          <th>Type</th>
+          <th>Worker</th>
+          <th>Truck</th>
+          <th>Lines</th>
+          <th style="text-align:right">Gross (AED)</th>
+          <th style="text-align:right">Discount</th>
+          <th style="text-align:right">Paid (AED)</th>
+          <th>Status</th>
+          <th>Paid at</th>
+          <th>Actions</th>
+        </tr></thead><tbody id="fin-wt-settlements-tbody"></tbody></table>
+      </div>
+      <p style="font-size:11px;color:#888;margin-top:10px">Firebase: <code style="font-size:11px">csm_sales_w1/wt_settlements</code> — allow read/write for admin (and staff submit if desired).</p>
+            </div>
+          </div>
           <div style="border:1px solid #93c5fd;border-radius:10px;padding:16px 18px;background:#ffffff">
             <h4 style="margin:0 0 8px;font-family:var(--csm-font-en);font-weight:800;color:#1e3a8a;font-size:15px">Container miscellaneous fees · 集装箱杂费付款</h4>
             <p style="margin:0 0 12px;font-size:12px;line-height:1.65;color:#64748b;font-family:var(--csm-font-en);font-weight:700">Demurrage / parking, document attestation, repack, waste handling, and other charges — each line must reference a <strong>confirmed</strong> purchase container (W1). · 停柜费、单据认证、翻包费、垃圾处理费、其他费用；集装箱须为 Warehouse 1 已确认采购柜号。</p>
@@ -2203,7 +2203,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <div class="fg"><label>Order lines * <span style="font-size:12px;color:#666;font-weight:700">(container + product + qty + unit price per line — all required to save)</span></label>
       <div style="border:1px solid #ddd;border-radius:6px;margin-top:6px;overflow:visible">
         <table class="csm-sales-order-lines-table" style="width:100%;border-collapse:collapse;font-size:13px;font-family:var(--csm-font-en);font-weight:700;table-layout:fixed">
-          <thead><tr style="background:#f5f5f5"><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:20%">Container</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:20%">Product</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:16%">Qty</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:17%;font-size:12px">Include VAT<br><span class="csm-so-line-th-sub">(AED)</span></th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:17%;font-size:12px">Exclude VAT<br><span class="csm-so-line-th-sub">(AED)</span></th><th style="width:44px;padding:6px 4px;border-bottom:1px solid #ddd"></th></tr></thead>
+          <thead><tr style="background:#f5f5f5"><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:20%">Container</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:20%">Product</th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:16%">Qty<br><span class="csm-so-line-th-sub">Rem. / 剩余</span></th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:17%;font-size:12px">Include VAT<br><span class="csm-so-line-th-sub">(AED)</span></th><th style="padding:6px 8px;text-align:left;border-bottom:1px solid #ddd;width:17%;font-size:12px">Exclude VAT<br><span class="csm-so-line-th-sub">(AED)</span></th><th style="width:44px;padding:6px 4px;border-bottom:1px solid #ddd"></th></tr></thead>
           <tbody id="sales-order-lines-body"></tbody>
         </table>
       </div>

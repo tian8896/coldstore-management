@@ -5106,6 +5106,13 @@ function csmSalesCustomerListLabel(c) {
   if (s && f) return s + ' — ' + f;
   return f || s || '';
 }
+/** Text in sales order customer field after pick: full name only (no shortName prefix). */
+function csmSalesCustomerSelectedInputValue(c) {
+  if (!c) return '';
+  var f = csmSalesCustomerNameFull(c);
+  if (String(f || '').trim()) return f;
+  return csmSalesCustomerShortName(c) || '';
+}
 function csmSalesCustomerOrderSnapshotName(c) {
   var f = csmSalesCustomerNameFull(c);
   var s = csmSalesCustomerShortName(c);
@@ -5507,6 +5514,9 @@ function swCompanyFinView(view) {
   if (companyFinView === 'pending') {
     try { renderCompanyFinancialPending(); } catch (e1) {}
     try { renderCompanyFinancialPendingCustoms(); } catch (e2) {}
+  }
+  if (companyFinView === 'paymentapp') {
+    try { renderFinWtPanel(); } catch (eWt) {}
   }
 }
 try { window.swCompanyFinView = swCompanyFinView; } catch (eCFW) {}
@@ -6550,11 +6560,9 @@ function swSalesSub(view) {
   if (b2) { b2.classList.toggle('btn-s', salesSubView === 'customers'); b2.classList.toggle('btn-g', salesSubView !== 'customers'); }
   if (b3) { b3.classList.toggle('btn-s', salesSubView === 'orders'); b3.classList.toggle('btn-g', salesSubView !== 'orders'); }
   if (salesSubView === 'dash') {
-    try {
-      var fs = sessionStorage.getItem('csm_fin_sub');
-      if (fs === 'wt' || fs === 'orders') finSubView = fs;
-    } catch (eFs) {}
-    try { swFinSub(finSubView || 'orders'); } catch (eFin) {}
+    finSubView = 'orders';
+    try { sessionStorage.setItem('csm_fin_sub', 'orders'); } catch (eFs) {}
+    try { swFinSub('orders'); } catch (eFin) {}
   } else {
     try {
       var tbs = document.querySelectorAll('.tab');
@@ -7220,17 +7228,10 @@ function renderSalesFinanceTable() {
   csmSalesBindFinancePager(totalRows);
 }
 function swFinSub(view) {
-  finSubView = view || 'orders';
-  try { sessionStorage.setItem('csm_fin_sub', finSubView); } catch (e0) {}
+  finSubView = 'orders';
+  try { sessionStorage.setItem('csm_fin_sub', 'orders'); } catch (e0) {}
   var pOrd = gid('fin-panel-orders');
-  var pWt = gid('fin-panel-wt');
-  if (pOrd) pOrd.style.display = finSubView === 'orders' ? 'block' : 'none';
-  if (pWt) pWt.style.display = finSubView === 'wt' ? 'block' : 'none';
-  var b1 = gid('fin-sub-btn-orders');
-  var b2 = gid('fin-sub-btn-wt');
-  if (b1) { b1.classList.toggle('btn-s', finSubView === 'orders'); b1.classList.toggle('btn-g', finSubView !== 'orders'); }
-  if (b2) { b2.classList.toggle('btn-s', finSubView === 'wt'); b2.classList.toggle('btn-g', finSubView !== 'wt'); }
-  if (finSubView === 'wt') renderFinWtPanel();
+  if (pOrd) pOrd.style.display = 'block';
 }
 /** Worker/truck settlement: only admin may Confirm paid — staff (员工) never. */
 function csmFinWtCanConfirmPaid() {
@@ -8593,7 +8594,7 @@ function salesOrderCustomerComboSet(customerId) {
   var c = salesCustomers.find(function(x) { return x.id === customerId; });
   hid.value = customerId;
   if (c) {
-    inp.value = csmSalesCustomerListLabel(c);
+    inp.value = csmSalesCustomerSelectedInputValue(c);
   } else {
     inp.value = String(customerId);
   }
@@ -8647,7 +8648,7 @@ function salesOrderCustomerComboPick(cid) {
   var inp = gid('sales-order-customer-search');
   var dd = gid('sales-order-customer-dd');
   if (hid) hid.value = cid;
-  if (inp && c) inp.value = csmSalesCustomerListLabel(c);
+  if (inp && c) inp.value = csmSalesCustomerSelectedInputValue(c);
   if (dd) {
     dd.style.display = 'none';
     dd.innerHTML = '';
@@ -9175,10 +9176,10 @@ function buildSalesOrderLineEditorRow(line) {
     buildSalesOrderLineCnCellHtml(cn) +
     '<td style="padding:6px 8px;vertical-align:middle"><select class="sol-pr csm-product-select" onchange="salesOrderLineProductChanged(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box">' +
     buildSalesOrderLineProductOptionsForCn(String(cn || '').trim().toUpperCase(), pr) + '</select></td>' +
-    '<td style="padding:6px 8px;vertical-align:middle">' +
+    '<td style="padding:6px 8px;vertical-align:top">' +
     '<div class="csm-sol-qty-wrap">' +
-    '<input type="number" class="sol-qty" min="0.01" step="any" value="' + csmEscapeHtml(String(qty)) + '" oninput="salesOrderLineQtyChanged(this)">' +
     '<div class="sol-qty-rem">Remaining / 剩余: —</div>' +
+    '<input type="number" class="sol-qty" min="0.01" step="any" value="' + csmEscapeHtml(String(qty)) + '" oninput="salesOrderLineQtyChanged(this)">' +
     '</div></td>' +
     '<td style="padding:6px 8px;vertical-align:middle"><input type="number" class="sol-price-incl" min="0" step="any" value="' + (inclVal === '' ? '' : csmEscapeHtml(inclVal)) + '" oninput="salesOrderLinePriceSync(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box" title="Unit including 5% VAT \u2014 other column auto-fills"></td>' +
     '<td style="padding:6px 8px;vertical-align:middle"><input type="number" class="sol-price-excl" min="0" step="any" value="' + (exclVal === '' ? '' : csmEscapeHtml(exclVal)) + '" oninput="salesOrderLinePriceSync(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box" title="Unit before 5% VAT \u2014 other column auto-fills"></td>' +

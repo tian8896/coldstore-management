@@ -5517,9 +5517,41 @@ function swCompanyFinView(view) {
   }
   if (companyFinView === 'paymentapp') {
     try { renderFinWtPanel(); } catch (eWt) {}
+    try {
+      var payTab = 'wt';
+      try {
+        var ps = sessionStorage.getItem('csm_payapp_tab');
+        if (ps === 'wt' || ps === 'misc') payTab = ps;
+      } catch (ePs) {}
+      csmFinPayAppTab(payTab);
+    } catch (ePayTab) {}
+  }
+}
+function csmFinPayAppTab(which) {
+  which = which === 'misc' ? 'misc' : 'wt';
+  var pWt = gid('company-fin-payapp-panel-wt');
+  var pMc = gid('company-fin-payapp-panel-misc');
+  var tWt = gid('company-fin-payapp-tab-wt');
+  var tMc = gid('company-fin-payapp-tab-misc');
+  if (pWt) pWt.style.display = which === 'wt' ? 'block' : 'none';
+  if (pMc) pMc.style.display = which === 'misc' ? 'block' : 'none';
+  if (tWt) {
+    tWt.classList.toggle('btn-s', which === 'wt');
+    tWt.classList.toggle('btn-g', which !== 'wt');
+    tWt.setAttribute('aria-selected', which === 'wt' ? 'true' : 'false');
+  }
+  if (tMc) {
+    tMc.classList.toggle('btn-s', which === 'misc');
+    tMc.classList.toggle('btn-g', which !== 'misc');
+    tMc.setAttribute('aria-selected', which === 'misc' ? 'true' : 'false');
+  }
+  try { sessionStorage.setItem('csm_payapp_tab', which); } catch (eSs) {}
+  if (which === 'wt') {
+    try { renderFinWtPanel(); } catch (eR) {}
   }
 }
 try { window.swCompanyFinView = swCompanyFinView; } catch (eCFW) {}
+try { window.csmFinPayAppTab = csmFinPayAppTab; } catch (ePayApp) {}
 function renderCompanyFinPendingBadge(state) {
   var el = gid('company-fin-pending-badge');
   if (!el) return;
@@ -7245,7 +7277,7 @@ function csmFinWtStatusNorm(b) {
 function csmFinWtIsAwaitingPayment(b) {
   if (!b) return false;
   var s = csmFinWtStatusNorm(b);
-  return s !== 'paid' && s !== 'void' && s !== 'cancelled';
+  return s !== 'paid' && s !== 'void' && s !== 'cancelled' && s !== 'rejected';
 }
 /** True when batch is fully paid (case-insensitive; matches 待审批 vs Payment records). */
 function csmFinWtIsPaid(b) {
@@ -7302,7 +7334,7 @@ function csmFinWtReservedLineKeySet() {
   (salesWtSettlements || []).forEach(function(b) {
     if (!b) return;
     var sn = csmFinWtStatusNorm(b);
-    if (sn === 'void' || sn === 'cancelled') return;
+    if (sn === 'void' || sn === 'cancelled' || sn === 'rejected') return;
     if (sn !== 'pending' && sn !== 'paid' && String(b.status != null ? b.status : '').trim() !== '') return;
     (b.lineKeys || []).forEach(function(k) {
       set[k] = true;
@@ -7458,7 +7490,7 @@ function renderFinWtPanel() {
         var stN = csmFinWtStatusNorm(b);
         var stHtml = csmFinWtIsPaid(b)
           ? '<span style="color:#2e7d32;font-family:var(--csm-font-en);font-weight:700">Paid</span>'
-          : (stN === 'void' || stN === 'cancelled'
+          : (stN === 'void' || stN === 'cancelled' || stN === 'rejected'
             ? '<span style="color:#90a4ae;font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(stN) + '</span>'
             : '<span style="color:#f57f17;font-family:var(--csm-font-en);font-weight:700">Pending</span>');
         var paidAt = b.paidAt ? csmSalesFormatOrderCreated(b.paidAt) : '—';
@@ -7826,6 +7858,9 @@ function csmFinPendingBuildWtRowsHtml(pending, listMode) {
     var btnApr = canApr
       ? '<button type="button" class="abtn" style="background:#2e7d32;color:#fff;border:none;font-family:var(--csm-font-en);font-weight:700" onclick="csmFinWtQuickApprove(' + JSON.stringify(b.id) + ')">Approve · 批准</button>'
       : '<span style="color:#888;font-size:12px;font-family:var(--csm-font-en);font-weight:700">Admin only · 仅管理员</span>';
+    var btnRej = canApr
+      ? ' <button type="button" class="abtn" style="background:#c62828;color:#fff;border:none;font-family:var(--csm-font-en);font-weight:700" onclick="csmFinWtQuickReject(' + JSON.stringify(b.id) + ')">Reject · 拒绝</button>'
+      : '';
     var btnCustom = canApr
       ? ' <button type="button" class="abtn" style="font-family:var(--csm-font-en);font-weight:700" onclick="csmFinWtOpenConfirm(' + JSON.stringify(b.id) + ')">Set amount · 金额…</button>'
       : '';
@@ -7836,7 +7871,7 @@ function csmFinPendingBuildWtRowsHtml(pending, listMode) {
       '<td style="padding:10px 12px">' + csmEscapeHtml(svcLab) + '</td>' +
       '<td style="padding:10px 12px;max-width:220px;white-space:normal;word-break:break-word;font-size:12px;font-family:var(--csm-font-en);font-weight:700">' + cnSummary + '</td>' +
       '<td style="padding:10px 12px;text-align:right">' + gross.toFixed(2) + '</td>' +
-      '<td style="padding:10px 12px;white-space:normal">' + btnDetail + ' ' + btnApr + btnCustom + '</td></tr>' +
+      '<td style="padding:10px 12px;white-space:normal">' + btnDetail + ' ' + btnApr + btnRej + btnCustom + '</td></tr>' +
       '<tr id="' + detailId + '" class="fin-pending-detail" style="display:none"><td colspan="7" style="padding:12px 14px;border-bottom:1px solid #ffe0b2">' + csmFinWtPendingDetailInnerHtml(b) + '</td></tr>';
   }).join('');
 }
@@ -7853,13 +7888,16 @@ function csmFinPendingBuildCustomsRowsHtml(pending, lineKey) {
     var btnApr = canApr
       ? '<button type="button" class="abtn" style="background:#5b21b6;color:#fff;border:none;font-family:var(--csm-font-en);font-weight:700" onclick="csmFinCustomsApprove(' + JSON.stringify(rid) + ')">Approve · 批准</button>'
       : '<span style="color:#888;font-size:12px;font-family:var(--csm-font-en);font-weight:700">Admin only · 仅管理员</span>';
+    var btnRej = canApr
+      ? ' <button type="button" class="abtn" style="background:#c62828;color:#fff;border:none;font-family:var(--csm-font-en);font-weight:700" onclick="csmFinCustomsReject(' + JSON.stringify(rid) + ')">Reject · 拒绝</button>'
+      : '';
     return '<tr><td style="padding:10px 12px;font-size:12px">' + csmEscapeHtml(csmSalesFormatOrderCreated(r.createdAt)) + '</td>' +
       '<td style="padding:10px 12px;font-size:12px;max-width:140px;word-break:break-all">' + by + '</td>' +
       '<td style="padding:10px 12px;font-family:var(--csm-font-en);font-weight:700">' + refNo + '</td>' +
       '<td style="padding:10px 12px;font-size:12px"><div>BL: ' + bl + '</div><div>CN: ' + cn + '</div></td>' +
       '<td style="padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums">' + csmSalesRound2(lineAmt).toFixed(2) + '</td>' +
       '<td style="padding:10px 12px;font-size:11px;color:#334155;max-width:260px;line-height:1.35">' + sumTxt + '</td>' +
-      '<td style="padding:10px 12px;white-space:normal">' + btnApr + '</td></tr>';
+      '<td style="padding:10px 12px;white-space:normal">' + btnApr + btnRej + '</td></tr>';
   }).join('');
 }
 function csmFinPendingSelectCategory(key) {
@@ -8475,6 +8513,31 @@ function csmFinCustomsApprove(requestId) {
   });
 }
 try { window.csmFinCustomsApprove = csmFinCustomsApprove; } catch (eCfa) {}
+function csmFinCustomsReject(requestId) {
+  if (!isAdmin || !customsFeePendingRef || !requestId) {
+    toast(isStaff ? '仅管理员可拒绝 / Admin only' : 'Admin only', 'err');
+    return;
+  }
+  if (!window.confirm('Reject this customs fee request? / 拒绝此集装箱杂费申请？')) return;
+  var r = (customsFeeRequests || []).find(function(x) { return x.id === requestId; });
+  if (!r || String(r.status || 'pending') !== 'pending') {
+    toast('记录不存在或已处理 / Not found or already processed', 'err');
+    return;
+  }
+  var nowIso = new Date().toISOString();
+  customsFeePendingRef.child(requestId).update({
+    status: 'rejected',
+    rejectedAt: nowIso,
+    rejectedBy: currentUserEmail || currentUser || ''
+  }).then(function() {
+    toast('已拒绝 · Rejected', 'ok');
+    try { renderCompanyFinancialPendingCustoms(); } catch (e1) {}
+    try { renderCompanyFinancialWorkspace(); } catch (e2) {}
+  }).catch(function(e) {
+    toast(e.message || String(e), 'err');
+  });
+}
+try { window.csmFinCustomsReject = csmFinCustomsReject; } catch (eCfrJ) {}
 try { window.renderCompanyFinancialPendingCustoms = renderCompanyFinancialPendingCustoms; } catch (eCfr) {}
 function renderCompanyFinancialPending() {
   if (finPendingSelectedCategoryKey == null && !finPendingWtPanelDismissed) {
@@ -8513,6 +8576,32 @@ function csmFinWtQuickApprove(batchId) {
     try { renderCompanyFinancialPending(); } catch (e1) {}
     try { renderFinWtPanel(); } catch (e2) {}
     try { renderFinPendingCategoryPanel(); } catch (e3) {}
+  }).catch(function(e) {
+    toast(e.message || String(e), 'err');
+  });
+}
+function csmFinWtQuickReject(batchId) {
+  if (!csmFinWtCanConfirmPaid() || !salesWtSettlementsRef) {
+    toast(isStaff ? 'Staff cannot reject — admin only' : 'Admin only', 'err');
+    return;
+  }
+  if (!window.confirm('Reject this worker/truck payment request? / 拒绝此装卸工/车结算申请？')) return;
+  var b = (salesWtSettlements || []).find(function(x) { return x.id === batchId; });
+  if (!b || !csmFinWtIsAwaitingPayment(b)) {
+    toast('Request not found or already processed', 'err');
+    return;
+  }
+  var nowIso = new Date().toISOString();
+  salesWtSettlementsRef.child(batchId).update({
+    status: 'rejected',
+    rejectedAt: nowIso,
+    rejectedBy: currentUserEmail || currentUser || ''
+  }).then(function() {
+    toast('Rejected / 已拒绝', 'ok');
+    try { renderCompanyFinancialPending(); } catch (e1) {}
+    try { renderFinWtPanel(); } catch (e2) {}
+    try { csmFinWtRunSearch(); } catch (e3) {}
+    try { renderFinPendingCategoryPanel(); } catch (e4) {}
   }).catch(function(e) {
     toast(e.message || String(e), 'err');
   });
@@ -9642,6 +9731,7 @@ try { window.csmFinWtConfirmApply = csmFinWtConfirmApply; } catch (e) {}
 try { window.renderCompanyFinancialPending = renderCompanyFinancialPending; } catch (e) {}
 try { window.csmFinPendingToggle = csmFinPendingToggle; } catch (e) {}
 try { window.csmFinWtQuickApprove = csmFinWtQuickApprove; } catch (e) {}
+try { window.csmFinWtQuickReject = csmFinWtQuickReject; } catch (e) {}
 try { window.renderFinCnReconTable = renderFinCnReconTable; } catch (e) {}
 try { window.openFinCnReconDetailModal = openFinCnReconDetailModal; } catch (e) {}
 try { window.clFinCnReconDetailModal = clFinCnReconDetailModal; } catch (e) {}

@@ -148,6 +148,11 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 #tc-sales .tw-sales-dense table > thead > tr > th,
 #tc-sales_finance .tw-sales-dense table > thead > tr > th,
 #tc-sales #sales-panel-customers .tw table > thead > tr > th{font-family:var(--csm-font-en);font-weight:700;text-transform:none;letter-spacing:.02em}
+/* 销售 · 客户管理：紧凑行距，正文字号保持 14px */
+#tc-sales #sales-panel-customers .tw table{width:100%;border-collapse:collapse;font-size:14px;line-height:1.2;font-family:var(--csm-font-en);font-weight:700}
+#tc-sales #sales-panel-customers .tw table > thead > tr > th{padding:5px 10px 4px;font-size:14px;line-height:1.15;vertical-align:bottom}
+#tc-sales #sales-panel-customers .tw table > tbody > tr > td{padding:3px 10px;font-size:14px;line-height:1.2;vertical-align:middle}
+#tc-sales #sales-panel-customers .tw .abtn{padding:4px 10px;font-size:13px}
 /* 销售单列表 + 财务明细「已确认订单」：表头与正文字号略大 */
 #tc-sales #sales-panel-orders .tw-sales-dense table,
 #tc-sales #fin-panel-orders .tw-sales-dense table{font-size:14px}
@@ -504,7 +509,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260426fin-cn-misc-cn-payee-lines" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260427w1-pager-always" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {

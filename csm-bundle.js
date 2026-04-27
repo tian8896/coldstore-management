@@ -2458,10 +2458,19 @@ function csmW1UpdatePagerBar(kind, totalRows, rowStart, rowEnd, page, totalPages
   var info = gid('w1-pager-' + kind + '-info');
   var prev = gid('w1-pager-' + kind + '-prev');
   var next = gid('w1-pager-' + kind + '-next');
-  if (bar) bar.style.display = totalRows === 0 ? 'none' : 'flex';
+  if (bar) bar.style.display = 'flex';
+  var st = csmW1PagerState[kind] || { size: 20 };
+  var sz = st.size;
+  var perPageStr = (!sz || sz <= 0)
+    ? 'All rows/page · 每页 全部'
+    : (sz + ' rows/page · 每页 ' + sz + ' 行');
   if (info) {
-    info.textContent = totalRows === 0 ? '' : ('Rows ' + rowStart + '–' + rowEnd + ' of ' + totalRows + ' · Page ' + page + ' / ' + totalPages
-      + ' · 第 ' + page + ' / ' + totalPages + ' 页 · 行 ' + rowStart + '–' + rowEnd + ' / 共 ' + totalRows + ' 行');
+    if (totalRows === 0) {
+      info.textContent = '0 rows · Page 1 / 1 · ' + perPageStr + ' · 第 1 / 1 页 · 共 0 行';
+    } else {
+      info.textContent = 'Rows ' + rowStart + '–' + rowEnd + ' of ' + totalRows + ' · Page ' + page + ' / ' + totalPages
+        + ' · 第 ' + page + ' / ' + totalPages + ' 页 · 行 ' + rowStart + '–' + rowEnd + ' / 共 ' + totalRows + ' 行 · ' + perPageStr;
+    }
   }
   if (prev) prev.disabled = page <= 1;
   if (next) next.disabled = page >= totalPages;
@@ -8414,7 +8423,12 @@ function csmFinSubmitCnMiscPaymentApplication() {
       } catch (eW) {}
     })
     .catch(function(e) {
-      toast(e.message || String(e), 'err');
+      var msg = e && (e.message || e.code) ? (e.message || e.code) : String(e);
+      if (e && (e.code === 'PERMISSION_DENIED' || /permission/i.test(String(msg)))) {
+        msg +=
+          ' — Check Firebase: deploy firebase-rtdb.rules.json, and csm_users/' + (typeof currentUser === 'string' ? currentUser : 'UID') + '/role should be staff or admin (case-insensitive).';
+      }
+      toast(msg, 'err');
     });
 }
 try { window.openFinCnMiscPaymentModal = openFinCnMiscPaymentModal; } catch (eOm) {}

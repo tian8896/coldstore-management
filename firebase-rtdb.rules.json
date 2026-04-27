@@ -94,9 +94,9 @@
     },
     "csm_fin": {
       "pending_customs_fees": {
-        ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || root.child('csm_users').child(auth.uid).child('role').val() == 'staff')",
+        ".read": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val().matches(/^admin$/i) || root.child('csm_users').child(auth.uid).child('role').val().matches(/^staff$/i))",
         "$reqId": {
-          ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val() == 'admin' || (root.child('csm_users').child(auth.uid).child('role').val() == 'staff' && !data.exists() && newData.child('status').val() == 'pending'))"
+          ".write": "auth != null && (root.child('csm_users').child(auth.uid).child('role').val().matches(/^admin$/i) || (root.child('csm_users').child(auth.uid).child('role').val().matches(/^staff$/i) && !data.exists() && newData.child('status').val() == 'pending'))"
         }
       }
     }

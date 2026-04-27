@@ -7329,6 +7329,33 @@ function csmFinWtLineSettlementStatus(searchKey) {
   if (hasPend) return 'pending';
   return '';
 }
+/** For search/submit: line may be included in a new application only if not paid, not awaiting approval, and not reserved. */
+function csmFinWtLineIsOpenForNewApplication(lineKey, reserved) {
+  var st = csmFinWtLineSettlementStatus(lineKey);
+  if (st === 'paid' || st === 'pending') return false;
+  if (reserved && reserved[lineKey]) return false;
+  return true;
+}
+function csmFinWtSearchRowPayStatusCellAndCb(r, reserved) {
+  var lk = r.lineKey;
+  var st = csmFinWtLineSettlementStatus(lk);
+  if (st === 'paid') {
+    return {
+      stCell: '<span style="color:#2e7d32;font-family:var(--csm-font-en);font-weight:700">Paid</span> <span style="font-size:11px;color:#1b5e20;font-weight:700">已付</span>',
+      cb: ''
+    };
+  }
+  if (st === 'pending' || (reserved[lk] && st !== 'paid')) {
+    return {
+      stCell: '<span style="color:#e65100;font-family:var(--csm-font-en);font-weight:700">Submitted</span> <span style="font-size:11px;color:#bf360c;font-weight:700">已提交(待批)</span>',
+      cb: ''
+    };
+  }
+  return {
+    stCell: '<span style="color:#1565c0;font-family:var(--csm-font-en);font-weight:700">Open</span> <span style="font-size:11px;color:#0d47a1;font-weight:700">可选</span>',
+    cb: '<input type="checkbox" class="fin-wt-row-cb" data-line-key="' + csmEscapeHtml(lk) + '">'
+  };
+}
 function csmFinWtReservedLineKeySet() {
   var set = {};
   (salesWtSettlements || []).forEach(function(b) {
@@ -7489,10 +7516,10 @@ function renderFinWtPanel() {
         var pay = b.paymentAmount != null ? Number(b.paymentAmount) : '';
         var stN = csmFinWtStatusNorm(b);
         var stHtml = csmFinWtIsPaid(b)
-          ? '<span style="color:#2e7d32;font-family:var(--csm-font-en);font-weight:700">Paid</span>'
+          ? '<span style="color:#2e7d32;font-family:var(--csm-font-en);font-weight:700">Paid</span> <span style="font-size:11px;color:#1b5e20;font-weight:700">已付</span>'
           : (stN === 'void' || stN === 'cancelled' || stN === 'rejected'
             ? '<span style="color:#90a4ae;font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(stN) + '</span>'
-            : '<span style="color:#f57f17;font-family:var(--csm-font-en);font-weight:700">Pending</span>');
+            : '<span style="color:#f57f17;font-family:var(--csm-font-en);font-weight:700">Pending</span> <span style="font-size:11px;color:#e65100;font-weight:700">待批</span>');
         var paidAt = b.paidAt ? csmSalesFormatOrderCreated(b.paidAt) : '—';
         var actions = '';
         var openForPay = csmFinWtIsAwaitingPayment(b);
@@ -7545,18 +7572,9 @@ function csmFinWtRunSearch() {
     return;
   }
   tb.innerHTML = rows.map(function(r) {
-    var st = csmFinWtLineSettlementStatus(r.lineKey);
-    var stCell = '';
-    var cb = '';
-    if (st === 'paid') {
-      stCell = '<span style="color:#2e7d32;font-family:var(--csm-font-en);font-weight:700">Paid</span>';
-    } else if (st === 'pending') {
-      stCell = '<span style="color:#f57f17;font-family:var(--csm-font-en);font-weight:700">Pending</span>';
-    } else {
-      stCell = '<span style="color:#1565c0;font-family:var(--csm-font-en);font-weight:700">Listed</span>';
-      var dis = reserved[r.lineKey] ? ' disabled' : '';
-      cb = '<input type="checkbox" class="fin-wt-row-cb" data-line-key="' + csmEscapeHtml(r.lineKey) + '"' + dis + '>';
-    }
+    var p = csmFinWtSearchRowPayStatusCellAndCb(r, reserved);
+    var stCell = p.stCell;
+    var cb = p.cb;
     return '<tr><td>' + cb + '</td><td>' + stCell + '</td><td style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(r.orderNo || '—') + '</td>' +
       '<td style="font-size:12px">' + csmEscapeHtml(csmSalesFormatOrderCreated(r.orderTime)) + '</td>' +
       '<td>' + csmEscapeHtml(r.customerName) + '</td><td>' + csmEscapeHtml(r.containerNo) + '</td><td>' + w1ProductHtml(r.productName) + '</td>' +
@@ -7564,7 +7582,9 @@ function csmFinWtRunSearch() {
       '<td class="fin-wt-col-t" style="text-align:right">' + r.truckQty + '</td><td class="fin-wt-col-t" style="text-align:right">' + r.truckAmount.toFixed(2) + '</td>' +
       '<td style="text-align:right">' + r.lineTotal.toFixed(2) + '</td></tr>';
   }).join('');
-  if (hint) hint.textContent = rows.length + ' line(s). Select rows, then Submit payment request.';
+  if (hint) {
+    hint.textContent = rows.length + ' line(s) in this time range. Open lines only — if already applied or paid, the row is locked. On admin approval, status becomes Paid; a payment voucher (PV) is created under Voucher. · 本时段内可选项：已提交或已付的不可再选；批准后为已付并生成付款凭证(PV)。';
+  }
 }
 function csmFinWtSubmitPending() {
   if (!salesWtSettlementsRef) { toast('Database not connected', 'err'); return; }
@@ -7590,8 +7610,8 @@ function csmFinWtSubmitPending() {
   var reserved = csmFinWtReservedLineKeySet();
   for (var i = 0; i < keys.length; i++) {
     var lk = keys[i];
-    if (reserved[lk]) {
-      toast('One or more lines are already in a pending or paid batch', 'err');
+    if (!csmFinWtLineIsOpenForNewApplication(lk, reserved)) {
+      toast('A line is already submitted, paid, or otherwise locked. 该行已申请、已付或已锁定。', 'err');
       return;
     }
     var row = byKey[lk];
@@ -7636,6 +7656,7 @@ function csmFinWtSubmitPending() {
     toast('Submitted — status Pending until admin confirms', 'ok');
     csmFinWtRunSearch();
     renderFinWtPanel();
+    try { renderCompanyFinancialWorkspace(); } catch (eWs0) {}
   }).catch(function(e) {
     toast(e.message || String(e), 'err');
   });
@@ -7675,11 +7696,12 @@ function csmFinWtConfirmApply() {
     discountAmount: csmSalesRound2(dis),
     confirmedBy: currentUserEmail || currentUser || ''
   }).then(function() {
-    toast('Marked paid — payment record saved', 'ok');
+    toast('Marked paid — payment record saved. Payment voucher (PV) updated. 已记为已付，付款凭证已更新', 'ok');
     clFinWtConfirmModal();
     csmFinWtRunSearch();
     renderFinWtPanel();
     try { renderCompanyFinancialPending(); } catch (eRcf) {}
+    try { renderCompanyFinancialWorkspace(); } catch (eWs1) {}
   }).catch(function(e) {
     toast(e.message || String(e), 'err');
   });
@@ -8575,10 +8597,12 @@ function csmFinWtQuickApprove(batchId) {
     confirmedBy: currentUserEmail || currentUser || '',
     approvedMode: 'one_click_fin_suite'
   }).then(function() {
-    toast('Approved — payment recorded', 'ok');
+    toast('Approved — payment recorded. Payment voucher (PV) updated. 已付，付款凭证已更新', 'ok');
     try { renderCompanyFinancialPending(); } catch (e1) {}
     try { renderFinWtPanel(); } catch (e2) {}
     try { renderFinPendingCategoryPanel(); } catch (e3) {}
+    try { csmFinWtRunSearch(); } catch (e3b) {}
+    try { renderCompanyFinancialWorkspace(); } catch (e4) {}
   }).catch(function(e) {
     toast(e.message || String(e), 'err');
   });
@@ -8605,6 +8629,7 @@ function csmFinWtQuickReject(batchId) {
     try { renderFinWtPanel(); } catch (e2) {}
     try { csmFinWtRunSearch(); } catch (e3) {}
     try { renderFinPendingCategoryPanel(); } catch (e4) {}
+    try { renderCompanyFinancialWorkspace(); } catch (e5) {}
   }).catch(function(e) {
     toast(e.message || String(e), 'err');
   });

@@ -7503,6 +7503,9 @@ function renderFinWtPanel() {
         } else {
           actions = '—';
         }
+        if (actions !== '—') {
+          actions = '<div class="csm-fin-pending-actions">' + actions + '<div class="csm-fin-toolbar-spacer" aria-hidden="true"></div></div>';
+        }
         var sc = b.feeScope === 'truck' ? 'Truck' : (b.feeScope === 'worker' ? 'Worker' : 'Both');
         return '<tr><td style="font-family:var(--csm-font-en);font-weight:700">' + csmEscapeHtml(csmSalesFormatOrderCreated(b.createdAt)) + '</td>' +
           '<td style="font-size:12px;max-width:200px;white-space:normal">' + csmEscapeHtml(period) + '</td>' +
@@ -7871,7 +7874,7 @@ function csmFinPendingBuildWtRowsHtml(pending, listMode) {
       '<td style="padding:10px 12px">' + csmEscapeHtml(svcLab) + '</td>' +
       '<td style="padding:10px 12px;max-width:220px;white-space:normal;word-break:break-word;font-size:12px;font-family:var(--csm-font-en);font-weight:700">' + cnSummary + '</td>' +
       '<td style="padding:10px 12px;text-align:right">' + gross.toFixed(2) + '</td>' +
-      '<td style="padding:10px 12px;white-space:normal">' + btnDetail + ' ' + btnApr + btnRej + btnCustom + '</td></tr>' +
+      '<td style="padding:10px 12px;white-space:normal"><div class="csm-fin-pending-actions">' + btnDetail + ' ' + btnApr + btnRej + btnCustom + '<div class="csm-fin-toolbar-spacer" aria-hidden="true"></div></div></td></tr>' +
       '<tr id="' + detailId + '" class="fin-pending-detail" style="display:none"><td colspan="7" style="padding:12px 14px;border-bottom:1px solid #ffe0b2">' + csmFinWtPendingDetailInnerHtml(b) + '</td></tr>';
   }).join('');
 }
@@ -7897,7 +7900,7 @@ function csmFinPendingBuildCustomsRowsHtml(pending, lineKey) {
       '<td style="padding:10px 12px;font-size:12px"><div>BL: ' + bl + '</div><div>CN: ' + cn + '</div></td>' +
       '<td style="padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums">' + csmSalesRound2(lineAmt).toFixed(2) + '</td>' +
       '<td style="padding:10px 12px;font-size:11px;color:#334155;max-width:260px;line-height:1.35">' + sumTxt + '</td>' +
-      '<td style="padding:10px 12px;white-space:normal">' + btnApr + btnRej + '</td></tr>';
+      '<td style="padding:10px 12px;white-space:normal"><div class="csm-fin-pending-actions">' + btnApr + btnRej + '<div class="csm-fin-toolbar-spacer" aria-hidden="true"></div></div></td></tr>';
   }).join('');
 }
 function csmFinPendingSelectCategory(key) {

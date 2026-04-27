@@ -54,6 +54,10 @@ body.csm-logistics-ui #logisticsView{min-width:0;width:100%;max-width:100%}
 .btn-g{background:var(--bg4);color:var(--tx2);border:1px solid var(--bd)}
 .btn-g:hover{border-color:var(--ac);color:var(--tx)}
 .brow{display:flex;gap:8px;margin-top:14px}
+/* Fin / payment app: keep action buttons left, flex gap on the right for more buttons */
+.csm-fin-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;width:100%;box-sizing:border-box}
+.csm-fin-toolbar-spacer{flex:1;min-width:16px;min-height:1px;align-self:stretch}
+.csm-fin-pending-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px;justify-content:flex-start;width:100%;min-width:0;box-sizing:border-box}
 .right{display:flex;flex-direction:column;font-size:15px;overflow:hidden}
 .tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--bd);padding:0 21px}
 .tab{padding:14px 20px;font-size:15px;font-family:var(--csm-font-en);font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--tx2);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
@@ -510,7 +514,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260427pending-reject" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260428fin-toolbar" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -1702,15 +1706,16 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <div style="border:1px solid #bfdbfe;border-radius:12px;padding:18px 20px;background:linear-gradient(180deg,#eff6ff,#ffffff);box-shadow:0 1px 6px rgba(0,0,0,.05)">
           <h3 style="margin:0 0 8px;font-family:var(--csm-font-en);font-weight:800;color:#0f172a">Payment application · 付款申请</h3>
           <p style="margin:0 0 16px;font-size:13px;line-height:1.7;color:#475569;font-family:var(--csm-font-en);font-weight:700">Submit payment requests here: <strong>Worker / Truck</strong> loading &amp; delivery fees, and <strong>container miscellaneous</strong> charges. Approved items enter the same pending queue (by category). · 在此提交付款申请：含<strong>工人/车队装卸与送货</strong>费用，以及<strong>集装箱杂费</strong>；审批队列与清关杂费相同（按分类展示）。</p>
-          <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px" role="tablist" aria-label="Payment application type">
-            <button type="button" role="tab" id="company-fin-payapp-tab-wt" class="btn btn-s" aria-selected="true" onclick="csmFinPayAppTab('wt')" style="flex:1;min-width:200px;max-width:100%;text-transform:none;letter-spacing:.02em;font-family:var(--csm-font-en);font-weight:700">Worker / Truck <span style="font-size:11px;opacity:.95;font-weight:700">装卸结算</span></button>
-            <button type="button" role="tab" id="company-fin-payapp-tab-misc" class="btn btn-g" aria-selected="false" onclick="csmFinPayAppTab('misc')" style="flex:1;min-width:200px;max-width:100%;text-transform:none;letter-spacing:.02em;font-family:var(--csm-font-en);font-weight:700">Container misc <span style="font-size:11px;opacity:.95;font-weight:700">集装箱杂费付款</span></button>
+          <div class="csm-fin-toolbar" style="margin-bottom:12px" role="tablist" aria-label="Payment application type">
+            <button type="button" role="tab" id="company-fin-payapp-tab-wt" class="btn btn-s" aria-selected="true" onclick="csmFinPayAppTab('wt')" style="flex:0 1 auto;min-width:0;text-transform:none;letter-spacing:.02em;font-family:var(--csm-font-en);font-weight:700;padding:8px 14px;font-size:12px">Worker / Truck <span style="font-size:11px;opacity:.95;font-weight:700">装卸结算</span></button>
+            <button type="button" role="tab" id="company-fin-payapp-tab-misc" class="btn btn-g" aria-selected="false" onclick="csmFinPayAppTab('misc')" style="flex:0 1 auto;min-width:0;text-transform:none;letter-spacing:.02em;font-family:var(--csm-font-en);font-weight:700;padding:8px 14px;font-size:12px">Container misc <span style="font-size:11px;opacity:.95;font-weight:700">集装箱杂费付款</span></button>
+            <div class="csm-fin-toolbar-spacer" aria-hidden="true"></div>
           </div>
           <div id="company-fin-payapp-panel-wt" style="display:block">
           <div style="border:1px solid #c4b5fd;border-radius:10px;padding:16px 18px;background:#ffffff;box-shadow:0 1px 4px rgba(76,29,149,.06)">
             <p style="margin:0 0 12px;font-size:12px;line-height:1.65;color:#64748b">Search <strong>confirmed</strong> orders by fee type, filter, and time. <strong>Worker</strong> = unload fees only; <strong>Truck</strong> = delivery fees only. · 先选费用类型，再选工人或车、时间范围，检索后可选行并提交付款申请、查看付款记录。</p>
             <div id="fin-panel-wt">
-      <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:14px">
+      <div class="csm-fin-toolbar" style="align-items:flex-end;gap:12px;margin-bottom:14px">
         <div class="fg" style="margin:0;min-width:200px"><label style="font-family:var(--csm-font-en);font-weight:700">Fee type · 费用类型</label>
           <select id="fin-wt-fee-type" onchange="csmFinWtOnFeeTypeChange()" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
             <option value="worker">Worker (unload) · 卸货费</option>
@@ -1725,7 +1730,8 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           <input type="datetime-local" id="fin-wt-start" style="padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></div>
         <div class="fg" style="margin:0"><label style="font-family:var(--csm-font-en);font-weight:700">End</label>
           <input type="datetime-local" id="fin-wt-end" style="padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700"></div>
-        <button type="button" class="btn btn-s" onclick="csmFinWtRunSearch()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Search</button>
+        <button type="button" class="btn btn-s" onclick="csmFinWtRunSearch()" style="flex:0 0 auto;font-family:var(--csm-font-en);font-weight:700;text-transform:none;padding:8px 14px;font-size:12px">Search</button>
+        <div class="csm-fin-toolbar-spacer" aria-hidden="true" style="align-self:stretch;min-width:0"></div>
       </div>
       <div class="tw tw-sales-dense" style="margin-bottom:14px">
         <table id="fin-wt-results-table" class="csm-wt-fee-worker"><thead><tr>
@@ -1743,9 +1749,10 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           <th style="text-align:right">Line total (AED)</th>
         </tr></thead><tbody id="fin-wt-results-tbody"></tbody></table>
       </div>
-      <div class="brow" style="flex-wrap:wrap;align-items:center;margin-bottom:18px">
-        <button type="button" class="btn btn-s" onclick="csmFinWtSubmitPending()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Submit payment request</button>
-        <span style="font-size:13px;color:#666;font-family:var(--csm-font-en);font-weight:700" id="fin-wt-selection-hint"></span>
+      <div class="csm-fin-toolbar" style="margin:0 0 18px">
+        <button type="button" class="btn btn-s" onclick="csmFinWtSubmitPending()" style="flex:0 0 auto;font-family:var(--csm-font-en);font-weight:700;text-transform:none;padding:8px 14px;font-size:12px">Submit payment request</button>
+        <div class="csm-fin-toolbar-spacer" aria-hidden="true" style="min-width:0"></div>
+        <span style="font-size:13px;color:#666;font-family:var(--csm-font-en);font-weight:700;flex:0 1 auto;max-width:100%;text-align:right" id="fin-wt-selection-hint"></span>
       </div>
       <h4 style="font-family:var(--csm-font-en);font-weight:700;margin:0 0 8px;font-size:15px">Payment records (Worker / Truck)</h4>
       <div class="tw tw-sales-dense">
@@ -1771,7 +1778,10 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           <div id="company-fin-payapp-panel-misc" style="display:none">
           <div style="border:1px solid #93c5fd;border-radius:10px;padding:16px 18px;background:#ffffff">
             <p style="margin:0 0 12px;font-size:12px;line-height:1.65;color:#64748b">Demurrage / parking, document attestation, repack, waste handling, and other charges — each line must reference a <strong>confirmed</strong> purchase container (W1). · 停柜费、单据认证、翻包费、垃圾处理费、其他费用；集装箱须为 Warehouse 1 已确认采购柜号。</p>
-            <button type="button" class="btn btn-s" onclick="openFinCnMiscPaymentModal()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">New application · 新建申请</button>
+            <div class="csm-fin-toolbar" style="margin:0">
+              <button type="button" class="btn btn-s" onclick="openFinCnMiscPaymentModal()" style="flex:0 0 auto;font-family:var(--csm-font-en);font-weight:700;text-transform:none;padding:8px 14px;font-size:12px">New application · 新建申请</button>
+              <div class="csm-fin-toolbar-spacer" aria-hidden="true"></div>
+            </div>
           </div>
           </div>
         </div>
@@ -2098,9 +2108,10 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
           <tbody id="fin-cn-misc-lines-body"></tbody>
         </table>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px">
-        <button type="button" class="btn btn-s" onclick="csmFinMiscAddFeeLineRow()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">+ Add line · 增加一行</button>
-        <button type="button" class="btn btn-s" onclick="openSalesPaymentReceiversModal()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Edit payees · 编辑收款人</button>
+      <div class="csm-fin-toolbar" style="margin-top:8px">
+        <button type="button" class="btn btn-s" onclick="csmFinMiscAddFeeLineRow()" style="flex:0 0 auto;font-family:var(--csm-font-en);font-weight:700;text-transform:none;padding:8px 12px;font-size:12px">+ Add line · 增加一行</button>
+        <button type="button" class="btn btn-s" onclick="openSalesPaymentReceiversModal()" style="flex:0 0 auto;font-family:var(--csm-font-en);font-weight:700;text-transform:none;padding:8px 12px;font-size:12px">Edit payees · 编辑收款人</button>
+        <div class="csm-fin-toolbar-spacer" aria-hidden="true"></div>
       </div>
     </div>
     <div class="fg"><label style="font-family:var(--csm-font-en);font-weight:700">Payment method · 付款方式</label>
@@ -2112,9 +2123,10 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
     <div class="fg"><label style="font-family:var(--csm-font-en);font-weight:700">Note (optional) · 备注</label>
       <input type="text" id="fin-cn-misc-note" maxlength="500" placeholder="Optional" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">
     </div>
-    <div class="brow" style="flex-wrap:wrap;gap:8px">
-      <button type="button" class="btn btn-p" onclick="csmFinSubmitCnMiscPaymentApplication()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Submit · 提交</button>
-      <button type="button" class="btn btn-g" onclick="clFinCnMiscPaymentModal()" style="font-family:var(--csm-font-en);font-weight:700;text-transform:none">Cancel · 取消</button>
+    <div class="brow csm-fin-toolbar" style="margin-top:18px;flex-wrap:wrap;gap:8px">
+      <button type="button" class="btn btn-p" onclick="csmFinSubmitCnMiscPaymentApplication()" style="flex:0 0 auto;font-family:var(--csm-font-en);font-weight:700;text-transform:none;padding:8px 14px;font-size:12px">Submit · 提交</button>
+      <button type="button" class="btn btn-g" onclick="clFinCnMiscPaymentModal()" style="flex:0 0 auto;font-family:var(--csm-font-en);font-weight:700;text-transform:none;padding:8px 14px;font-size:12px">Cancel · 取消</button>
+      <div class="csm-fin-toolbar-spacer" aria-hidden="true"></div>
     </div>
   </div>
 </div>

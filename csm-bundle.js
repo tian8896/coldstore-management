@@ -9397,18 +9397,22 @@ function salesOrderRefreshRemainingHintForRow(tr) {
   var qtyEl = tr.querySelector('.sol-qty');
   var hidCn = tr.querySelector('.sol-cn-val');
   var prEl = tr.querySelector('.sol-pr');
-  if (!hint || !qtyEl) return;
+  if (!qtyEl) return;
   var cn = String(hidCn && hidCn.value || '').trim().toUpperCase();
   var pr = canonicalProductName(String(prEl && prEl.value || '').trim());
   if (!cn || !pr) {
-    hint.textContent = 'Remaining / 剩余: —';
-    hint.style.color = '#888';
+    if (hint) {
+      hint.textContent = 'Remaining / 剩余: —';
+      hint.style.color = '#888';
+    }
     qtyEl.removeAttribute('max');
     return;
   }
   var rem = csmSalesRemainingQtyForEditorRow(tr);
-  hint.textContent = 'Remaining / 剩余: ' + String(rem.available);
-  hint.style.color = rem.available > 0 ? '#0f766e' : '#cc0000';
+  if (hint) {
+    hint.textContent = 'Remaining / 剩余: ' + String(rem.available);
+    hint.style.color = rem.available > 0 ? '#0f766e' : '#cc0000';
+  }
   qtyEl.setAttribute('max', String(rem.available));
   var qv = parseFloat(qtyEl.value);
   if (!isNaN(qv) && qv > rem.available) qtyEl.value = String(rem.available);
@@ -9676,7 +9680,6 @@ function buildSalesOrderLineEditorRow(line) {
     buildSalesOrderLineProductOptionsForCn(String(cn || '').trim().toUpperCase(), pr) + '</select></td>' +
     '<td style="padding:6px 8px;vertical-align:top">' +
     '<div class="csm-sol-qty-wrap">' +
-    '<div class="sol-qty-rem">Remaining / 剩余: —</div>' +
     '<input type="number" class="sol-qty" min="0.01" step="any" value="' + csmEscapeHtml(String(qty)) + '" oninput="salesOrderLineQtyChanged(this)">' +
     '</div></td>' +
     '<td style="padding:6px 8px;vertical-align:middle"><input type="number" class="sol-price-incl" min="0" step="any" value="' + (inclVal === '' ? '' : csmEscapeHtml(inclVal)) + '" oninput="salesOrderLinePriceSync(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box" title="Unit including 5% VAT \u2014 other column auto-fills"></td>' +

@@ -4478,6 +4478,67 @@ function csmSalesLineVatMode(L, order) {
   if (order && order.vatMode === 'included') return 'included';
   return 'excluded';
 }
+/** Slots with truckId + truckQty > 0 from line object (truckEntries array or legacy truckId/truckQty). */
+function csmSalesRawLineTruckSlots(raw) {
+  if (!raw || typeof raw !== 'object') return [];
+  var te = raw.truckEntries;
+  if (te && typeof te === 'object' && !Array.isArray(te)) {
+    te = Object.keys(te).filter(function(k) { return /^\d+$/.test(k); }).sort(function(a, b) { return (+a) - (+b); }).map(function(k) { return te[k]; });
+  }
+  if (Array.isArray(te) && te.length) {
+    var out = [];
+    for (var i = 0; i < te.length; i++) {
+      var x = te[i];
+      if (!x || typeof x !== 'object') continue;
+      var tid = String(x.truckId || '').trim();
+      var tq = parseFloat(x.truckQty) || 0;
+      if (tid && tq > 0) out.push({ truckId: tid, truckQty: tq });
+    }
+    return out;
+  }
+  var tid1 = String(raw.truckId || '').trim();
+  var tq1 = parseFloat(raw.truckQty) || 0;
+  if (tid1 && tq1 > 0) return [{ truckId: tid1, truckQty: tq1 }];
+  return [];
+}
+function csmSalesCoerceNumericKeyedArray(val) {
+  if (val == null) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'object') {
+    return Object.keys(val).filter(function(k) { return /^\d+$/.test(k); }).sort(function(a, b) { return (+a) - (+b); }).map(function(k) { return val[k]; });
+  }
+  return [];
+}
+function csmSalesNormalizedLineTruckFields(L) {
+  var slots = csmSalesRawLineTruckSlots(L);
+  var teSaved = csmSalesCoerceNumericKeyedArray(L.truckEntries);
+  var truckEntriesNorm = slots.map(function(s, si) {
+    var saved = teSaved[si] && typeof teSaved[si] === 'object' ? teSaved[si] : null;
+    return {
+      truckId: s.truckId,
+      truckQty: s.truckQty,
+      truckName: saved && saved.truckName != null ? String(saved.truckName).trim() : '',
+      truckRate: saved ? (parseFloat(saved.truckRate) || 0) : 0,
+      truckAmount: saved ? (parseFloat(saved.truckAmount) || 0) : 0
+    };
+  });
+  if (truckEntriesNorm.length === 1 && !truckEntriesNorm[0].truckName) {
+    truckEntriesNorm[0].truckName = String(L.truckName || '').trim();
+    truckEntriesNorm[0].truckRate = parseFloat(L.truckRate) || 0;
+    truckEntriesNorm[0].truckAmount = parseFloat(L.truckAmount) || 0;
+  }
+  var sumQty = truckEntriesNorm.reduce(function(a, e) { return a + (parseFloat(e.truckQty) || 0); }, 0);
+  var sumAmt = truckEntriesNorm.reduce(function(a, e) { return a + (parseFloat(e.truckAmount) || 0); }, 0);
+  var nmJoin = truckEntriesNorm.map(function(e) { return e.truckName; }).filter(Boolean).join(' \u00b7 ');
+  return {
+    truckEntries: truckEntriesNorm,
+    truckId: truckEntriesNorm[0] ? truckEntriesNorm[0].truckId : String(L.truckId || '').trim(),
+    truckName: nmJoin || String(L.truckName || '').trim(),
+    truckQty: sumQty || parseFloat(L.truckQty) || 0,
+    truckRate: truckEntriesNorm.length === 1 ? (parseFloat(truckEntriesNorm[0].truckRate) || 0) : 0,
+    truckAmount: sumAmt || parseFloat(L.truckAmount) || 0
+  };
+}
 function csmSalesNormalizeLinesFromOrder(o) {
   if (!o) return [];
   var arr = [];
@@ -4489,6 +4550,7 @@ function csmSalesNormalizeLinesFromOrder(o) {
     var u = parseFloat(L.unitPrice);
     if (!cn || !pr || !(q > 0) || !(u >= 0)) return;
     var vmLine = (L.vatMode === 'included' || L.vatMode === 'excluded') ? L.vatMode : csmSalesLineVatMode(null, o);
+    var tBund = csmSalesNormalizedLineTruckFields(L);
     arr.push({
       containerNo: cn,
       productName: pr,
@@ -4500,11 +4562,12 @@ function csmSalesNormalizeLinesFromOrder(o) {
       workerQty: parseFloat(L.workerQty) || 0,
       workerRate: parseFloat(L.workerRate) || 0,
       workerAmount: parseFloat(L.workerAmount) || 0,
-      truckId: String(L.truckId || '').trim(),
-      truckName: String(L.truckName || '').trim(),
-      truckQty: parseFloat(L.truckQty) || 0,
-      truckRate: parseFloat(L.truckRate) || 0,
-      truckAmount: parseFloat(L.truckAmount) || 0,
+      truckEntries: tBund.truckEntries,
+      truckId: tBund.truckId,
+      truckName: tBund.truckName,
+      truckQty: tBund.truckQty,
+      truckRate: tBund.truckRate,
+      truckAmount: tBund.truckAmount,
       _lineIndex: idx
     });
   });
@@ -4514,6 +4577,7 @@ function csmSalesNormalizeLinesFromOrder(o) {
     var q0 = parseFloat(o.quantity);
     var u0 = parseFloat(o.unitPrice);
     if (cn0 && pr0 && q0 > 0 && (u0 >= 0 || u0 === 0)) {
+      var tBund0 = csmSalesNormalizedLineTruckFields(o);
       arr.push({
         containerNo: cn0,
         productName: pr0,
@@ -4525,11 +4589,12 @@ function csmSalesNormalizeLinesFromOrder(o) {
         workerQty: parseFloat(o.workerQty) || 0,
         workerRate: parseFloat(o.workerRate) || 0,
         workerAmount: parseFloat(o.workerAmount) || 0,
-        truckId: String(o.truckId || '').trim(),
-        truckName: String(o.truckName || '').trim(),
-        truckQty: parseFloat(o.truckQty) || 0,
-        truckRate: parseFloat(o.truckRate) || 0,
-        truckAmount: parseFloat(o.truckAmount) || 0,
+        truckEntries: tBund0.truckEntries,
+        truckId: tBund0.truckId,
+        truckName: tBund0.truckName,
+        truckQty: tBund0.truckQty,
+        truckRate: tBund0.truckRate,
+        truckAmount: tBund0.truckAmount,
         _lineIndex: 0
       });
     }
@@ -4679,24 +4744,89 @@ function csmSalesBuildServiceSelectHtml(list, selectedId, placeholder) {
 function csmSalesApplyWorkerTruckRatesToLines(linesArr) {
   return (linesArr || []).map(function(L) {
     var workerEnt = L.workerId ? salesWorkers.find(function(x) { return x.id === L.workerId; }) : null;
-    var truckEnt = L.truckId ? salesTrucks.find(function(x) { return x.id === L.truckId; }) : null;
     var workerRate = workerEnt ? csmSalesServiceRate(workerEnt, L.productName) : 0;
-    var truckRate = truckEnt ? csmSalesServiceRate(truckEnt, L.productName) : 0;
     var workerQty = parseFloat(L.workerQty) || 0;
-    var truckQty = parseFloat(L.truckQty) || 0;
+    var slots = csmSalesRawLineTruckSlots(L);
+    var truckEntriesOut = [];
+    var sumTQty = 0;
+    var sumTAmt = 0;
+    for (var ti = 0; ti < slots.length; ti++) {
+      var s = slots[ti];
+      var tid = String(s.truckId || '').trim();
+      var tq = parseFloat(s.truckQty) || 0;
+      if (!tid || !(tq > 0)) continue;
+      var truckEnt = salesTrucks.find(function(x) { return x.id === tid; });
+      var tr = truckEnt ? csmSalesServiceRate(truckEnt, L.productName) : 0;
+      var ta = csmSalesRound2(tr * tq);
+      sumTQty += tq;
+      sumTAmt += ta;
+      truckEntriesOut.push({
+        truckId: tid,
+        truckQty: tq,
+        truckName: truckEnt ? csmSalesServiceEntryDisplay(truckEnt) : '',
+        truckRate: tr,
+        truckAmount: ta
+      });
+    }
     return Object.assign({}, L, {
       workerName: workerEnt ? csmSalesServiceEntryDisplay(workerEnt) : '',
       workerRate: workerRate,
       workerAmount: csmSalesRound2(workerRate * workerQty),
-      truckName: truckEnt ? csmSalesServiceEntryDisplay(truckEnt) : '',
-      truckRate: truckRate,
-      truckAmount: csmSalesRound2(truckRate * truckQty)
+      truckEntries: truckEntriesOut,
+      truckId: truckEntriesOut[0] ? truckEntriesOut[0].truckId : '',
+      truckName: truckEntriesOut.map(function(e) { return e.truckName; }).filter(Boolean).join(' \u00b7 '),
+      truckRate: truckEntriesOut.length === 1 ? truckEntriesOut[0].truckRate : 0,
+      truckQty: sumTQty,
+      truckAmount: sumTAmt
     });
   });
 }
+/** Keep sum of truck Qty inputs within lineQty; trim preferEl last if needed. qtyClass: sol-truck-qty | upwt-truck-qty */
+function csmSalesClampTruckQtyInputsToLineSum(wrap, lineQty, preferEl, qtyClass) {
+  if (!wrap || !(lineQty > 0) || isNaN(lineQty)) return;
+  var qsel = qtyClass ? ('.' + qtyClass) : '.sol-truck-qty';
+  var inputs = Array.prototype.slice.call(wrap.querySelectorAll(qsel));
+  var vals = inputs.map(function(inp) {
+    var v = parseFloat(String(inp.value || '').trim());
+    return (!isNaN(v) && v > 0) ? v : 0;
+  });
+  var sum = vals.reduce(function(a, b) { return a + b; }, 0);
+  if (sum <= lineQty) return;
+  var excess = sum - lineQty;
+  if (preferEl && inputs.indexOf(preferEl) >= 0) {
+    var pi = inputs.indexOf(preferEl);
+    var nv = Math.max(0, vals[pi] - excess);
+    vals[pi] = nv;
+    preferEl.value = nv > 0 ? String(nv) : '';
+    return;
+  }
+  for (var i = inputs.length - 1; i >= 0 && excess > 0; i--) {
+    if (vals[i] <= 0) continue;
+    var cut = Math.min(vals[i], excess);
+    vals[i] -= cut;
+    excess -= cut;
+    inputs[i].value = vals[i] > 0 ? String(vals[i]) : '';
+  }
+}
+function csmSalesBuildUpwtTruckRowHtml(truckId, truckQty) {
+  var tq = truckQty != null && truckQty !== '' ? String(truckQty) : '';
+  return '<div class="upwt-truck-row" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px">' +
+    '<select class="upwt-truck-id" style="flex:1;min-width:120px;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">' +
+    csmSalesBuildServiceSelectHtml(salesTrucks, truckId, 'Select truck') + '</select>' +
+    '<input type="number" class="upwt-truck-qty" min="0" step="any" value="' + (tq === '' ? '' : csmEscapeHtml(tq)) + '" placeholder="Qty" oninput="salesUpwtTruckQtyInput(this)" title="Truck Qty; sum of trucks \u2264 line Qty" style="width:96px;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">' +
+    '<button type="button" class="abtn x" onclick="salesUpwtRemoveTruckRow(this)" style="flex:0 0 auto;padding:6px 10px" title="Remove truck">\u00d7</button>' +
+    '</div>';
+}
+function csmSalesBuildUpwtTrucksBlockHtml(L) {
+  var slots = csmSalesRawLineTruckSlots(L);
+  if (!slots.length) slots = [{ truckId: '', truckQty: '' }];
+  return '<div class="upwt-trucks-wrap">' + slots.map(function(s) {
+    return csmSalesBuildUpwtTruckRowHtml(s.truckId, s.truckQty);
+  }).join('') + '</div>' +
+    '<button type="button" class="abtn" onclick="salesUpwtAddTruckRow(this)" style="margin-top:4px;font-family:var(--csm-font-en);font-weight:700">Add truck</button>';
+}
 function csmSalesBuildUpwtRowHtml(L, idx) {
   var workerQtyDisp = L.workerQty != null && L.workerQty !== '' ? String(L.workerQty) : '';
-  var truckQtyDisp = L.truckQty != null && L.truckQty !== '' ? String(L.truckQty) : '';
   return '<tr data-upwt-i="' + idx + '">' +
     '<td style="padding:8px;border-bottom:1px solid #eee;vertical-align:middle">' + csmEscapeHtml(L.containerNo) + '</td>' +
     '<td style="padding:8px;border-bottom:1px solid #eee;vertical-align:middle">' + w1ProductHtml(L.productName) + '</td>' +
@@ -4707,12 +4837,9 @@ function csmSalesBuildUpwtRowHtml(L, idx) {
     csmSalesBuildServiceSelectHtml(salesWorkers, L.workerId, 'Select worker') + '</select>' +
     '<input type="number" class="upwt-worker-qty" min="0" step="any" value="' + (workerQtyDisp === '' ? '' : csmEscapeHtml(workerQtyDisp)) + '" placeholder="Qty" title="Worker Qty (not more than line Qty)" style="width:96px;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">' +
     '</div></td>' +
-    '<td style="padding:8px;border-bottom:1px solid #eee;vertical-align:top">' +
-    '<div class="upwt-svc-fields" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;max-width:100%">' +
-    '<select class="upwt-truck-id" style="flex:1;min-width:120px;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">' +
-    csmSalesBuildServiceSelectHtml(salesTrucks, L.truckId, 'Select truck') + '</select>' +
-    '<input type="number" class="upwt-truck-qty" min="0" step="any" value="' + (truckQtyDisp === '' ? '' : csmEscapeHtml(truckQtyDisp)) + '" placeholder="Qty" title="Truck Qty (not more than line Qty)" style="width:96px;padding:6px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700">' +
-    '</div></td>' +
+    '<td style="padding:8px;border-bottom:1px solid #eee;vertical-align:top;min-width:220px">' +
+    csmSalesBuildUpwtTrucksBlockHtml(L) +
+    '</td>' +
     '</tr>';
 }
 function salesUpwtReadLinesFromDom(baseLines) {
@@ -4729,19 +4856,12 @@ function salesUpwtReadLinesFromDom(baseLines) {
     }
     var workerIdEl = tr.querySelector('.upwt-worker-id');
     var workerQtyEl = tr.querySelector('.upwt-worker-qty');
-    var truckIdEl = tr.querySelector('.upwt-truck-id');
-    var truckQtyEl = tr.querySelector('.upwt-truck-qty');
     var workerId = (workerIdEl && workerIdEl.value || '').trim();
     var workerQtyRaw = workerQtyEl ? String(workerQtyEl.value || '').trim() : '';
-    var truckId = (truckIdEl && truckIdEl.value || '').trim();
-    var truckQtyRaw = truckQtyEl ? String(truckQtyEl.value || '').trim() : '';
     var workerQty = parseFloat(workerQtyRaw);
-    var truckQty = parseFloat(truckQtyRaw);
     var hasWorkerQty = workerQtyRaw !== '' && !isNaN(workerQty) && workerQty >= 0;
-    var hasTruckQty = truckQtyRaw !== '' && !isNaN(truckQty) && truckQty >= 0;
     var wPartial = (workerId && !(hasWorkerQty && workerQty > 0)) || (!workerId && hasWorkerQty && workerQty > 0);
-    var tPartial = (truckId && !(hasTruckQty && truckQty > 0)) || (!truckId && hasTruckQty && truckQty > 0);
-    if (wPartial || tPartial) {
+    if (wPartial) {
       err = 'If you enter worker or truck, set both name and Qty on each line.';
       break;
     }
@@ -4750,16 +4870,48 @@ function salesUpwtReadLinesFromDom(baseLines) {
       err = 'Worker Qty cannot exceed line Qty.';
       break;
     }
-    if (truckId && hasTruckQty && truckQty > lineQty) {
-      err = 'Truck Qty cannot exceed line Qty.';
+    var truckRows = tr.querySelectorAll('.upwt-truck-row');
+    var truckSlots = [];
+    var sumTruck = 0;
+    for (var ri = 0; ri < truckRows.length; ri++) {
+      var tRow = truckRows[ri];
+      var tidEl = tRow.querySelector('.upwt-truck-id');
+      var tqEl = tRow.querySelector('.upwt-truck-qty');
+      var tid = (tidEl && tidEl.value || '').trim();
+      var tqRaw = tqEl ? String(tqEl.value || '').trim() : '';
+      var tq = parseFloat(tqRaw);
+      var hasTq = tqRaw !== '' && !isNaN(tq) && tq >= 0;
+      if (!tid && !hasTq) continue;
+      var tPartial = (tid && !(hasTq && tq > 0)) || (!tid && hasTq && tq > 0);
+      if (tPartial) {
+        err = 'If you enter worker or truck, set both name and Qty on each line.';
+        break;
+      }
+      if (tid && hasTq && tq > lineQty) {
+        err = 'Truck Qty cannot exceed line Qty.';
+        break;
+      }
+      truckSlots.push({ truckId: tid, truckQty: tq });
+      sumTruck += tq;
+    }
+    if (err) break;
+    if (sumTruck > lineQty) {
+      err = 'Sum of truck Qty cannot exceed line Qty.';
       break;
     }
-    out.push(Object.assign({}, L, {
+    var merged = Object.assign({}, L, {
       workerId: workerId,
       workerQty: workerId ? workerQty : 0,
-      truckId: truckId,
-      truckQty: truckId ? truckQty : 0
-    }));
+      truckEntries: truckSlots.map(function(s) { return { truckId: s.truckId, truckQty: s.truckQty }; }),
+      truckId: truckSlots[0] ? truckSlots[0].truckId : '',
+      truckQty: sumTruck
+    });
+    if (!truckSlots.length) {
+      merged.truckEntries = [];
+      merged.truckId = '';
+      merged.truckQty = 0;
+    }
+    out.push(merged);
   }
   if (err) return { err: err };
   return { lines: out };
@@ -4839,10 +4991,35 @@ function csmSalesServiceCellHtml(name, qty) {
   qty = parseFloat(qty) || 0;
   var nm = String(name || '').trim();
   if (!nm && !(qty > 0)) return '<span style="color:#999">—</span>';
-  return '<div style="font-family:var(--csm-font-en);font-weight:700;line-height:1.35">' +
-    '<div>' + csmEscapeHtml(nm || '—') + '</div>' +
-    '<div style="font-size:11px;color:#666">Qty: ' + csmEscapeHtml(String(qty || 0)) + ' \u00b7</div>' +
+  return '<div class="csm-svc-cell" style="display:flex;flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:6px 10px;font-family:var(--csm-font-en);font-weight:700;line-height:1.35;min-width:0">' +
+    '<span style="min-width:0;word-break:break-word">' + csmEscapeHtml(nm || '—') + '</span>' +
+    '<span style="font-size:11px;color:#666;font-weight:700;white-space:nowrap">Qty: ' + csmEscapeHtml(String(qty || 0)) + '</span>' +
     '</div>';
+}
+function csmSalesTruckColumnCellHtml(L) {
+  var entries = L.truckEntries;
+  if (Object.prototype.toString.call(entries) !== '[object Array]') entries = [];
+  var use = entries.filter(function(e) {
+    return e && String(e.truckId || '').trim() && (parseFloat(e.truckQty) || 0) > 0;
+  });
+  if (!use.length) return csmSalesServiceCellHtml(L.truckName, L.truckQty);
+  if (use.length === 1) return csmSalesServiceCellHtml(use[0].truckName || use[0].truckId || L.truckName, use[0].truckQty);
+  return '<div style="display:flex;flex-direction:row;flex-wrap:wrap;gap:8px 12px;align-items:flex-start;min-width:0">' +
+    use.map(function(e) {
+      return '<div style="flex:0 1 auto;min-width:0">' + csmSalesServiceCellHtml(e.truckName || e.truckId, e.truckQty) + '</div>';
+    }).join('') + '</div>';
+}
+function csmSalesInvoiceTruckCellPlain(L) {
+  var entries = L.truckEntries;
+  if (!Array.isArray(entries) || !entries.length) {
+    return String(L.truckName || '').trim() || '\u2014';
+  }
+  var parts = entries.filter(function(e) { return e && String(e.truckId || '').trim() && (parseFloat(e.truckQty) || 0) > 0; })
+    .map(function(e) {
+      var nm = String(e.truckName || e.truckId || '').trim() || '\u2014';
+      return nm + ' Qty:' + (parseFloat(e.truckQty) || 0);
+    });
+  return parts.length ? parts.join('; ') : '\u2014';
 }
 /** Required for admin Confirm only — not for save draft / Submit. */
 function csmSalesLineWorkerTruckValidForConfirm(L) {
@@ -4850,11 +5027,21 @@ function csmSalesLineWorkerTruckValidForConfirm(L) {
   var q = parseFloat(L.quantity) || 0;
   if (!(q > 0)) return false;
   var wid = String(L.workerId || '').trim();
-  var tid = String(L.truckId || '').trim();
   var wq = parseFloat(L.workerQty) || 0;
-  var tq = parseFloat(L.truckQty) || 0;
-  if (!wid || !(wq > 0) || !tid || !(tq > 0)) return false;
-  if (wq > q || tq > q) return false;
+  if (!wid || !(wq > 0) || wq > q) return false;
+  var entries = (L.truckEntries && L.truckEntries.length)
+    ? L.truckEntries
+    : (String(L.truckId || '').trim() ? [{ truckId: L.truckId, truckQty: parseFloat(L.truckQty) || 0 }] : []);
+  if (!entries.length) return false;
+  var sumT = 0;
+  for (var i = 0; i < entries.length; i++) {
+    var e = entries[i];
+    var tid = String(e.truckId || '').trim();
+    var tq = parseFloat(e.truckQty) || 0;
+    if (!tid || !(tq > 0) || tq > q) return false;
+    sumT += tq;
+  }
+  if (sumT > q) return false;
   return true;
 }
 function csmSalesNetUnitAndVat(o) {
@@ -5023,7 +5210,7 @@ function salesPrintOrderInvoice(id) {
     parts.push('<td class="num">' + csmEscapeHtml(String(L.quantity != null ? L.quantity : '')) + '</td>');
     parts.push('<td class="num">' + (parseFloat(L.unitPrice) || 0).toFixed(2) + '</td>');
     parts.push('<td class="num">' + nv.netUnit.toFixed(2) + '</td><td class="num">' + nv.vatAmt.toFixed(2) + '</td><td class="num">' + a.total.toFixed(2) + '</td>');
-    parts.push('<td>' + csmEscapeHtml(String(L.workerName || '').trim() || '\u2014') + '</td><td>' + csmEscapeHtml(String(L.truckName || '').trim() || '\u2014') + '</td></tr>');
+    parts.push('<td>' + csmEscapeHtml(String(L.workerName || '').trim() || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesInvoiceTruckCellPlain(L)) + '</td></tr>');
   });
   parts.push('</tbody></table>');
   parts.push('<div class="tot"><div><span>Net (AED)</span><span>' + tot.net.toFixed(2) + '</span></div>');
@@ -6690,7 +6877,7 @@ function salesBatchConfirm() {
     }
     var badLine = linesCheck.find(function(L) { return !csmSalesLineWorkerTruckValidForConfirm(L); });
     if (badLine) {
-      toast('Cannot confirm: every line needs Worker and Truck, each with Qty > 0 and not more than line Qty. Fill them in the draft first.', 'err');
+      toast('Cannot confirm: every line needs Worker with Qty > 0, and at least one Truck with Qty > 0 (you may add several trucks per line). Each truck Qty must be \u2264 line Qty, and the sum of truck Qty must not exceed line Qty.', 'err');
       return;
     }
   }
@@ -7145,13 +7332,13 @@ function renderSalesOrdersTable() {
           '<td>' + csmEscapeHtml(nvL.vatAmt.toFixed(2)) + '</td>' +
           '<td>' + aL.total.toFixed(2) + '</td>' +
           '<td>' + csmSalesServiceCellHtml(L.workerName, L.workerQty) + '</td>' +
-          '<td>' + csmSalesServiceCellHtml(L.truckName, L.truckQty) + '</td>' +
+          '<td>' + csmSalesTruckColumnCellHtml(L) + '</td>' +
           '<td colspan="7"></td>' +
           '</tr>';
       }
     }
     return '<tr class="' + trClassName + '"><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb"' + cbDis + ' onchange="csmSalesOrderCbExclusive(this)" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + cnCell + '</td><td>' + prodCell + '</td><td>' + csmEscapeHtml(String(q0)) + '</td><td>' +
-      csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty) + '</td><td>' + csmEscapeHtml(csmSalesPaymentMethodLabel(csmSalesGetPaymentMethod(o))) + '</td><td>' + csmSalesPaymentStatusCellHtml(o) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + statusCell + '</td><td>' + actions + '</td><td>' + csmSalesPaymentConfirmCellHtml(o) + '</td><td>' + csmSalesPrintInvoiceCellHtml(o) + '</td></tr>' + subHtml;
+      csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' + lineTot.toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty) + '</td><td>' + csmSalesTruckColumnCellHtml(L0) + '</td><td>' + csmEscapeHtml(csmSalesPaymentMethodLabel(csmSalesGetPaymentMethod(o))) + '</td><td>' + csmSalesPaymentStatusCellHtml(o) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + statusCell + '</td><td>' + actions + '</td><td>' + csmSalesPaymentConfirmCellHtml(o) + '</td><td>' + csmSalesPrintInvoiceCellHtml(o) + '</td></tr>' + subHtml;
   }).join('');
   csmSalesBindOrdersPager(totalRows);
 }
@@ -7248,14 +7435,14 @@ function renderSalesFinanceTable() {
           '<td>' + csmEscapeHtml(nvL.vatAmt.toFixed(2)) + '</td>' +
           '<td>' + aL.total.toFixed(2) + '</td>' +
           '<td>' + csmSalesServiceCellHtml(L.workerName, L.workerQty) + '</td>' +
-          '<td>' + csmSalesServiceCellHtml(L.truckName, L.truckQty) + '</td>' +
+          '<td>' + csmSalesTruckColumnCellHtml(L) + '</td>' +
           '<td></td><td></td><td></td><td></td><td></td>' +
           '</tr>';
       }
     }
     return '<tr><td class="csm-sel-td"><input type="checkbox" class="csm-sales-row-cb" data-sales-order-id="' + csmAttrEscape(o.id) + '" title="\u9009\u4E2D\u6B64\u6761\u8BB0\u5F55" aria-label="Select row"></td><td>' + csmEscapeHtml(o.orderNo || '\u2014') + '</td><td>' + csmEscapeHtml(csmSalesFormatOrderCreated(o.createdAt)) + '</td><td>' + csmEscapeHtml(o.customerName || '') + '</td><td>' + cnCell + '</td><td>' + prodCell + '</td><td>' + csmEscapeHtml(String(q0)) + '</td><td>' +
       csmEscapeHtml(up0.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.netUnit.toFixed(2)) + '</td><td>' + csmEscapeHtml(nv0.vatAmt.toFixed(2)) + '</td><td>' +
-      csmSalesLineTotalForDisplay(o).toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty) + '</td><td>' + csmSalesServiceCellHtml(L0.truckName, L0.truckQty) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + csmEscapeHtml(csmSalesPaymentMethodLabel(csmSalesGetPaymentMethod(o))) + '</td><td>' + csmSalesPaymentStatusCellHtml(o) + '</td><td>' + csmSalesPaymentConfirmCellHtml(o) + '</td><td>' + csmSalesPrintInvoiceCellHtml(o) + '</td></tr>' + subHtml;
+      csmSalesLineTotalForDisplay(o).toFixed(2) + '</td><td>' + csmSalesServiceCellHtml(L0.workerName, L0.workerQty) + '</td><td>' + csmSalesTruckColumnCellHtml(L0) + '</td><td>' + csmEscapeHtml(csmSalesOrderReceiverDisplay(o)) + '</td><td>' + csmEscapeHtml(csmSalesPaymentMethodLabel(csmSalesGetPaymentMethod(o))) + '</td><td>' + csmSalesPaymentStatusCellHtml(o) + '</td><td>' + csmSalesPaymentConfirmCellHtml(o) + '</td><td>' + csmSalesPrintInvoiceCellHtml(o) + '</td></tr>' + subHtml;
   }).join('');
   csmSalesBindFinancePager(totalRows);
 }
@@ -7299,17 +7486,29 @@ function csmFinWtLineKeyForFee(orderId, lineIndex, feeKind) {
   if (feeKind === 'truck') return base + '#t';
   return base;
 }
+/** Truck fee row for multi-truck lines (#t0, #t1, \u2026). Legacy single-truck uses #t only. */
+function csmFinWtLineKeyForTruckEntry(orderId, lineIndex, entryIndex) {
+  return csmFinWtLineKey(orderId, lineIndex) + '#t' + String(entryIndex);
+}
 function csmFinWtKeysConflict(s, b) {
   if (!s || !b) return false;
   if (s === b) return true;
   s = String(s);
   b = String(b);
-  var sb = s.replace(/#w$|#t$/, '');
-  var bb = b.replace(/#w$|#t$/, '');
-  if (sb !== bb) return false;
-  if (b === sb) return s === sb || s === sb + '#w' || s === sb + '#t' || s === b;
-  if (s === sb) return b === sb || b === sb + '#w' || b === sb + '#t' || b === s;
-  return (s === sb + '#w' && (b === sb + '#w' || b === sb)) || (s === sb + '#t' && (b === sb + '#t' || b === sb));
+  function parseKey(k) {
+    if (/#w$/.test(k)) return { base: k.replace(/#w$/, ''), kind: 'w', slot: '#w' };
+    var m = k.match(/^(.*)(#t(\d+))$/);
+    if (m) return { base: m[1], kind: 't', slot: m[2] };
+    if (/#t$/.test(k)) return { base: k.replace(/#t$/, ''), kind: 't', slot: '#t' };
+    return { base: k, kind: '', slot: '' };
+  }
+  var A = parseKey(s);
+  var B = parseKey(b);
+  if (A.base !== B.base) return false;
+  if (A.kind === 'w' && B.kind === 'w') return true;
+  if (A.kind !== 't' || B.kind !== 't') return false;
+  if (A.slot === '#t' || B.slot === '#t') return true;
+  return A.slot === B.slot;
 }
 function csmFinWtLineSettlementStatus(searchKey) {
   var hasPaid = false;
@@ -7401,26 +7600,104 @@ function csmFinWtEnumerateLines(workerId, truckId, tStart, tEnd, feeKind) {
     if (tEnd > 0 && ts > tEnd) return;
     var lines = csmSalesNormalizeLinesFromOrder(o);
     lines.forEach(function(L, idx) {
-      if (workerId && String(L.workerId || '').trim() !== workerId) return;
-      if (truckId && String(L.truckId || '').trim() !== truckId) return;
-      var wq = parseFloat(L.workerQty) || 0;
-      var tq = parseFloat(L.truckQty) || 0;
-      var wa = csmSalesRound2(parseFloat(L.workerAmount) || 0);
-      var ta = csmSalesRound2(parseFloat(L.truckAmount) || 0);
       if (feeKind === 'worker') {
+        if (workerId && String(L.workerId || '').trim() !== workerId) return;
+        var wq = parseFloat(L.workerQty) || 0;
+        var wa = csmSalesRound2(parseFloat(L.workerAmount) || 0);
         if (wa <= 0 && wq <= 0) return;
-        tq = 0;
-        ta = 0;
-      } else {
-        if (ta <= 0 && tq <= 0) return;
-        wq = 0;
-        wa = 0;
+        if (!workerId && !truckId && wq <= 0 && wa <= 0) return;
+        rows.push({
+          lineKey: csmFinWtLineKeyForFee(o.id, idx, 'worker'),
+          orderId: o.id,
+          lineIndex: idx,
+          orderNo: o.orderNo || '',
+          orderTime: o.confirmedAt || o.createdAt || '',
+          customerName: o.customerName || '',
+          containerNo: L.containerNo || '',
+          productName: L.productName || '',
+          workerName: String(L.workerName || '').trim(),
+          workerQty: wq,
+          workerAmount: wa,
+          truckName: '',
+          truckQty: 0,
+          truckAmount: 0,
+          lineTotal: wa,
+          feeKind: 'worker'
+        });
+        return;
       }
-      if (!workerId && !truckId && wq <= 0 && tq <= 0 && wa <= 0 && ta <= 0) return;
-      var lineKey = csmFinWtLineKeyForFee(o.id, idx, feeKind);
-      var lineTotal = csmSalesRound2(feeKind === 'worker' ? wa : ta);
+      var te = Array.isArray(L.truckEntries) ? L.truckEntries : [];
+      var teUse = te.filter(function(ent) {
+        if (!ent || typeof ent !== 'object') return false;
+        var eid = String(ent.truckId || '').trim();
+        var etq = parseFloat(ent.truckQty) || 0;
+        var eta = csmSalesRound2(parseFloat(ent.truckAmount) || 0);
+        return eid && (etq > 0 || eta > 0);
+      });
+      if (teUse.length > 1) {
+        for (var ei = 0; ei < teUse.length; ei++) {
+          var ent = teUse[ei];
+          var eid = String(ent.truckId || '').trim();
+          if (truckId && eid !== truckId) continue;
+          var etq = parseFloat(ent.truckQty) || 0;
+          var eta = csmSalesRound2(parseFloat(ent.truckAmount) || 0);
+          if (eta <= 0 && etq <= 0) continue;
+          if (!workerId && !truckId && etq <= 0 && eta <= 0) continue;
+          rows.push({
+            lineKey: csmFinWtLineKeyForTruckEntry(o.id, idx, ei),
+            orderId: o.id,
+            lineIndex: idx,
+            orderNo: o.orderNo || '',
+            orderTime: o.confirmedAt || o.createdAt || '',
+            customerName: o.customerName || '',
+            containerNo: L.containerNo || '',
+            productName: L.productName || '',
+            workerName: '',
+            workerQty: 0,
+            workerAmount: 0,
+            truckName: String(ent.truckName || '').trim(),
+            truckQty: etq,
+            truckAmount: eta,
+            lineTotal: eta,
+            feeKind: 'truck'
+          });
+        }
+        return;
+      }
+      if (teUse.length === 1) {
+        var e0 = teUse[0];
+        if (truckId && String(e0.truckId || '').trim() !== truckId) return;
+        var tq1 = parseFloat(e0.truckQty) || 0;
+        var ta1 = csmSalesRound2(parseFloat(e0.truckAmount) || 0);
+        if (ta1 <= 0 && tq1 <= 0) return;
+        if (!workerId && !truckId && tq1 <= 0 && ta1 <= 0) return;
+        rows.push({
+          lineKey: csmFinWtLineKeyForFee(o.id, idx, 'truck'),
+          orderId: o.id,
+          lineIndex: idx,
+          orderNo: o.orderNo || '',
+          orderTime: o.confirmedAt || o.createdAt || '',
+          customerName: o.customerName || '',
+          containerNo: L.containerNo || '',
+          productName: L.productName || '',
+          workerName: '',
+          workerQty: 0,
+          workerAmount: 0,
+          truckName: String(e0.truckName || '').trim(),
+          truckQty: tq1,
+          truckAmount: ta1,
+          lineTotal: ta1,
+          feeKind: 'truck'
+        });
+        return;
+      }
+      if (truckId && String(L.truckId || '').trim() !== truckId) return;
+      var tq0 = parseFloat(L.truckQty) || 0;
+      var ta0 = csmSalesRound2(parseFloat(L.truckAmount) || 0);
+      if (ta0 <= 0 && tq0 <= 0) return;
+      if (!workerId && !truckId && tq0 <= 0 && ta0 <= 0) return;
       rows.push({
-        lineKey: lineKey,
+        lineKey: csmFinWtLineKeyForFee(o.id, idx, 'truck'),
         orderId: o.id,
         lineIndex: idx,
         orderNo: o.orderNo || '',
@@ -7428,14 +7705,14 @@ function csmFinWtEnumerateLines(workerId, truckId, tStart, tEnd, feeKind) {
         customerName: o.customerName || '',
         containerNo: L.containerNo || '',
         productName: L.productName || '',
-        workerName: String(L.workerName || '').trim(),
-        workerQty: wq,
-        workerAmount: wa,
+        workerName: '',
+        workerQty: 0,
+        workerAmount: 0,
         truckName: String(L.truckName || '').trim(),
-        truckQty: tq,
-        truckAmount: ta,
-        lineTotal: lineTotal,
-        feeKind: feeKind
+        truckQty: tq0,
+        truckAmount: ta0,
+        lineTotal: ta0,
+        feeKind: 'truck'
       });
     });
   });
@@ -7823,7 +8100,7 @@ function csmFinWtBatchContainerNosDisplay(b) {
   });
   if (out.length) return out.join(', ');
   (b && b.lineKeys || []).forEach(function(k) {
-    var base = String(k || '').replace(/#w$|#t$/, '');
+    var base = String(k || '').replace(/#w$/, '').replace(/#t\d+$/, '').replace(/#t$/, '');
     var m = base.match(/^([^:]+):(\d+)$/);
     if (!m) return;
     var oid = m[1];
@@ -8971,7 +9248,12 @@ function deleteSalesWorker(id) {
 function deleteSalesTruck(id) {
   if (!id || !salesTrucksRef) return;
   var used = salesOrders.some(function(o) {
-    return !o.voided && csmSalesNormalizeLinesFromOrder(o).some(function(L) { return String(L.truckId || '') === String(id); });
+    return !o.voided && csmSalesNormalizeLinesFromOrder(o).some(function(L) {
+      if (String(L.truckId || '') === String(id)) return true;
+      var te = L.truckEntries;
+      if (!Array.isArray(te)) return false;
+      return te.some(function(e) { return e && String(e.truckId || '') === String(id); });
+    });
   });
   if (used) { toast('Truck is used on an order', 'err'); return; }
   if (!confirm('Delete this truck?')) return;
@@ -9254,13 +9536,113 @@ function salesOrderLineCnSearchBlurSoon(el) {
     salesOrderLineCnSearchBlurResolve(el);
   }, 200);
 }
+function csmSalesBuildSolTruckRowHtml(truckId, truckQty) {
+  var tq = truckQty != null && truckQty !== '' ? String(truckQty) : '';
+  return '<div class="csm-sol-truck-row" style="display:flex;flex-direction:row;align-items:center;gap:10px;width:100%;min-width:0;margin-bottom:8px">' +
+    '<select class="sol-truck-id" style="flex:1;min-width:120px;padding:6px 8px;border:1px solid #ccc;border-radius:4px;font-family:var(--csm-font-en);font-weight:700;box-sizing:border-box">' +
+    csmSalesBuildServiceSelectHtml(salesTrucks, truckId, 'Select truck') + '</select>' +
+    '<input type="number" class="sol-truck-qty" min="0" step="any" value="' + (tq === '' ? '' : csmEscapeHtml(tq)) + '" placeholder="Qty" inputmode="decimal" oninput="salesOrderTruckQtyInput(this)" title="Truck Qty; sum of trucks \u2264 line Qty (AED/box)">' +
+    '<button type="button" class="abtn x" onclick="salesOrderRemoveTruckRow(this)" title="Remove truck" style="flex:0 0 auto;padding:6px 10px">\u00d7</button>' +
+    '</div>';
+}
+function csmSalesBuildSolTrucksBlockHtml(line) {
+  line = line || {};
+  var slots = csmSalesRawLineTruckSlots(line);
+  if (!slots.length) slots = [{ truckId: '', truckQty: '' }];
+  return '<div class="csm-sol-trucks-wrap">' + slots.map(function(s) {
+    return csmSalesBuildSolTruckRowHtml(s.truckId, s.truckQty);
+  }).join('') + '</div>' +
+    '<button type="button" class="abtn" onclick="salesOrderAddTruckRow(this)" style="margin-top:6px;font-family:var(--csm-font-en);font-weight:700">Add truck</button>';
+}
+function salesOrderAddTruckRow(btn) {
+  var wrap = btn.previousElementSibling;
+  if (!wrap || !wrap.classList.contains('csm-sol-trucks-wrap')) return;
+  wrap.insertAdjacentHTML('beforeend', csmSalesBuildSolTruckRowHtml('', ''));
+  var sel = wrap.querySelector('.csm-sol-truck-row:last-child .sol-truck-id');
+  if (sel) {
+    var v = '';
+    sel.innerHTML = csmSalesBuildServiceSelectHtml(salesTrucks, v, 'Select truck');
+  }
+  var sub = btn.closest('tr.csm-sol-sub');
+  var main = sub && sub.previousElementSibling;
+  var qtyEl = main && main.querySelector('.sol-qty');
+  var lineQty = parseFloat(qtyEl && qtyEl.value);
+  if (main && qtyEl) {
+    [main.querySelector('.sol-worker-qty')].concat(Array.prototype.slice.call(wrap.querySelectorAll('.sol-truck-qty'))).forEach(function(inp) {
+      if (!inp) return;
+      if (lineQty > 0 && !isNaN(lineQty)) inp.setAttribute('max', String(lineQty)); else inp.removeAttribute('max');
+    });
+  }
+}
+function salesOrderRemoveTruckRow(btn) {
+  var row = btn.closest('.csm-sol-truck-row');
+  var wrap = row && row.closest('.csm-sol-trucks-wrap');
+  if (!row || !wrap) return;
+  if (wrap.querySelectorAll('.csm-sol-truck-row').length <= 1) {
+    var sel = row.querySelector('.sol-truck-id');
+    var q = row.querySelector('.sol-truck-qty');
+    if (sel) sel.value = '';
+    if (q) q.value = '';
+    return;
+  }
+  row.remove();
+}
+function salesOrderTruckQtyInput(el) {
+  var wrap = el.closest('.csm-sol-trucks-wrap');
+  var sub = wrap && wrap.closest('tr.csm-sol-sub');
+  var main = sub && sub.previousElementSibling;
+  var qtyEl = main && main.querySelector('.sol-qty');
+  var lineQty = parseFloat(qtyEl && qtyEl.value);
+  if (!(lineQty > 0) || isNaN(lineQty)) return;
+  var v = parseFloat(String(el.value || '').trim());
+  if (!isNaN(v) && v > lineQty) el.value = String(lineQty);
+  csmSalesClampTruckQtyInputsToLineSum(wrap, lineQty, el, 'sol-truck-qty');
+}
+function salesUpwtAddTruckRow(btn) {
+  var wrap = btn.previousElementSibling;
+  if (!wrap || !wrap.classList.contains('upwt-trucks-wrap')) return;
+  wrap.insertAdjacentHTML('beforeend', csmSalesBuildUpwtTruckRowHtml('', ''));
+  var sel = wrap.querySelector('.upwt-truck-row:last-child .upwt-truck-id');
+  if (sel) sel.innerHTML = csmSalesBuildServiceSelectHtml(salesTrucks, '', 'Select truck');
+}
+function salesUpwtRemoveTruckRow(btn) {
+  var row = btn.closest('.upwt-truck-row');
+  var wrap = row && row.closest('.upwt-trucks-wrap');
+  if (!row || !wrap) return;
+  if (wrap.querySelectorAll('.upwt-truck-row').length <= 1) {
+    var sel = row.querySelector('.upwt-truck-id');
+    var q = row.querySelector('.upwt-truck-qty');
+    if (sel) sel.value = '';
+    if (q) q.value = '';
+    return;
+  }
+  row.remove();
+}
+function salesUpwtTruckQtyInput(el) {
+  var wrap = el.closest('.upwt-trucks-wrap');
+  var tr = el.closest('tr[data-upwt-i]');
+  if (!wrap || !tr || !tr.cells || !tr.cells[2]) return;
+  var lineQty = parseFloat(String(tr.cells[2].textContent || '').trim());
+  if (!(lineQty > 0) || isNaN(lineQty)) return;
+  var v = parseFloat(String(el.value || '').trim());
+  if (!isNaN(v) && v > lineQty) el.value = String(lineQty);
+  csmSalesClampTruckQtyInputsToLineSum(wrap, lineQty, el, 'upwt-truck-qty');
+}
+function salesUpwtRefreshTruckSelectsInDom() {
+  var tb = gid('sales-upwt-lines-body');
+  if (!tb) return;
+  tb.querySelectorAll('.upwt-truck-id').forEach(function(sel) {
+    var v = sel.value;
+    sel.innerHTML = csmSalesBuildServiceSelectHtml(salesTrucks, v, 'Select truck');
+    if (v) sel.value = v;
+  });
+}
 function buildSalesOrderLineEditorRow(line) {
   line = line || {};
   var cn = line.containerNo || '';
   var pr = line.productName || '';
   var qty = line.quantity != null && line.quantity !== '' ? line.quantity : 1;
   var workerQty = line.workerQty != null && line.workerQty !== '' ? line.workerQty : '';
-  var truckQty = line.truckQty != null && line.truckQty !== '' ? line.truckQty : '';
   var vm = (line.vatMode === 'included') ? 'included' : 'excluded';
   var up = line.unitPrice;
   var hasUp = up != null && up !== '' && !isNaN(parseFloat(up));
@@ -9285,10 +9667,9 @@ function buildSalesOrderLineEditorRow(line) {
     '<select class="sol-worker-id">' + csmSalesBuildServiceSelectHtml(salesWorkers, line.workerId, 'Select worker') + '</select>' +
     '<input type="number" class="sol-worker-qty" min="0" step="any" value="' + (workerQty === '' ? '' : csmEscapeHtml(String(workerQty))) + '" placeholder="Qty" inputmode="decimal" oninput="salesOrderServiceQtyInput(this)" title="Worker Qty (not more than line Qty; rate is AED per box for this product)">' +
     '</div></div>' +
-    '<div class="csm-sol-svc-col"><div style="font-size:11px;color:#555;margin-bottom:6px">Truck</div><div class="csm-sol-svc-fields">' +
-    '<select class="sol-truck-id">' + csmSalesBuildServiceSelectHtml(salesTrucks, line.truckId, 'Select truck') + '</select>' +
-    '<input type="number" class="sol-truck-qty" min="0" step="any" value="' + (truckQty === '' ? '' : csmEscapeHtml(String(truckQty))) + '" placeholder="Qty" inputmode="decimal" oninput="salesOrderServiceQtyInput(this)" title="Truck Qty (not more than line Qty; rate is AED per box for this product)">' +
-    '</div></div></div>';
+    '<div class="csm-sol-svc-col"><div style="font-size:11px;color:#555;margin-bottom:6px">Truck</div>' +
+    csmSalesBuildSolTrucksBlockHtml(line) +
+    '</div></div>';
   return '<tr class="csm-sol-main"' + basisAttr + '>' +
     buildSalesOrderLineCnCellHtml(cn) +
     '<td style="padding:6px 8px;vertical-align:middle"><select class="sol-pr csm-product-select" onchange="salesOrderLineProductChanged(this)" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box">' +
@@ -9309,17 +9690,16 @@ function salesOrderRefreshServiceSelectorsInDom() {
   if (!tb) return;
   tb.querySelectorAll('tr.csm-sol-sub').forEach(function(sub) {
     var workerSel = sub.querySelector('.sol-worker-id');
-    var truckSel = sub.querySelector('.sol-truck-id');
     if (workerSel) {
       var workerVal = workerSel.value;
       workerSel.innerHTML = csmSalesBuildServiceSelectHtml(salesWorkers, workerVal, 'Select worker');
       if (workerVal) workerSel.value = workerVal;
     }
-    if (truckSel) {
+    sub.querySelectorAll('.sol-truck-id').forEach(function(truckSel) {
       var truckVal = truckSel.value;
       truckSel.innerHTML = csmSalesBuildServiceSelectHtml(salesTrucks, truckVal, 'Select truck');
       if (truckVal) truckSel.value = truckVal;
-    }
+    });
   });
 }
 function salesOrderLinePriceSync(el) {
@@ -9366,12 +9746,15 @@ function salesOrderLineQtyChanged(qtyEl) {
   if (!sub || !sub.classList.contains('csm-sol-sub')) return;
   var lineQty = parseFloat(qtyEl.value);
   var capOk = lineQty > 0 && !isNaN(lineQty);
-  [sub.querySelector('.sol-worker-qty'), sub.querySelector('.sol-truck-qty')].forEach(function(inp) {
+  var svcInputs = [sub.querySelector('.sol-worker-qty')].concat(Array.prototype.slice.call(sub.querySelectorAll('.sol-truck-qty')));
+  svcInputs.forEach(function(inp) {
     if (!inp) return;
     if (capOk) inp.setAttribute('max', String(lineQty)); else inp.removeAttribute('max');
     var v = parseFloat(inp.value);
     if (capOk && !isNaN(v) && v > lineQty) inp.value = String(lineQty);
   });
+  var twrap = sub.querySelector('.csm-sol-trucks-wrap');
+  if (capOk && twrap) csmSalesClampTruckQtyInputsToLineSum(twrap, lineQty, null, 'sol-truck-qty');
   salesOrderRefreshAllRemainingHints();
 }
 function salesOrderServiceQtyInput(el) {
@@ -9440,8 +9823,6 @@ function salesOrderReadLinesFromDom() {
     var excEl = tr.querySelector('.sol-price-excl');
     var workerIdEl = sub.querySelector('.sol-worker-id');
     var workerQtyEl = sub.querySelector('.sol-worker-qty');
-    var truckIdEl = sub.querySelector('.sol-truck-id');
-    var truckQtyEl = sub.querySelector('.sol-truck-qty');
     var cn = (hidCn && hidCn.value || '').trim().toUpperCase();
     var pr = canonicalProductName((prEl && prEl.value || '').trim());
     var qty = parseFloat(qtyEl && qtyEl.value);
@@ -9452,28 +9833,46 @@ function salesOrderReadLinesFromDom() {
     var workerId = (workerIdEl && workerIdEl.value || '').trim();
     var workerQtyRaw = workerQtyEl ? String(workerQtyEl.value || '').trim() : '';
     var workerQty = parseFloat(workerQtyRaw);
-    var truckId = (truckIdEl && truckIdEl.value || '').trim();
-    var truckQtyRaw = truckQtyEl ? String(truckQtyEl.value || '').trim() : '';
-    var truckQty = parseFloat(truckQtyRaw);
     var hasIn = sIn !== '' && !isNaN(nIn) && nIn >= 0;
     var hasEx = sEx !== '' && !isNaN(nEx) && nEx >= 0;
     var hasWorkerQty = workerQtyRaw !== '' && !isNaN(workerQty) && workerQty >= 0;
-    var hasTruckQty = truckQtyRaw !== '' && !isNaN(truckQty) && truckQty >= 0;
     if (workerId && !(hasWorkerQty && workerQty > 0)) {
       workerId = '';
       workerQtyRaw = '';
       hasWorkerQty = false;
     }
-    if (truckId && !(hasTruckQty && truckQty > 0)) {
-      truckId = '';
-      truckQtyRaw = '';
-      hasTruckQty = false;
-    }
     workerQty = parseFloat(workerQtyRaw);
-    truckQty = parseFloat(truckQtyRaw);
     hasWorkerQty = workerQtyRaw !== '' && !isNaN(workerQty) && workerQty >= 0;
-    hasTruckQty = truckQtyRaw !== '' && !isNaN(truckQty) && truckQty >= 0;
-    var any = cn || pr || (qty > 0) || hasIn || hasEx || workerId || hasWorkerQty || truckId || hasTruckQty;
+    var truckRows = sub.querySelectorAll('.csm-sol-truck-row');
+    var truckSlots = [];
+    var sumTruck = 0;
+    for (var ri = 0; ri < truckRows.length; ri++) {
+      var tRow = truckRows[ri];
+      var tidEl = tRow.querySelector('.sol-truck-id');
+      var tqEl = tRow.querySelector('.sol-truck-qty');
+      var tid = (tidEl && tidEl.value || '').trim();
+      var tqRaw = tqEl ? String(tqEl.value || '').trim() : '';
+      var tq = parseFloat(tqRaw);
+      var hasTq = tqRaw !== '' && !isNaN(tq) && tq >= 0;
+      if (!tid && !hasTq) continue;
+      var tPartialRow = (tid && !(hasTq && tq > 0)) || (!tid && hasTq && tq > 0);
+      if (tPartialRow) {
+        incomplete = true;
+        return;
+      }
+      if (tid && hasTq && tq > qty) {
+        svcQtyOver = true;
+        return;
+      }
+      truckSlots.push({ truckId: tid, truckQty: tq });
+      sumTruck += tq;
+    }
+    if (sumTruck > qty) {
+      svcQtyOver = true;
+      return;
+    }
+    var hasTruckAny = truckSlots.length > 0;
+    var any = cn || pr || (qty > 0) || hasIn || hasEx || workerId || hasWorkerQty || hasTruckAny;
     if (!any) return;
     if (!cn || !pr || !(qty > 0)) {
       incomplete = true;
@@ -9485,8 +9884,7 @@ function salesOrderReadLinesFromDom() {
       return;
     }
     var wPartial = (!workerId && hasWorkerQty && workerQty > 0);
-    var tPartial = (!truckId && hasTruckQty && truckQty > 0);
-    if (wPartial || tPartial) {
+    if (wPartial) {
       incomplete = true;
       return;
     }
@@ -9494,15 +9892,17 @@ function salesOrderReadLinesFromDom() {
       svcQtyOver = true;
       return;
     }
-    if (truckId && hasTruckQty && truckQty > qty) {
-      svcQtyOver = true;
-      return;
-    }
     function withServices(base) {
       base.workerId = workerId;
       base.workerQty = workerId ? workerQty : 0;
-      base.truckId = truckId;
-      base.truckQty = truckId ? truckQty : 0;
+      base.truckEntries = truckSlots.map(function(s) { return { truckId: s.truckId, truckQty: s.truckQty }; });
+      base.truckId = truckSlots[0] ? truckSlots[0].truckId : '';
+      base.truckQty = sumTruck;
+      if (!truckSlots.length) {
+        base.truckEntries = [];
+        base.truckId = '';
+        base.truckQty = 0;
+      }
       return base;
     }
     if (hasIn && hasEx) {
@@ -9527,7 +9927,7 @@ function salesOrderReadLinesFromDom() {
     }
   });
   if (priceMismatch) return { err: 'Include VAT and Exclude VAT must match 5% VAT on each line (or clear one column).' };
-  if (svcQtyOver) return { err: 'Qty cannot exceed remaining quantity, and worker or truck Qty cannot exceed line Qty on a line.' };
+  if (svcQtyOver) return { err: 'Qty cannot exceed remaining quantity, worker Qty cannot exceed line Qty, and sum of truck Qty cannot exceed line Qty.' };
   if (incomplete) return { err: 'Each line needs container, product, qty, and at least one unit price. If you enter worker or truck, set both name and Qty.' };
   if (!out.length) return { err: 'Add at least one complete line (container + product + qty + unit price).' };
   return { lines: out };

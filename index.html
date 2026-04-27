@@ -208,10 +208,11 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
 /* Sales order modal line editor: worker/truck row must wrap; qty needs fixed flex basis */
 #sales-order-modal table.csm-sales-order-lines-table td{white-space:normal!important}
 #sales-order-modal table.csm-sales-order-lines-table tr.csm-sol-sub td{padding:8px 10px!important;overflow:visible!important;vertical-align:top!important}
-#sales-order-modal .csm-sol-svc-grid{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;width:100%;box-sizing:border-box}
-#sales-order-modal .csm-sol-svc-col{flex:1 1 240px;min-width:200px;max-width:100%;box-sizing:border-box}
+#sales-order-modal .csm-sol-svc-grid{display:flex;flex-direction:row;flex-wrap:nowrap;gap:12px;align-items:stretch;width:100%;box-sizing:border-box;min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+#sales-order-modal .csm-sol-svc-col{flex:1 1 0;min-width:140px;max-width:100%;box-sizing:border-box}
 #sales-order-modal .csm-sol-svc-fields{display:flex;flex-direction:row;align-items:center;gap:10px;width:100%;min-width:0}
 #sales-order-modal .csm-sol-svc-fields select{flex:1 1 0;min-width:120px;width:0;max-width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid #ccc;border-radius:4px}
+#sales-order-modal .csm-sol-trucks-wrap{display:flex;flex-direction:column;gap:0;width:100%;min-width:0;box-sizing:border-box}
 #sales-order-modal .csm-sol-svc-fields .sol-worker-qty,
 #sales-order-modal .csm-sol-svc-fields .sol-truck-qty{flex:0 0 118px!important;width:118px!important;min-width:108px!important;max-width:136px!important;box-sizing:border-box;padding:6px 8px!important;border:1px solid #ccc!important;border-radius:4px!important}
 #sales-order-modal .csm-sol-cn-wrap{position:relative;width:100%}
@@ -514,7 +515,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
   };
 })();
 </script>
-<script src="./csm-bundle.js?v=20260428wt-pay-pv" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
+<script src="./csm-bundle.js?v=20260427multi-truck" charset="utf-8" onerror="(function(){var el=document.getElementById('login-error');if(el){el.textContent='主程序加载失败，请刷新页面。';el.style.display='block';}})()"></script>
 <!-- 脚本加载后自动检测 auth 状态并尝试修复。fallbackConfig.databaseURL 勿带末尾 / -->
 <script>
 (function csmPostCheck() {
@@ -2228,7 +2229,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
       <button type="button" class="btn btn-s" onclick="salesOrderAddLine()" style="margin-top:8px">+ Add line</button>
     </div>
     <p style="font-size:12px;color:#666;margin:0 0 8px;line-height:1.45;font-family:var(--csm-font-en);font-weight:700">Type in <strong>Include VAT</strong> or <strong>Exclude VAT</strong>; the other column fills automatically (5% VAT). The column you edit is the price saved for that line.</p>
-    <p style="font-size:12px;color:#666;margin:0 0 8px;line-height:1.45;font-family:var(--csm-font-en);font-weight:700"><strong>Worker</strong> / <strong>Truck</strong> can be empty for <strong>Save draft</strong> and <strong>Submit 提交</strong> (toolbar Submit too). Only <strong>Confirm</strong> (orders list) requires every line to have both, with <strong>Qty</strong> &gt; 0 and ≤ line <strong>Qty</strong>. If you pick a worker/truck but leave Qty empty, it is treated as not set when saving.</p>
+    <p style="font-size:12px;color:#666;margin:0 0 8px;line-height:1.45;font-family:var(--csm-font-en);font-weight:700"><strong>Worker</strong> / <strong>Truck</strong> can be empty for <strong>Save draft</strong> and <strong>Submit 提交</strong> (toolbar Submit too). Only <strong>Confirm</strong> (orders list) requires every line to have both, with <strong>Qty</strong> &gt; 0 and ≤ line <strong>Qty</strong>. You may add <strong>multiple trucks</strong> per line; the <strong>sum of truck Qty</strong> must not exceed line <strong>Qty</strong>. If you pick a worker/truck but leave Qty empty, it is treated as not set when saving.</p>
     <div class="fg"><label>Payment Method *</label>
       <select id="sales-order-payment" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px">
         <option value="cash">Cash</option>
@@ -2269,7 +2270,7 @@ tr.csm-sales-tr-voided td .csm-sales-row-cb{opacity:.45;cursor:not-allowed}
         <tbody id="sales-upwt-lines-body"></tbody>
       </table>
     </div>
-    <p style="font-size:12px;color:#666;margin:0 0 12px;line-height:1.45;font-family:var(--csm-font-en);font-weight:700"><strong>Draft orders only.</strong> Edit worker and truck per line. If you choose a worker or truck, set Qty &gt; 0 and not more than line Qty. Leave both empty to clear.</p>
+    <p style="font-size:12px;color:#666;margin:0 0 12px;line-height:1.45;font-family:var(--csm-font-en);font-weight:700"><strong>Draft orders only.</strong> Edit worker and trucks per line. Use <strong>Add truck</strong> for several trucks; the <strong>sum of truck Qty</strong> must not exceed line Qty. If you choose a worker or truck, set Qty &gt; 0. Leave all empty to clear.</p>
     <div class="brow" style="flex-wrap:wrap;gap:8px">
       <button type="button" class="btn btn-s" onclick="saveSalesOrderUpdateWorkerTruckFromModal()" style="font-family:var(--csm-font-en);font-weight:700">Save</button>
       <button type="button" class="btn btn-g" onclick="clSalesOrderUpwtModal()" style="font-family:var(--csm-font-en);font-weight:700">Close</button>
